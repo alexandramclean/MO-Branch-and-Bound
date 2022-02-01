@@ -93,7 +93,7 @@ function transposition(prob::_MOMKP, seq, sol_init, capaResiduelle, i, j)
 	
 	# La fraction de l'objet à la position j est enlevée
 	if sol.X[seq[j]] < 1 && sol.X[seq[j]] > 0
-		sol.z -= prob.P[:,seq[j]]
+		sol.z -= sol.X[seq[j]]*prob.P[:,seq[j]]
 	end
 			
 	if prob.W[1,seq[j]] <= capaResiduelle
@@ -150,6 +150,7 @@ function relaxationContinue(prob::_MOMKP)
 		if k == s-1 
 			capaResiduelle += prob.W[1,seq[k]] # L'objet à la position k est retiré
 			sol = transposition(prob, seq, sol, capaResiduelle, s-1, s)
+		
 			if sol.X[seq[k+1]] < 1 && sol.X[seq[k+1]] > 0
 				println("Ici")
 				s = s-1
