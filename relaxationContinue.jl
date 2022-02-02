@@ -4,19 +4,7 @@
 #         Calcul paramétrique de la relaxation continue                        #
 ################################################################################
 
-include("parserMomkpPG.jl")
-include("parserMomkpZL.jl")
-
-mutable struct Solution
-    X::Vector{Union{Int64,Float64}} # Liste des éléments insérés dans le sac
-    z::Vector{Float64}              # Valeurs pour les fonctions objectif
-end
-Solution(n) = Solution(zeros(n), [0,0])
-
-function copy(sol::Solution)
-    return Solution(sol.X[1:end],
-                    sol.z[1:end])
-end
+include("dataStructures.jl")
 
 # Précondition : cas uni-dimensionnel
 function ratios(prob::_MOMKP)
@@ -52,6 +40,8 @@ function poidsCritiques(prob::_MOMKP, r1, r2)
 	return poids[perm], couples[perm]
 end
 
+# Construction d'une solution 
+# S'il n'y a pas d'objet cassé on considère que s = l'indice du premier objet non-inséré
 function consSolution(prob::_MOMKP, sequence)
 
 	n              = size(prob.P)[2]
@@ -82,39 +72,8 @@ function consSolution(prob::_MOMKP, sequence)
 	end
 	return sol, s, capaResiduelle
 end
-
-function transposition(prob::_MOMKP, seq, sol_init, capaResiduelle, i, j)	
-	
-	sol = copy(sol_init)
-	
-	# L'objet à la position i est enlevé du sac
-	sol.X[seq[i]] = 0
-	sol.z -= prob.P[:,seq[i]]
-	
-	# La fraction de l'objet à la position j est enlevée
-	if sol.X[seq[j]] < 1 && sol.X[seq[j]] > 0
-		sol.z -= sol.X[seq[j]]*prob.P[:,seq[j]]
-	end
-			
-	if prob.W[1,seq[j]] <= capaResiduelle
-	# L'objet à la position j peut être entièrement inséré
-		sol.X[seq[j]] = 1
-		sol.z += prob.P[:,seq[j]]
-		capaResiduelle -= prob.W[1,seq[j]] 
-				
-		if capaResiduelle > 0 # Il reste de la place dans le sac
-			# L'objet à la place i devient l'objet cassé 
-			sol.X[seq[i]] = capaResiduelle/prob.W[1,seq[i]] 
-			sol.z += sol.X[seq[i]]*prob.P[:,seq[i]] 
-		end 
 		
-	else # L'objet j est cassé 
-		sol.X[seq[j]] = capaResiduelle/prob.W[1,seq[j]] 
-		sol.z += sol.X[seq[j]]*prob.P[:,seq[j]] 
-	end 
-	return sol	
-end 		
-
+# Calcul de la relaxation continue
 function relaxationContinue(prob::_MOMKP)
 
 	solutionsObtenues = Solution[]
@@ -143,35 +102,72 @@ function relaxationContinue(prob::_MOMKP)
 		
 		(i,j) = couples[iter] 
 		k = min(pos[i], pos[j])
+		
+		sol = copy(sol)
 
 		# La place de l'objet cassé est échangée avec un objet dans le sac
-		# OU La place d'un objet dans le sac est échangée avec un objet qui n'est pas 
-		# dans le sac
+		# OU La place d'un objet dans le sac est échangée avec un objet qui
+		# n'est pas dans le sac
 		if k == s-1 
-			capaResiduelle += prob.W[1,seq[k]] # L'objet à la position k est retiré
-			sol = transposition(prob, seq, sol, capaResiduelle, s-1, s)
-		
-			if sol.X[seq[k+1]] < 1 && sol.X[seq[k+1]] > 0
-				println("Ici")
-				s = s-1
-			end 
+			# Enlever les objets s-1 et s 
+			capaResiduelle += prob.W[1,seq[s-1]] 
+			sol.z -= prob.P[:,seq[s-1]]
+			sol.X[seq[s-1]] = 0 
+			
+			sol.z -= sol.X[seq[s]] * prob.P[:,seq[s]] 
+			sol.X[seq[s]] = 0 
+			
+			# Insérer l'objet s 
+			if prob.W[1,seq[s]] <= capaResiduelle # L'objet s est inséré en entier
+				sol.X[seq[s]] = 1
+				sol.z += prob.P[:,seq[s]] 
+				capaResiduelle -= prob.W[1,seq[s]] 
+				
+				if capaResiduelle > 0 # Il reste de la place dans le sac 
+				# Une fraction de l'objet à la position s-1 est insérée
+					sol.X[seq[s-1]] = capaResiduelle/prob.W[1,seq[s-1]] 
+					sol.z += sol.X[seq[s-1]]*prob.P[:,seq[s-1]]
+				end 
+				# La position de l'objet cassé ne change pas 
+				
+			else # L'objet s reste l'objet cassé 
+				sol.X[seq[s]] = capaResiduelle/prob.W[1,seq[s]] 
+				sol.z += sol.X[seq[s]] * prob.P[:,seq[s]] 
+				# La position de l'objet cassé change
+				s = s-1 
+			end
+					
 		# La place de l'objet cassé est échangée avec un objet qui n'est pas 
 		# dans le sac
 		elseif k == s 
-			sol = transposition(prob, seq, sol, capaResiduelle, s, s+1)
-			if sol.X[seq[k+1]] == 1
-				println("Là")
-				s = s+1
-			end
-		end 
+			# Enlever l'objet à la position s 
+			sol.z -= sol.X[seq[s]] * prob.P[:,seq[s]] 
+			sol.X[seq[s]] = 0 
+			
+			if prob.W[1,seq[s+1]] <= capaResiduelle 
+			# L'objet à la place s+1 peut être inséré en entier
+				sol.X[seq[s+1]] = 1
+				sol.z += prob.P[:,seq[s+1]] 
+				capaResiduelle -= prob.W[1,seq[s+1]]  
+				
+				if capaResiduelle > 0 # Il reste de la place dans le sac 
+				# Une fraction de l'objet à la position s est insérée
+					sol.X[seq[s]] = capaResiduelle/prob.W[1,seq[s]] 
+					sol.z += sol.X[seq[s]] * prob.P[:,seq[s]] 
+				end
+				# La position de l'objet cassé change
+				s = s+1 
+				
+			else # L'objet à la position s+1 devient l'objet cassé 
+				sol.X[seq[s+1]] = capaResiduelle/prob.W[1,seq[s+1]] 
+				sol.z += sol.X[seq[s+1]] * prob.P[:,seq[s+1]] 
+				# La position de l'objet cassé ne change pas
+			end 
+		end
 			
 		# Mise à jour de la séquence
 		tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
 		seq[pos[i]] = i ; seq[pos[j]] = j
-		
-		println("Séquence : ", seq)
-		println("Position de l'objet cassé : ", s)
-		println("Solution : ", sol)
 		
 		push!(solutionsObtenues, sol) 
 	end
