@@ -50,6 +50,7 @@ function addBreakItem!(prob::_MOMKP, sol::Solution, residualCapacity, item)
 	sol.z += sol.X[item] * prob.P[:,item] 
 end
 
+# Calcul de la solution dantzig pour une séquence donnée
 function dantzigSolution(prob::_MOMKP, sequence)
 
 	n                = size(prob.P)[2]
@@ -66,5 +67,17 @@ function dantzigSolution(prob::_MOMKP, sequence)
 	end
 	
 	return sol, i, residualCapacity
+end
+
+# Génère une fonction objectif pondérée
+function weightedSum(prob::_MOMKP, λ)
+    
+    n = size(P.P)[2]
+    # Construire la fonction objectif pondérée
+    weightedObj = Vector{Float64}(undef,n)
+    for j in 1:n
+        weightedObj[j] = λ*prob.P[1,j] + (1 - λ)*prob.P[2,j]
+    end
+    return weightedObj
 end
 
