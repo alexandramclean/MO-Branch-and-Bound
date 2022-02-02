@@ -22,3 +22,8 @@ function copy(sol::Solution)
     return Solution(sol.X[1:end],
                     sol.z[1:end])
 end
+
+
+#@enum Status DOMINANCE OPTIMALITY INFEASIBILITY
+
+

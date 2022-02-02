@@ -5,40 +5,8 @@
 ################################################################################
 
 include("dataStructures.jl")
-
+include("functions.jl")
 # Précondition : cas uni-dimensionnel
-function ratios(prob::_MOMKP)
-
-	n  = size(prob.P)[2]
-	r1 = Vector{Float64}(undef, n)
-	r2 = Vector{Float64}(undef, n)
-	for i in 1:n 
-		r1[i] = prob.P[1,i]/prob.W[1,i] 
-		r2[i] = prob.P[2,i]/prob.W[1,i]
-	end
-	return r1, r2
-end
-
-# Calcul des poids critiques
-function criticalWeights(prob::_MOMKP, r1, r2)
-
-	n       = size(prob.P)[2]
-	weights = Float64[]
-	pairs   = Tuple{Int64,Int64}[] 
-	# Calcul des poids critiques pour chaque couple d'objets (i,j)
-	for i in 1:n
-		for j in i:n
-			λ = (r2[j] - r2[i])/(r1[i]-r2[i]-r1[j]+r2[j])
-			if λ > 0 && λ < 1
-				push!(weights, λ)
-				push!(pairs, (i,j))
-			end
-		end
-	end
-	# Tri des poids critiques dans l'ordre décroissant
-	perm = sortperm(weights, rev=true)
-	return weights[perm], pairs[perm]
-end
 
 # Construction d'une solution 
 # S'il n'y a pas d'objet cassé on considère que s = l'indice du premier objet non-inséré
@@ -49,17 +17,15 @@ function buildSolution(prob::_MOMKP, sequence)
 	sol              = Solution(n)
 	i                = 1
 	
-	while residualCapacity > 0 
+	while residualCapacity > 0 && i <= n
 		item = sequence[i]
 		
 		if prob.W[1,item] <= residualCapacity # L'objet est inséré en entier
-			sol.X[item] = 1
-			sol.z += prob.P[:,item]
+			addItem!(prob, sol, item)
 			residualCapacity -= prob.W[1,item]
 			
 		else # Une fraction de l'objet est insérée
-			sol.X[item] = residualCapacity/prob.W[1,item] 
-			sol.z += sol.X[item]*prob.P[:,item]
+			addBreakItem!(prob, sol, residualCapacity, item)
 		end
 		i += 1
 	end
@@ -71,18 +37,6 @@ function buildSolution(prob::_MOMKP, sequence)
 		s = i
 	end
 	return sol, s, residualCapacity
-end
-
-# Ajout d'un objet entier à une solution
-function addItem!(prob::_MOMKP, sol::Solution, item) 
-	sol.X[item] = 1
-	sol.z += prob.P[:,item] 
-end
-
-# Ajout d'un objet cassé à une solution 
-function addBreakItem!(prob::_MOMKP, sol::Solution, residualCapacity, item) 
-	sol.X[item] = residualCapacity/prob.W[1,item] 
-	sol.z += sol.X[item] * prob.P[:,item] 
 end
 		
 # Calcul de la relaxation continue
@@ -141,6 +95,7 @@ function relaxationContinue(prob::_MOMKP)
 				s = s-1 
 			end
 		
+		# Cas plusieurs λ identiques
 		if !(iter < length(weights) && weights[iter] == weights[iter+1])	
 			push!(upperBound, sol)
 		end 
@@ -169,6 +124,7 @@ function relaxationContinue(prob::_MOMKP)
 				# La position de l'objet cassé ne change pas
 			end 
 		
+		# Cas plusieurs λ identiques
 		if !(iter < length(weights) && weights[iter] == weights[iter+1])	
 			push!(upperBound, sol)
 		end 
@@ -184,10 +140,14 @@ function relaxationContinue(prob::_MOMKP)
 
 end
 
-# Exemple 
-didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
-solutionsObtenues = relaxationContinue(didactic)
-
-for sol in solutionsObtenues 
-	println(sol.z)
+# Fixer une variable à 1
+function setVariable!(weights, pairs, var)
+	for i in length(weights):-1:1 
+		if var in pairs[i] 
+			deleteat!(weights, i)
+			deleteat!(pairs, i)
+		end
+	end
 end
+
+
