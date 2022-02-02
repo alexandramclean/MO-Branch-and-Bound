@@ -20,46 +20,46 @@ function ratios(prob::_MOMKP)
 end
 
 # Calcul des poids critiques
-function poidsCritiques(prob::_MOMKP, r1, r2)
+function criticalWeights(prob::_MOMKP, r1, r2)
 
 	n       = size(prob.P)[2]
-	poids   = Float64[]
-	couples = Tuple{Int64,Int64}[] 
+	weights = Float64[]
+	pairs   = Tuple{Int64,Int64}[] 
 	# Calcul des poids critiques pour chaque couple d'objets (i,j)
 	for i in 1:n
 		for j in i:n
 			λ = (r2[j] - r2[i])/(r1[i]-r2[i]-r1[j]+r2[j])
 			if λ > 0 && λ < 1
-				push!(poids, λ)
-				push!(couples, (i,j))
+				push!(weights, λ)
+				push!(pairs, (i,j))
 			end
 		end
 	end
 	# Tri des poids critiques dans l'ordre décroissant
-	perm = sortperm(poids, rev=true)
-	return poids[perm], couples[perm]
+	perm = sortperm(weights, rev=true)
+	return weights[perm], pairs[perm]
 end
 
 # Construction d'une solution 
 # S'il n'y a pas d'objet cassé on considère que s = l'indice du premier objet non-inséré
-function consSolution(prob::_MOMKP, sequence)
+function buildSolution(prob::_MOMKP, sequence)
 
-	n              = size(prob.P)[2]
-	capaResiduelle = prob.ω[1]
-	sol            = Solution(n)
-	i              = 1
+	n                = size(prob.P)[2]
+	residualCapacity = prob.ω[1]
+	sol              = Solution(n)
+	i                = 1
 	
-	while capaResiduelle > 0 
-		objet = sequence[i]
+	while residualCapacity > 0 
+		item = sequence[i]
 		
-		if prob.W[1,objet] <= capaResiduelle # L'objet est inséré en entier
-			sol.X[objet] = 1
-			sol.z += prob.P[:,objet]
-			capaResiduelle -= prob.W[1,objet]
+		if prob.W[1,item] <= residualCapacity # L'objet est inséré en entier
+			sol.X[item] = 1
+			sol.z += prob.P[:,item]
+			residualCapacity -= prob.W[1,item]
 			
 		else # Une fraction de l'objet est insérée
-			sol.X[objet] = capaResiduelle/prob.W[1,objet] 
-			sol.z += sol.X[objet]*prob.P[:,objet]
+			sol.X[item] = residualCapacity/prob.W[1,item] 
+			sol.z += sol.X[item]*prob.P[:,item]
 		end
 		i += 1
 	end
@@ -70,37 +70,44 @@ function consSolution(prob::_MOMKP, sequence)
 	else 
 		s = i
 	end
-	return sol, s, capaResiduelle
+	return sol, s, residualCapacity
+end
+
+# Ajout d'un objet entier à une solution
+function addItem!(prob::_MOMKP, sol::Solution, item) 
+	sol.X[item] = 1
+	sol.z += prob.P[:,item] 
+end
+
+# Ajout d'un objet cassé à une solution 
+function addBreakItem!(prob::_MOMKP, sol::Solution, residualCapacity, item) 
+	sol.X[item] = residualCapacity/prob.W[1,item] 
+	sol.z += sol.X[item] * prob.P[:,item] 
 end
 		
 # Calcul de la relaxation continue
 function relaxationContinue(prob::_MOMKP)
 
-	solutionsObtenues = Solution[]
+	upperBound = Solution[]
 
 	# Calcul des ratios
 	r1, r2 = ratios(prob)
 	
 	# Calcul des poids critiques
-	poids, couples = poidsCritiques(prob, r1, r2)
+	weights, pairs = criticalWeights(prob, r1, r2)
 	
 	# Tri des ratios dans l'ordre lexicographique décroissant selon (r1,r2)
 	seq = sortperm(r1, rev=true) # Séquence d'objets
-	pos = sortperm(seq)     # Position des objets dans la séquence
-	
-	println("Séquence : ", seq)
-	println("Positions : ", pos)
+	pos = sortperm(seq)          # Position des objets dans la séquence
 	
 	# Construction de la première solution
-	sol, s, capaResiduelle = consSolution(prob, seq)
-	push!(solutionsObtenues, sol)
+	sol, s, residualCapacity = buildSolution(prob, seq)
+	push!(upperBound, sol)
 	
 	# Boucle principale
-	for iter in 1:length(poids)
-	
-		println("\nIter ", iter)
-		
-		(i,j) = couples[iter] 
+	for iter in 1:length(weights)
+
+		(i,j) = pairs[iter] 
 		k = min(pos[i], pos[j])
 		
 		sol = copy(sol)
@@ -110,7 +117,7 @@ function relaxationContinue(prob::_MOMKP)
 		# n'est pas dans le sac
 		if k == s-1 
 			# Enlever les objets s-1 et s 
-			capaResiduelle += prob.W[1,seq[s-1]] 
+			residualCapacity += prob.W[1,seq[s-1]] 
 			sol.z -= prob.P[:,seq[s-1]]
 			sol.X[seq[s-1]] = 0 
 			
@@ -118,24 +125,25 @@ function relaxationContinue(prob::_MOMKP)
 			sol.X[seq[s]] = 0 
 			
 			# Insérer l'objet s 
-			if prob.W[1,seq[s]] <= capaResiduelle # L'objet s est inséré en entier
-				sol.X[seq[s]] = 1
-				sol.z += prob.P[:,seq[s]] 
-				capaResiduelle -= prob.W[1,seq[s]] 
+			if prob.W[1,seq[s]] <= residualCapacity # L'objet s est inséré en entier
+				addItem!(prob, sol, seq[s])
+				residualCapacity -= prob.W[1,seq[s]] 
 				
-				if capaResiduelle > 0 # Il reste de la place dans le sac 
+				if residualCapacity > 0 # Il reste de la place dans le sac 
 				# Une fraction de l'objet à la position s-1 est insérée
-					sol.X[seq[s-1]] = capaResiduelle/prob.W[1,seq[s-1]] 
-					sol.z += sol.X[seq[s-1]]*prob.P[:,seq[s-1]]
+					addBreakItem!(prob, sol, residualCapacity, seq[s-1])
 				end 
 				# La position de l'objet cassé ne change pas 
 				
 			else # L'objet s reste l'objet cassé 
-				sol.X[seq[s]] = capaResiduelle/prob.W[1,seq[s]] 
-				sol.z += sol.X[seq[s]] * prob.P[:,seq[s]] 
+				addBreakItem!(prob, sol, residualCapacity, seq[s]) 
 				# La position de l'objet cassé change
 				s = s-1 
 			end
+		
+		if !(iter < length(weights) && weights[iter] == weights[iter+1])	
+			push!(upperBound, sol)
+		end 
 					
 		# La place de l'objet cassé est échangée avec un objet qui n'est pas 
 		# dans le sac
@@ -144,35 +152,35 @@ function relaxationContinue(prob::_MOMKP)
 			sol.z -= sol.X[seq[s]] * prob.P[:,seq[s]] 
 			sol.X[seq[s]] = 0 
 			
-			if prob.W[1,seq[s+1]] <= capaResiduelle 
+			if prob.W[1,seq[s+1]] <= residualCapacity 
 			# L'objet à la place s+1 peut être inséré en entier
-				sol.X[seq[s+1]] = 1
-				sol.z += prob.P[:,seq[s+1]] 
-				capaResiduelle -= prob.W[1,seq[s+1]]  
+				addItem!(prob, sol, seq[s+1]) 
+				residualCapacity -= prob.W[1,seq[s+1]]  
 				
-				if capaResiduelle > 0 # Il reste de la place dans le sac 
+				if residualCapacity > 0 # Il reste de la place dans le sac 
 				# Une fraction de l'objet à la position s est insérée
-					sol.X[seq[s]] = capaResiduelle/prob.W[1,seq[s]] 
-					sol.z += sol.X[seq[s]] * prob.P[:,seq[s]] 
+					addBreakItem!(prob, sol, residualCapacity, seq[s]) 
 				end
 				# La position de l'objet cassé change
 				s = s+1 
 				
 			else # L'objet à la position s+1 devient l'objet cassé 
-				sol.X[seq[s+1]] = capaResiduelle/prob.W[1,seq[s+1]] 
-				sol.z += sol.X[seq[s+1]] * prob.P[:,seq[s+1]] 
+				addBreakItem!(prob, sol, residualCapacity, seq[s+1])
 				# La position de l'objet cassé ne change pas
 			end 
+		
+		if !(iter < length(weights) && weights[iter] == weights[iter+1])	
+			push!(upperBound, sol)
+		end 
+		
 		end
 			
 		# Mise à jour de la séquence
 		tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
 		seq[pos[i]] = i ; seq[pos[j]] = j
-		
-		push!(solutionsObtenues, sol) 
 	end
 	
-	return solutionsObtenues		
+	return upperBound		
 
 end
 
