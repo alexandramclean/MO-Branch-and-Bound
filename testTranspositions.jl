@@ -3,7 +3,7 @@ include("functions.jl")
 include("parserMomkpPG.jl")
 include("parserMomkpZL.jl")
 
-function transpositions(prob::_MOMKP, verbose=false)
+function transpositions(prob::_MOMKP, verbose::Bool=false)
 
 	# Calcul des ratios
 	r1, r2 = ratios(prob)
@@ -63,5 +63,5 @@ r1, r2 = ratios(prob)
 weights, pairs = criticalWeights(prob, r1, r2)
 println("pairs : ", pairs, "\n")
 
-transpositions(prob) 
+#transpositions(prob) 
 

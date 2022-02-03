@@ -5,89 +5,76 @@
 ################################################################################
 
 include("dataStructures.jl")
+include("functions.jl")
 using Random
-@enum Optimisation Max Min
-
-# Retourne vrai si x domine y
-function domine(x, y, opt::Optimisation=Max)
-    if opt == Min
-        return ((x.z[1] <= y.z[1] && x.z[2] < y.z[2])
-            || (x.z[1] < y.z[1] && x.z[2] <= y.z[2])
-            || (x.z[1] == y.z[1] && x.z[2] == y.z[2])) # Pas de doublons
-    else
-        return ((x.z[1] >= y.z[1] && x.z[2] > y.z[2])
-            || (x.z[1] > y.z[1] && x.z[2] >= y.z[2])
-            || (x.z[1] == y.z[1] && x.z[2] == y.z[2])) # Pas de doublons
-    end
-end
 
 ## VERIFIER
 # Recherche de l'indice du dernier point dominé par y
-function dernier_point_domine(sN::Vector{Solution},
-                              y::Solution,
+function dernier_point_domine(yN,
+                              y,
                               deb::Int64, fin::Int64,
                               opt::Optimisation=Max) 
     if deb >= fin
         return deb
-    elseif opt == Min && domine(y, sN[fin], opt)
+    elseif opt == Min && domine(y, yN[fin], opt)
         return fin
-    elseif opt == Max && domine(y, sN[deb], opt)
+    elseif opt == Max && domine(y, yN[deb], opt)
         return deb
     end
     
     mil = div(deb + fin, 2)
     
-    if domine(y, sN[mil], opt)
-        if ((opt == Min && !domine(y, sN[mil+1], opt))
-            || (opt == Max && !domine(y, sN[mil-1], opt)))
-            # sN[mil] est le dernier point dominé
+    if domine(y, yN[mil], opt)
+        if ((opt == Min && !domine(y, yN[mil+1], opt))
+            || (opt == Max && !domine(y, yN[mil-1], opt)))
+            # yN[mil] est le dernier point dominé
             return mil
         elseif opt == Min
-            return dernier_point_domine(sN, y, mil+1, fin, opt)
+            return dernier_point_domine(yN, y, mil+1, fin, opt)
         else
-            return dernier_point_domine(sN, y, deb, mil-1, opt)
+            return dernier_point_domine(yN, y, deb, mil-1, opt)
         end
         
-    # y ne domine pas sN[mil]
+    # y ne domine pas yN[mil]
     elseif opt == Min
-        return dernier_point_domine(sN, y, deb, mil-1, opt)
+        return dernier_point_domine(yN, y, deb, mil-1, opt)
     else
-        return dernier_point_domine(sN, y, mil+1, fin, opt)
+        return dernier_point_domine(yN, y, mil+1, fin, opt)
     end
 end
 
 # Vérification que les successeurs de y (>ind) ne sont pas dominés par y
-# Si y domine des points de sN alors il domine sont successeur large minimum
-function verifier(sN::Vector{Solution},
-                  y::Solution, ind::Int64,
+# Si y domine des points de yN alors il domine sont successeur large minimum
+function verifier(yN,
+                  y, ind::Int64,
                   opt::Optimisation=Max) 
                   
-    if opt == Min && ind < length(sN) && domine(y, sN[ind+1], opt)
-        ind_dernier_domine = dernier_point_domine(sN, y, ind+1, length(sN), opt)
+    if opt == Min && ind < length(yN) && domine(y, yN[ind+1], opt)
+        ind_dernier_domine = dernier_point_domine(yN, y, ind+1, length(yN), opt)
         #println("Dernier dominé : ", ind_dernier_domine)
         for j in ind_dernier_domine:-1:ind+1
-            deleteat!(sN, j)
+            deleteat!(yN, j)
         end
         
-    elseif opt == Max && ind > 1 && domine(y, sN[ind-1], opt)
-        ind_premier_domine = dernier_point_domine(sN, y, 1, ind-1, opt)
+    elseif opt == Max && ind > 1 && domine(y, yN[ind-1], opt)
+        ind_premier_domine = dernier_point_domine(yN, y, 1, ind-1, opt)
         #println("Premier dominé : ", ind_premier_domine)
         for j in ind-1:-1:ind_premier_domine
-            deleteat!(sN, j)
+            deleteat!(yN, j)
         end
     end
 end
 
 ## AJOUTER
-function ajouter_rec(sN::Vector{Solution},
-                     y::Solution,
+function ajouter_rec(yN,
+                     y,
                      deb::Int64, fin::Int64,
                      opt::Optimisation=Max)
                      
     if deb >= fin # Cas d'arrêt : 1 seul élément dans la sous-liste
-        if domine(sN[deb], y, opt)
+        if domine(yN[deb], y, opt)
             return 0
-        elseif sN[deb].z[1] < y.z[1]
+        elseif yN[deb][1] < y[1]
             return deb + 1
         else
             return deb
@@ -97,59 +84,59 @@ function ajouter_rec(sN::Vector{Solution},
     mil = div(deb+fin,2)
     
     # Si y est dominé par un point dans la liste on ne l'insère pas
-    if domine(sN[mil], y, opt) || domine(sN[deb], y, opt) || domine(sN[fin], y, opt)
+    if domine(yN[mil], y, opt) || domine(yN[deb], y, opt) || domine(yN[fin], y, opt)
         return 0
-    elseif sN[mil].z[1] > y.z[1] #|| sN[mil].z[1] == y.z[1]
+    elseif yN[mil][1] > y[1] 
         # Le cas d'égalité sur les deux fonctions objectif a déjà été traité
         # dans le test de dominance
-        return ajouter_rec(sN, y, deb, mil-1, opt)
+        return ajouter_rec(yN, y, deb, mil-1, opt)
     else
-        return ajouter_rec(sN, y, mil+1, fin, opt)
+        return ajouter_rec(yN, y, mil+1, fin, opt)
     end
 end
 
-function ajouter(sN::Vector{Solution}, y::Solution, opt::Optimisation=Max)
+function ajouter!(yN, y, opt::Optimisation=Max)
     #! Affichage
-    #println("Ajout de ", y.z)
+    #println("Ajout de ", y)
 
     # Recherche de la position de y
-    if length(sN) == 0
-        insert!(sN, 1, y)
-        #afficher(sN)
+    if length(yN) == 0
+        insert!(yN, 1, y)
+        #afficher(yN)
     else
-        ind = ajouter_rec(sN, y, 1, length(sN), opt)
+        ind = ajouter_rec(yN, y, 1, length(yN), opt)
         if ind > 0 # Insertion
-            insert!(sN, ind, y)
-            #afficher(sN)
+            insert!(yN, ind, y)
+            #afficher(yN)
 
             # Elimination des points dominés
-            verifier(sN, y, ind, opt)
+            verifier(yN, y, ind, opt)
             #println("Vérification : ")
-            #afficher(sN)
+            #afficher(yN)
         end
     end
 end
 
 ## AFFICHER
-function afficher(sN)
+function afficher(yN)
     print("|  ")
-    for i in 1:length(sN)
-        if sN[i].z[1] < 10
-            print("  ", sN[i].z[1], "  ")
-        elseif sN[i].z[1] < 100
-            print(" ", sN[i].z[1], "  ")
+    for i in 1:length(yN)
+        if yN[i][1] < 10
+            print("  ", yN[i][1], "  ")
+        elseif yN[i][1] < 100
+            print(" ", yN[i][1], "  ")
         else
-            print(sN[i].z[1], "  ")
+            print(yN[i][1], "  ")
         end
     end
     print("|\n| ")
-    for i in 1:length(sN)
-        if sN[i].z[2] < 10
-            print("  ", sN[i].z[2], "  ")
-        elseif sN[i].z[2] < 100
-            print(" ", sN[i].z[2], "  ")
+    for i in 1:length(yN)
+        if yN[i][2] < 10
+            print("  ", yN[i][2], "  ")
+        elseif yN[i][2] < 100
+            print(" ", yN[i][2], "  ")
         else
-            print(sN[i].z[2], "  ")
+            print(yN[i][2], "  ")
         end
     end
     print("|\n")

@@ -6,6 +6,7 @@
 
 include("dataStructures.jl")
 include("functions.jl")
+include("listeOrdonnee.jl")
 
 # Borne de Martello et Toth
 function u0(prob::_MOMKP, seq, sol, residualCapacity, s) 
@@ -42,12 +43,10 @@ end
 function chooseBound!(upperBound, weights, U0, U1, iter)
 	
 	if domine(U0,U1) 
-		push!(upperBound, U0) 
-		println(U0)
+		ajouter!(upperBound, U0) 
 		
 	elseif domine(U1,U0) 
-		push!(upperBound, U1)
-		println(U1)
+		ajouter!(upperBound, U1)
 		
 	else # Pas de dominance entre U0 et U1
 		λeq = (U1[2] - U0[2])/(U0[1] - U0[2] - U1[1] + U1[2]) 
@@ -57,28 +56,22 @@ function chooseBound!(upperBound, weights, U0, U1, iter)
 		if iter < length(weights) && λeq < weights[iter+1] 
 			# La somme pondérée avec U0 est plus grande lorsque λ > λeq
 			if weightedSum(weights[iter+1], U0) >= weightedSum(weights[iter+1], U1) 
-				push!(upperBound, U0) 
-				println(U0)
+				ajouter!(upperBound, U0) 
 			else 
-				push!(upperBound, U1) 
-				println(U1)
+				ajouter!(upperBound, U1) 
 			end 
 			
 		# Le λeq d'égalité est plus grand que le λ critique précédent
 		elseif iter > 1 && λeq > weights[iter] 
 			# La somme pondérée avec U0 est plus grande lorsque λ < λeq
 			if weightedSum(weights[iter], U0) >= weightedSum(weights[iter], U1) 
-				push!(upperBound, U0) 
-				println(U0)
+				ajouter!(upperBound, U0) 
 			else 
-				push!(upperBound, U1) 
-				println(U1)
+				ajouter!(upperBound, U1) 
 			end 
 		else 
-			push!(upperBound, U0)
-			push!(upperBound, U1)
-			println(U0)
-			println(U1)
+			ajouter!(upperBound, U0)
+			ajouter!(upperBound, U1)
 		end
 	end
 	
@@ -105,6 +98,9 @@ function martelloAndToth(prob::_MOMKP)
 	U0, U1 = uMT(prob, seq, sol, residualCapacity, s) 
 	chooseBound!(upperBound, weights, U0, U1, 0)
 	
+	println("U0 = ", U0)
+	println("U1 = ", U1)
+	
 	# Boucle principale
 	for iter in 1:length(weights)
 	
@@ -115,6 +111,9 @@ function martelloAndToth(prob::_MOMKP)
 		
 		# Les objets s-2 et s-1 sont échangés
 		if k == s-2 
+		
+			println("Cas 1")
+			
 			# Mise à jour de la séquence
 			tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
 			seq[pos[i]] = i ; seq[pos[j]] = j
@@ -127,6 +126,9 @@ function martelloAndToth(prob::_MOMKP)
 			chooseBound!(upperBound, weights, U0, U1, iter)
 			
 		elseif k == s-1 
+		
+			println("Cas 2") 
+			
 			# Solution dantzig modifiée 
 			# L'objet s-1 est retiré
 			residualCapacity += prob.W[1,seq[s-1]]
@@ -152,6 +154,9 @@ function martelloAndToth(prob::_MOMKP)
 			chooseBound!(upperBound, weights, U0, U1, iter)
 			
 		elseif k == s 
+		
+			println("Cas 4")
+			
 		# Solution dantzig modifiée si l'objet s+1 entre entièrement dans le sac
 			if prob.W[1,seq[s+1]] <= residualCapacity 
 				addItem!(prob, sol, seq[s+1])
@@ -169,6 +174,9 @@ function martelloAndToth(prob::_MOMKP)
 			chooseBound!(upperBound, weights, U0, U1, iter)
 			
 		elseif k == s+1 
+		
+			println("Cas 5") 
+			
 			# Solution dantzig, objet cassé et U1 inchangés
 			U1 = deepcopy(U1)
 			
@@ -181,6 +189,9 @@ function martelloAndToth(prob::_MOMKP)
 			
 			chooseBound!(upperBound, weights, U0, U1, iter)
 		end 
+		
+		println("U0 = ", U0)
+		println("U1 = ", U1)
 	end
 			
 	return upperBound

@@ -21,26 +21,28 @@ end
 function ratios(prob::_MOMKP)
 
 	n  = size(prob.P)[2]
-	r1 = Vector{Float64}(undef, n)
-	r2 = Vector{Float64}(undef, n)
+	r1 = Vector{Rational{Int128}}(undef, n)
+	r2 = Vector{Rational{Int128}}(undef, n)
 	for i in 1:n 
-		r1[i] = prob.P[1,i]/prob.W[1,i] 
-		r2[i] = prob.P[2,i]/prob.W[1,i]
+		r1[i] = prob.P[1,i]//prob.W[1,i] 
+		r2[i] = prob.P[2,i]//prob.W[1,i]
 	end
 	return r1, r2
 end
 
 # Calcul des poids critiques
-function criticalWeights(prob::_MOMKP, r1, r2)
+function criticalWeights(prob::_MOMKP, 
+						 r1::Vector{Rational{Int128}}, 
+						 r2::Vector{Rational{Int128}})
 
 	n       = size(prob.P)[2]
-	weights = Float64[]
+	weights = Rational{Int}[]
 	pairs   = Tuple{Int64,Int64}[] 
 	# Calcul des poids critiques pour chaque couple d'objets (i,j)
 	for i in 1:n
 		for j in i:n
 			if r1[i]-r2[i]-r1[j]+r2[j] != 0 && !(r1[i] == r1[j] || r2[i] == r2[j])
-				λ = (r2[j] - r2[i])/(r1[i]-r2[i]-r1[j]+r2[j])
+				λ = (r2[j] - r2[i])//(r1[i]-r2[i]-r1[j]+r2[j])
 				if λ > 0 && λ < 1
 					push!(weights, λ)
 					push!(pairs, (i,j))
@@ -58,19 +60,23 @@ function criticalWeights(prob::_MOMKP, r1, r2)
 end
 
 # Ajout d'un objet entier à une solution
-function addItem!(prob::_MOMKP, sol::Solution, item) 
+function addItem!(prob::_MOMKP, sol::Solution, item::Int64) 
 	sol.X[item] = 1
 	sol.z += prob.P[:,item] 
 end
 
 # Ajout d'un objet cassé à une solution 
-function addBreakItem!(prob::_MOMKP, sol::Solution, residualCapacity, item) 
-	sol.X[item] = residualCapacity/prob.W[1,item] 
+function addBreakItem!(prob::_MOMKP, 
+					   sol::Solution, 
+					   residualCapacity::Union{Rational{Int128},Int128}, 
+					   item::Int64) 
+					   
+	sol.X[item] = residualCapacity//prob.W[1,item] 
 	sol.z += sol.X[item] * prob.P[:,item] 
 end
 
 # Calcul de la solution dantzig pour une séquence donnée
-function dantzigSolution(prob::_MOMKP, sequence)
+function dantzigSolution(prob::_MOMKP, sequence::Vector{Int64})
 
 	n                = size(prob.P)[2]
 	residualCapacity = prob.ω[1]

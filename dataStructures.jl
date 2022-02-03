@@ -13,16 +13,17 @@ end
 
 # Solution qui peut contenir des fractions d'objets
 mutable struct Solution
-    X::Vector{Union{Int64,Float64}} # Liste des éléments insérés dans le sac
-    z::Vector{Float64}              # Valeurs pour les fonctions objectif
+    X::Vector{Union{Int,Rational{Int}}} # Liste des éléments insérés dans le sac
+    z::Vector{Rational{Int}}              # Valeurs pour les fonctions objectif
 end
-Solution(n) = Solution(zeros(n), [0,0])
+Solution(n) = Solution(zeros(Rational{Int},n), [0,0])
 
 function copy(sol::Solution)
     return Solution(sol.X[1:end],
                     sol.z[1:end])
 end
 
+@enum Optimisation Max Min
 
 #@enum Status DOMINANCE OPTIMALITY INFEASIBILITY
 
