@@ -4,7 +4,7 @@
 #         Liste ordonnée de points non-dominés                                 #
 ################################################################################
 
-include("dataStruct.jl")
+include("dataStructures.jl")
 using Random
 @enum Optimisation Max Min
 

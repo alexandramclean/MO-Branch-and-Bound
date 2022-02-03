@@ -63,8 +63,7 @@ function relaxationContinue(prob::_MOMKP)
 	for iter in 1:length(weights)
 
 		(i,j) = pairs[iter] 
-		k = min(pos[i], pos[j])
-		
+		k = min(pos[i], pos[j])	
 		sol = copy(sol)
 
 		# La place de l'objet cassé est échangée avec un objet dans le sac

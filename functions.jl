@@ -4,6 +4,19 @@
 #         Fonctions auxiliaires                                                #
 ################################################################################
 
+# Retourne vrai si x domine y
+function domine(x, y, opt::Optimisation=Max)
+    if opt == Min
+        return ((x[1] <= y[1] && x[2] < y[2])
+            || (x[1] < y[1] && x[2] <= y[2])
+            || (x[1] == y[1] && x[2] == y[2])) # Pas de doublons
+    else
+        return ((x[1] >= y[1] && x[2] > y[2])
+            || (x[1] > y[1] && x[2] >= y[2])
+            || (x[1] == y[1] && x[2] == y[2])) # Pas de doublons
+    end
+end
+
 # Calcul des ratios pour les deux fonctions objectif
 function ratios(prob::_MOMKP)
 
@@ -73,17 +86,5 @@ function dantzigSolution(prob::_MOMKP, sequence)
 	end
 	
 	return sol, i, residualCapacity
-end
-
-# Génère une fonction objectif pondérée
-function weightedSum(prob::_MOMKP, λ)
-    
-    n = size(P.P)[2]
-    # Construire la fonction objectif pondérée
-    weightedObj = Vector{Float64}(undef,n)
-    for j in 1:n
-        weightedObj[j] = λ*prob.P[1,j] + (1 - λ)*prob.P[2,j]
-    end
-    return weightedObj
 end
 
