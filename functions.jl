@@ -26,13 +26,19 @@ function criticalWeights(prob::_MOMKP, r1, r2)
 	# Calcul des poids critiques pour chaque couple d'objets (i,j)
 	for i in 1:n
 		for j in i:n
-			λ = (r2[j] - r2[i])/(r1[i]-r2[i]-r1[j]+r2[j])
-			if λ > 0 && λ < 1
-				push!(weights, λ)
-				push!(pairs, (i,j))
+			if r1[i]-r2[i]-r1[j]+r2[j] != 0 && !(r1[i] == r1[j] || r2[i] == r2[j])
+				λ = (r2[j] - r2[i])/(r1[i]-r2[i]-r1[j]+r2[j])
+				if λ > 0 && λ < 1
+					push!(weights, λ)
+					push!(pairs, (i,j))
+				end
 			end
 		end
 	end
+	
+	@assert length(weights) == length(pairs) "Il doit y avoir autant de paires 
+	que de valeurs de λ"
+	
 	# Tri des poids critiques dans l'ordre décroissant
 	perm = sortperm(weights, rev=true)
 	return weights[perm], pairs[perm]

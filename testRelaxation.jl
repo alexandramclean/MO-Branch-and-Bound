@@ -11,15 +11,19 @@ include("parserMomkpZL.jl")
 include("displayGraphic.jl")
 
 # Graphique avec l'ensemble bornant supérieur et l'ensemble des points non-dominés
-function testRelaxation(prob, ref)
+function testRelaxation(name, prob, ref)
 	
     upperBound = relaxationContinue(prob) 
+	#=
+    for sol in upperBound 
+    	println(sol.z) 
+    end =#
 
     # Setup
     figure("Test",figsize=(6.5,5))
     xlabel(L"z^1(x)")
     ylabel(L"z^2(x)")
-    PyPlot.title("Test Relaxation Continue | "*fname)
+    PyPlot.title("Test Relaxation Continue | "*name)
 
     y_PN1 = [x.z[1] for x in upperBound]
     y_PN2 = [x.z[2] for x in upperBound]
@@ -42,7 +46,7 @@ end
 #= Exemple didactique
 didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
 ref, _ = vSolveBi01IP(GLPK.Optimizer, didactic.P, didactic.W, didactic.ω)
-testRelaxation(didactic, ref) =#
+@time testRelaxation("didactic", didactic, ref) =#
 
 # ----------
 fname = "../instancesPG/set1/ZL28.DAT"
@@ -54,4 +58,4 @@ else
     prob = readInstanceMOMKPformatZL(false, fname)
 end
 
-@time testRelaxation(prob,ref)
+@time testRelaxation(fname, prob, ref) 

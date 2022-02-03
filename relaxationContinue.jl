@@ -9,7 +9,8 @@ include("functions.jl")
 # Précondition : cas uni-dimensionnel
 
 # Construction d'une solution 
-# S'il n'y a pas d'objet cassé on considère que s = l'indice du premier objet non-inséré
+# S'il n'y a pas d'objet cassé on considère que s = l'indice du premier objet 
+# non-inséré
 function buildSolution(prob::_MOMKP, sequence)
 
 	n                = size(prob.P)[2]
@@ -79,7 +80,7 @@ function relaxationContinue(prob::_MOMKP)
 			sol.X[seq[s]] = 0 
 			
 			# Insérer l'objet s 
-			if prob.W[1,seq[s]] <= residualCapacity # L'objet s est inséré en entier
+			if prob.W[1,seq[s]] <= residualCapacity # s est inséré en entier
 				addItem!(prob, sol, seq[s])
 				residualCapacity -= prob.W[1,seq[s]] 
 				
@@ -139,6 +140,7 @@ function relaxationContinue(prob::_MOMKP)
 	return upperBound		
 
 end
+
 
 # Fixer une variable à 1
 function setVariable!(weights, pairs, var)
