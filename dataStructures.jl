@@ -14,7 +14,7 @@ end
 # Solution qui peut contenir des fractions d'objets
 mutable struct Solution
     X::Vector{Union{Int,Rational{Int}}} # Liste des éléments insérés dans le sac
-    z::Vector{Rational{Int}}              # Valeurs pour les fonctions objectif
+    z::Vector{Rational{Int}}            # Valeurs pour les fonctions objectif
 end
 Solution(n) = Solution(zeros(Rational{Int},n), [0,0])
 

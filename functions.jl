@@ -21,8 +21,8 @@ end
 function ratios(prob::_MOMKP)
 
 	n  = size(prob.P)[2]
-	r1 = Vector{Rational{Int128}}(undef, n)
-	r2 = Vector{Rational{Int128}}(undef, n)
+	r1 = Vector{Rational{Int}}(undef, n)
+	r2 = Vector{Rational{Int}}(undef, n)
 	for i in 1:n 
 		r1[i] = prob.P[1,i]//prob.W[1,i] 
 		r2[i] = prob.P[2,i]//prob.W[1,i]
@@ -32,12 +32,12 @@ end
 
 # Calcul des poids critiques
 function criticalWeights(prob::_MOMKP, 
-						 r1::Vector{Rational{Int128}}, 
-						 r2::Vector{Rational{Int128}})
+						 r1::Vector{Rational{Int}}, 
+						 r2::Vector{Rational{Int}})
 
 	n       = size(prob.P)[2]
 	weights = Rational{Int}[]
-	pairs   = Tuple{Int64,Int64}[] 
+	pairs   = Tuple{Int,Int}[] 
 	# Calcul des poids critiques pour chaque couple d'objets (i,j)
 	for i in 1:n
 		for j in i:n
@@ -60,7 +60,7 @@ function criticalWeights(prob::_MOMKP,
 end
 
 # Ajout d'un objet entier à une solution
-function addItem!(prob::_MOMKP, sol::Solution, item::Int64) 
+function addItem!(prob::_MOMKP, sol::Solution, item::Int) 
 	sol.X[item] = 1
 	sol.z += prob.P[:,item] 
 end
@@ -68,15 +68,15 @@ end
 # Ajout d'un objet cassé à une solution 
 function addBreakItem!(prob::_MOMKP, 
 					   sol::Solution, 
-					   residualCapacity::Union{Rational{Int128},Int128}, 
-					   item::Int64) 
+					   residualCapacity::Union{Rational{Int},Int}, 
+					   item::Int) 
 					   
 	sol.X[item] = residualCapacity//prob.W[1,item] 
 	sol.z += sol.X[item] * prob.P[:,item] 
 end
 
 # Calcul de la solution dantzig pour une séquence donnée
-function dantzigSolution(prob::_MOMKP, sequence::Vector{Int64})
+function dantzigSolution(prob::_MOMKP, sequence::Vector{Int})
 
 	n                = size(prob.P)[2]
 	residualCapacity = prob.ω[1]

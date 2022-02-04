@@ -11,7 +11,7 @@ include("functions.jl")
 # Construction d'une solution 
 # S'il n'y a pas d'objet cassé on considère que s = l'indice du premier objet 
 # non-inséré
-function buildSolution(prob::_MOMKP, sequence::Vector{Int64})
+function buildSolution(prob::_MOMKP, sequence::Vector{Int})
 
 	n                = size(prob.P)[2]
 	residualCapacity = prob.ω[1]
@@ -143,8 +143,8 @@ end
 
 # Fixer une variable à 1
 function setVariable!(weights::Vector{Rational{Int}}, 
-					  pairs::Vector{Tuple{Int64,Int64}}, 
-					  var::Int64)
+					  pairs::Vector{Tuple{Int,Int}}, 
+					  var::Int)
 	for i in length(weights):-1:1 
 		if var in pairs[i] 
 			deleteat!(weights, i)
