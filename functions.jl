@@ -71,7 +71,7 @@ end
 # Ajout d'un objet cassé à une solution 
 function addBreakItem!(prob::_MOMKP, 
 					   sol::Solution, 
-					   residualCapacity::Rational{Int}, 
+					   residualCapacity::Union{Int,Rational{Int}}, 
 					   item::Int) 
 					   
 	sol.X[item] = residualCapacity//prob.W[1,item] 
@@ -99,31 +99,17 @@ end
 
 # Construction d'une solution avec objet cassé 
 function buildSolution(prob::_MOMKP, sequence::Vector{Int})
+	
+	n = size(prob.P)[2]
+	sol, s, residualCapacity = dantzigSolution(prob, sequence)
+	
+	if residualCapacity > 0 
+		# Une fraction de l'objet s est insérée
+		addBreakItem!(prob, sol, residualCapacity, sequence[s])
+	end
 
-	n                = size(prob.P)[2]
-	residualCapacity = prob.ω[1]
-	sol              = Solution(n)
-	i                = 1
-	
-	while residualCapacity > 0 && i <= n
-		item = sequence[i]
-		
-		if prob.W[1,item] <= residualCapacity # L'objet est inséré en entier
-			addItem!(prob, sol, item)
-			residualCapacity -= prob.W[1,item]
-			
-		else # Une fraction de l'objet est insérée
-			addBreakItem!(prob, sol, residualCapacity, item)
-		end
-		i += 1
-	end
-	
-	# Position de l'objet cassé 
-	if sol.X[sequence[i-1]] < 1
-		s = i-1 
-	else 
-		s = i
-	end
 	return sol, s, residualCapacity
 end
+
+
 

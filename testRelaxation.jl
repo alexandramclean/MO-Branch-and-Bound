@@ -5,19 +5,19 @@
 ################################################################################
 
 include("relaxationContinue.jl")
+include("dichotomicMethod.jl")
 include("vOptMomkp.jl")
 include("parserMomkpPG.jl")
 include("parserMomkpZL.jl")
 include("displayGraphic.jl")
 
-# Graphique avec l'ensemble bornant supérieur et l'ensemble des points non-dominés
-function testRelaxation(name, prob, ref)
+# Produit un graphique affichant l'ensemble des points non-dominés pour un 
+# problème donné, ainsi que la relaxation calculée par méthode dichotomique et 
+# par méthode paramétrique 
+function testComparaison(name, prob, ref)
 	
-    upperBound = relaxationContinue(prob) 
-	#=
-    for sol in upperBound 
-    	println(sol.z) 
-    end =#
+	@time UBparam = relaxationContinue(prob)
+    @time UBdicho = dichotomicMethod(prob) 
 
     # Setup
     figure("Test",figsize=(6.5,5))
@@ -25,34 +25,35 @@ function testRelaxation(name, prob, ref)
     ylabel(L"z^2(x)")
     PyPlot.title("Test Relaxation Continue | "*name)
 
-    y_PN1 = [x.z[1] for x in upperBound]
-    y_PN2 = [x.z[2] for x in upperBound]
-    y_N1 = [x[1] for x in ref]
-    y_N2 = [x[2] for x in ref]
+	# Affichage des points calculés par méthode paramétrique
+	y_PN11 = [y.z[1] for y in UBparam] ; y_PN12 = [y.z[2] for y in UBparam]
+    scatter(y_PN11, y_PN12, color="green", marker="+", label = "parametric")
+    plot(y_PN11, y_PN12, color="green", linewidth=0.75, marker="+", 
+    	markersize=1.0, linestyle=":")
     
-    # display only the points corresponding to non-dominated points
-    scatter(y_PN1, y_PN2, color="green", marker="+", label = "UBS")
-    # display segments joining adjacent non-dominated points
-    plot(y_PN1, y_PN2, color="green", linewidth=0.75, marker="+", markersize=1.0, linestyle=":")
+    # Affichage des points calculés par méthode dichotomique
+    y_PN21 = [y[1] for y in UBdicho] ; y_PN22 = [y[2] for y in UBdicho]
+    scatter(y_PN21, y_PN22, color="red", marker="+", label = "dichotomic")
+    plot(y_PN21, y_PN22, color="red", linewidth=0.75, marker="+", 
+    	markersize=1.0, linestyle=":")
 
+	# Affichage des solutions exactes pour le problème non relâché
+	y_N1 = [y[1] for y in ref] ; y_N2 = [y[2] for y in ref]
     scatter(y_N1, y_N2, color="black", marker="+", label = "vOpt")
-    # display segments joining non-dominated points and their corners points
-    Env1,Env2 = computeCornerPointsLowerEnvelop(y_N1, y_N2)
-    plot(Env1, Env2, color="black", linewidth=0.75, marker="+", markersize=1.0, linestyle=":")
+    plot(y_N1, y_N2, color="black", linewidth=0.75, marker="+", 
+    	markersize=1.0, linestyle=":")
 
     legend(bbox_to_anchor=[1,1], loc=0, borderaxespad=0, fontsize = "x-small")
 end
 
 #= Exemple didactique
-didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
+prob = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
 ref, _ = vSolveBi01IP(GLPK.Optimizer, didactic.P, didactic.W, didactic.ω)
-@time testRelaxation("didactic", didactic, ref) =#
+testComparaison("didactic", didactic, ref) =#
 
 # ----------
-fname = "../instancesPG/set2/A1.DAT"
-#ref = [[902.0, 1193.0], [962.0, 1187.0], [967.0, 1186.0], [994.0, 1163.0], [1080.0, 1155.0], [1108.0, 1131.0], [1117.0, 1122.0], [1119.0, 1118.0], [1142.0, 1083.0], [1148.0, 1056.0], [1159.0, 1044.0], [1167.0, 1005.0], [1180.0, 1004.0], [1181.0, 1003.0], [1182.0, 979.0], [1198.0, 977.0], [1219.0, 969.0], [1220.0, 818.0]]
-
-ref = [[1135.0, 2312.0], [1175.0, 2293.0], [1180.0, 2288.0], [1190.0, 2283.0], [1200.0, 2274.0], [1205.0, 2264.0], [1210.0, 2256.0], [1220.0, 2251.0], [1225.0, 2246.0], [1245.0, 2238.0], [1260.0, 2227.0], [1265.0, 2217.0], [1270.0, 2211.0], [1280.0, 2208.0], [1285.0, 2196.0], [1290.0, 2195.0], [1295.0, 2190.0], [1300.0, 2180.0], [1305.0, 2176.0], [1310.0, 2171.0], [1315.0, 2169.0], [1320.0, 2162.0], [1330.0, 2158.0], [1335.0, 2127.0]]
+fname = "../instancesPG/set1/ZL28.DAT"
+ref = [[902.0, 1193.0], [962.0, 1187.0], [967.0, 1186.0], [994.0, 1163.0], [1080.0, 1155.0], [1108.0, 1131.0], [1117.0, 1122.0], [1119.0, 1118.0], [1142.0, 1083.0], [1148.0, 1056.0], [1159.0, 1044.0], [1167.0, 1005.0], [1180.0, 1004.0], [1181.0, 1003.0], [1182.0, 979.0], [1198.0, 977.0], [1219.0, 969.0], [1220.0, 818.0]]
 
 if fname[length(fname)-3:length(fname)] == ".DAT"
     prob = readInstanceMOMKPformatPG(false, fname)
@@ -60,4 +61,10 @@ else
     prob = readInstanceMOMKPformatZL(false, fname)
 end
 
-@time testRelaxation(fname, prob, ref) 
+testComparaison(fname, prob, ref) 
+
+
+
+
+
+
