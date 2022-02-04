@@ -4,6 +4,7 @@
 #         Fonctions auxiliaires                                                #
 ################################################################################
 
+# ----- DOMINANCE ------------------------------------------------------------ #
 # Retourne vrai si x domine y
 function domine(x, y, opt::Optimisation=Max)
     if opt == Min
@@ -17,6 +18,7 @@ function domine(x, y, opt::Optimisation=Max)
     end
 end
 
+# ----- RATIOS ET POIDS CRITIQUES -------------------------------------------- #
 # Calcul des ratios pour les deux fonctions objectif
 function ratios(prob::_MOMKP)
 
@@ -59,6 +61,7 @@ function criticalWeights(prob::_MOMKP,
 	return weights[perm], pairs[perm]
 end
 
+# ----- SOLUTIONS ------------------------------------------------------------ #
 # Ajout d'un objet entier à une solution
 function addItem!(prob::_MOMKP, sol::Solution, item::Int) 
 	sol.X[item] = 1
@@ -68,7 +71,7 @@ end
 # Ajout d'un objet cassé à une solution 
 function addBreakItem!(prob::_MOMKP, 
 					   sol::Solution, 
-					   residualCapacity::Union{Rational{Int},Int}, 
+					   residualCapacity::Rational{Int}, 
 					   item::Int) 
 					   
 	sol.X[item] = residualCapacity//prob.W[1,item] 
@@ -92,5 +95,35 @@ function dantzigSolution(prob::_MOMKP, sequence::Vector{Int})
 	end
 	
 	return sol, i, residualCapacity
+end
+
+# Construction d'une solution avec objet cassé 
+function buildSolution(prob::_MOMKP, sequence::Vector{Int})
+
+	n                = size(prob.P)[2]
+	residualCapacity = prob.ω[1]
+	sol              = Solution(n)
+	i                = 1
+	
+	while residualCapacity > 0 && i <= n
+		item = sequence[i]
+		
+		if prob.W[1,item] <= residualCapacity # L'objet est inséré en entier
+			addItem!(prob, sol, item)
+			residualCapacity -= prob.W[1,item]
+			
+		else # Une fraction de l'objet est insérée
+			addBreakItem!(prob, sol, residualCapacity, item)
+		end
+		i += 1
+	end
+	
+	# Position de l'objet cassé 
+	if sol.X[sequence[i-1]] < 1
+		s = i-1 
+	else 
+		s = i
+	end
+	return sol, s, residualCapacity
 end
 

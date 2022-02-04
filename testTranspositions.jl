@@ -51,7 +51,7 @@ end
 #prob = _MOMKP([6 2 4 1 7 ; 2 4 1 3 5], [1 3 2 4 4], [12])
 
 
-fname = "../instancesPG/set2/A2.DAT"
+fname = "../instancesPG/set2/A1.DAT"
 if fname[length(fname)-3:length(fname)] == ".DAT"
     prob = readInstanceMOMKPformatPG(false, fname)
 else
@@ -63,5 +63,5 @@ r1, r2 = ratios(prob)
 weights, pairs = criticalWeights(prob, r1, r2)
 println("pairs : ", pairs, "\n")
 
-#transpositions(prob) 
+transpositions(prob) 
 
