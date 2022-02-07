@@ -4,7 +4,7 @@
 #         Tests : Calcul paramétrique de la relaxation continue                #
 ################################################################################
 
-include("relaxationContinue.jl")
+include("parametricMethod.jl")
 include("dichotomicMethod.jl")
 include("vOptMomkp.jl")
 include("parserMomkpPG.jl")
@@ -16,7 +16,7 @@ include("displayGraphic.jl")
 # par méthode paramétrique
 function testComparaison(name, prob, ref)
 
-	@time UBparam = relaxationContinue(prob)
+	@time UBparam = parametricMethod(prob)
     @time UBdicho = dichotomicMethod(prob)
 
     # Setup
