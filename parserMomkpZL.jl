@@ -29,7 +29,7 @@ function readInstanceMOMKPformatZL(verbose::Bool, fname::String)
     line=(split(fname,"."))
     #line = split(lines[1]," ")
     m = parse(Int, line[3])
-    p = m
+    p = 2
     n = parse(Int, line[2])
     momkp = _MOMKP(zeros(Int,p,n),zeros(Int,m,n),zeros(Int,m))
     !verbose ? nothing : println("Instance of MKP : ",m," couples objective/constraint and ",n," variables")
@@ -52,9 +52,11 @@ function readInstanceMOMKPformatZL(verbose::Bool, fname::String)
             momkp.W[i,j] = parse(Int, line[2])
             !verbose ? nothing : println("w[",i,",",j,"]=",momkp.W[i,j])
         elseif occursin("profit", lines[l])
-            line = split(lines[l],"+")
-            momkp.P[i,j] = parse(Int, line[2])
-            !verbose ? nothing : println("p[",i,",",j,"]=",momkp.P[i,j])
+            if i <= 2
+                line = split(lines[l],"+")
+                momkp.P[i,j] = parse(Int, line[2])
+                !verbose ? nothing : println("p[",i,",",j,"]=",momkp.P[i,j])
+            end
         end
     end
 

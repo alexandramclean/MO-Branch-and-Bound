@@ -7,54 +7,71 @@
 include("dataStructures.jl")
 include("functions.jl")
 # Précondition : cas uni-dimensionnel
-
+			
 # Calcul de la relaxation continue
 function parametricMethod(prob::_MOMKP)
-
-	upperBound = Solution[]
 
 	# Calcul des ratios et poids critiques
 	r1, r2 = ratios(prob)
 	weights, pairs = criticalWeights(prob, r1, r2)
+	
+	# Regroupements des λ identiques
+	transpositions = transpositionPreprocessing(weights, pairs)		
 
 	# Tri des ratios dans l'ordre lexicographique décroissant selon (r1,r2)
 	seq = sortperm(r1, rev=true) # Séquence d'objets
 	pos = sortperm(seq)          # Position des objets dans la séquence
-
+	
+	println(seq, "\n")
+	for t in transpositions 
+		println("λ = ", t.λ, "\t\t", t.pairs) 
+	end 
+	
 	# Construction de la première solution
 	sol, s, residualCapacity = buildSolution(prob, seq)
+	println("s = ", s)
+	
+	upperBound = Solution[]
 	push!(upperBound, sol)
 
 	iter = 1
 	# Boucle principale
-	while iter <= length(weights)
+	while iter <= length(transpositions)
 
-		sol = copy(sol)
+		println("Iter ", iter)
+		
+		sol = copySolution(sol)
 
 		# Cas plusieurs λ identiques
-		if iter < length(weights) && weights[iter] == weights[iter+1]
+		if length(transpositions[iter].pairs) > 1 
 
 			# On effectue toutes les transpositions associées à λ
-			while iter < length(weights) && weights[iter] == weights[iter+1]
-				(i,j) = pairs[iter]
+			nbTransp = 1
+			while nbTransp <= length(transpositions[iter].pairs)
+				(i,j) = transpositions[iter].pairs[nbTransp]
 
 				# Mise à jour de la séquence
 				tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
 				seq[pos[i]] = i ; seq[pos[j]] = j
 
-				iter += 1
+				nbTransp += 1
 			end
 
 			# Construction de la solution associée à la séquence obtenue
 			sol, s, residualCapacity = buildSolution(prob, seq)
 			push!(upperBound, sol)
+			iter += 1
 
 		else
-			(i,j) = pairs[iter]
-			k = min(pos[i], pos[j])
+		
+			(i,j) = transpositions[iter].pairs[1]
+			k = min(pos[i], pos[j]) 
 
 			# La place de l'objet cassé est échangée avec un objet dans le sac
 			if k == s-1
+			
+				@assert (pos[i] == pos[j]+1 || pos[j] == pos[i]+1) "La transposition doit être entre deux éléments successifs de la séquence"
+
 				# Enlever les objets s-1 et s
 				residualCapacity += prob.W[1,seq[s-1]]
 				sol.z -= prob.P[:,seq[s-1]]
@@ -77,11 +94,14 @@ function parametricMethod(prob::_MOMKP)
 					addBreakItem!(prob, sol, residualCapacity, seq[s])
 					s = s-1 # La position de l'objet cassé change
 				end
-
+				
 			push!(upperBound, sol)
 
 			# L'objet cassé est échangée avec un objet qui n'est pas dans le sac
 			elseif k == s
+
+				@assert (pos[i] == pos[j]+1 || pos[j] == pos[i]+1) "La transposition doit être entre deux éléments successifs de la séquence"
+				
 				# L'objet à la position s est enlevé
 				sol.z -= sol.X[seq[s]] * prob.P[:,seq[s]]
 				sol.X[seq[s]] = 0
@@ -110,24 +130,10 @@ function parametricMethod(prob::_MOMKP)
 			seq[pos[i]] = i ; seq[pos[j]] = j
 
 			iter += 1
-
 		end
-
 	end
 
 	return upperBound
 
 end
 
-
-# Fixer une variable à 1
-function setVariable!(weights::Vector{Rational{Int}},
-					  pairs::Vector{Tuple{Int,Int}},
-					  var::Int)
-	for i in length(weights):-1:1
-		if var in pairs[i]
-			deleteat!(weights, i)
-			deleteat!(pairs, i)
-		end
-	end
-end

@@ -20,24 +20,40 @@ function transpositions(prob::_MOMKP, verbose::Bool=false)
 	end
 	
 	# Boucle principale
-	for iter in 1:length(weights)
+	iter = 1
+	while iter <= length(weights)
 		
 		#println("\nIter ", iter)
 		
-		(i,j) = pairs[iter] 
-		k = min(pos[i], pos[j])
-		
 		if iter < length(weights) && weights[iter] == weights[iter+1] 
-			println("égalité")
-		end 
+			
+			# On effectue toutes les transpositions associées à λ
+			while iter < length(weights) && weights[iter] == weights[iter+1]
+				println("égalité")
+				
+				(i,j) = pairs[iter]
+
+				# Mise à jour de la séquence
+				tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
+				seq[pos[i]] = i ; seq[pos[j]] = j
+
+				iter += 1
+			end
+		else 
 		
-		if !(pos[i] == pos[j]+1 || pos[j] == pos[i]+1) 
-			println("oh non") 
-		end 
+			(i,j) = pairs[iter] 
+			k = min(pos[i], pos[j]) 
 		
-		# Mise à jour de la séquence
-		tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
-		seq[pos[i]] = i ; seq[pos[j]] = j
+			if !(pos[i] == pos[j]+1 || pos[j] == pos[i]+1) 
+				#println("oh non") 
+			end 
+			
+			# Mise à jour de la séquence
+			tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
+			seq[pos[i]] = i ; seq[pos[j]] = j
+			
+			iter += 1 
+		end 
 		
 		if verbose 
 			println(seq)
@@ -51,7 +67,7 @@ end
 #prob = _MOMKP([6 2 4 1 7 ; 2 4 1 3 5], [1 3 2 4 4], [12])
 
 
-fname = "../instancesPG/set2/A1.DAT"
+fname = "../instancesPG/set2/A3.DAT"
 if fname[length(fname)-3:length(fname)] == ".DAT"
     prob = readInstanceMOMKPformatPG(false, fname)
 else

@@ -18,10 +18,18 @@ mutable struct Solution
 end
 Solution(n) = Solution(zeros(Rational{Int},n), [0,0])
 
-function copy(sol::Solution)
+function copySolution(sol::Solution)
     return Solution(sol.X[1:end],
                     sol.z[1:end])
 end
+
+# Structure qui stocke une valeur de λ et les transpositions correspondantes
+struct Transposition
+	λ::Rational{Int}			  # Poids critique
+	pairs::Vector{Tuple{Int,Int}} # Liste des paires correspondantes
+end 
+Transposition(λ) = Transposition(λ,[]) 
+
 
 @enum Optimisation Max Min
 

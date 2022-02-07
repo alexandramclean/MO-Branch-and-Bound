@@ -4,6 +4,8 @@
 #         Fonctions auxiliaires                                                #
 ################################################################################
 
+include("dataStructures.jl")
+
 # ----- DOMINANCE ------------------------------------------------------------ #
 # Retourne vrai si x domine y
 function domine(x, y, opt::Optimisation=Max)
@@ -23,10 +25,21 @@ end
 function ratios(prob::_MOMKP)
 
 	n  = size(prob.P)[2]
-	r1 = [prob.P[1,i]//prob.W[1,i] for i in 1:n]
-	r2 = [prob.P[2,i]//prob.W[1,i] for i in 1:n]
+	r1 = Vector{Rational{Int}}(undef,n) 
+	r2 = Vector{Rational{Int}}(undef,n)
+	
+	for i in 1:n 
+		@assert prob.W[1,i] != 0 "Un objet ne peux pas avoir un poids de 0"
+		r1 = [prob.P[1,i]//prob.W[1,i] for i in 1:n]
+		r2 = [prob.P[2,i]//prob.W[1,i] for i in 1:n]
+	end
+	
 	return r1, r2
 end
+
+function lambda(r1, r2, i, j) 
+	return r2[j] - r2[i], r1[i] - r2[i] - r1[j] + r2[j] 
+end 
 
 # Calcul des poids critiques
 function criticalWeights(prob::_MOMKP,
@@ -36,11 +49,15 @@ function criticalWeights(prob::_MOMKP,
 	n       = size(prob.P)[2]
 	weights = Rational{Int}[]
 	pairs   = Tuple{Int,Int}[]
+	
 	# Calcul des poids critiques pour chaque couple d'objets (i,j)
 	for i in 1:n
-		for j in i:n
-			if r1[i]-r2[i]-r1[j]+r2[j] != 0 && !(r1[i] == r1[j] || r2[i] == r2[j])
+		for j in i+1:n
+
+			if (r1[i]-r2[i]-r1[j]+r2[j]) != 0 && !(r1[i] == r1[j] || r2[i] == r2[j])
+				
 				λ = (r2[j] - r2[i])//(r1[i]-r2[i]-r1[j]+r2[j])
+				
 				if λ > 0 && λ < 1
 					push!(weights, λ)
 					push!(pairs, (i,j))
@@ -52,6 +69,33 @@ function criticalWeights(prob::_MOMKP,
 	# Tri des poids critiques dans l'ordre décroissant
 	perm = sortperm(weights, rev=true)
 	return weights[perm], pairs[perm]
+end
+
+# Retourne une liste contenant une suite de valeurs de λ distinctes ainsi que 
+# les transpositions correspondantes
+function transpositionPreprocessing(weights::Vector{Rational{Int}}, 
+					   				pairs::Vector{Tuple{Int,Int}})
+	transpositions = Transposition[]
+	iter = 1
+	while iter <= length(weights) 
+		# Il y a plusieurs poids critiques identiques 
+		if iter < length(weights) && weights[iter] == weights[iter+1] 
+			transp = Transposition(weights[iter]) 
+			
+			while iter < length(weights) && weights[iter] == weights[iter+1] 
+				push!(transp.pairs, pairs[iter])
+				iter += 1
+			end
+			push!(transp.pairs, pairs[iter])
+			iter += 1
+			
+			push!(transpositions, transp) 
+		else 
+			push!(transpositions, Transposition(weights[iter], [pairs[iter]])) 
+			iter += 1
+		end 
+	end
+	return transpositions
 end
 
 # ----- SOLUTIONS ------------------------------------------------------------ #
@@ -103,3 +147,12 @@ function buildSolution(prob::_MOMKP, sequence::Vector{Int})
 
 	return sol, s, residualCapacity
 end
+
+#= Exemple 
+weights = [9//10, 85//100, 8//10, 8//10, 66//100, 65//100, 4//10, 4//10, 4//10]
+pairs = [(1,5), (2,4), (2,5), (3,6), (4,5), (1,2), (1,4), (5,6), (3,5)]
+@assert length(weights) == length(pairs) "Il doit y avoir autant de poids que de paires"
+transpositions = transpositionPreprocessing(weights, pairs)
+for t in transpositions
+	println(t) 
+end =#

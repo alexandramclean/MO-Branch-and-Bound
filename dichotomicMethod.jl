@@ -39,7 +39,7 @@ function solveRecursion!(prob::_MOMKP, Y_SN,
 	x = solveWeightedSum(prob, λ1, λ2)
 	ajouter!(Y_SN, x.z)
 
-	# Si le point obtenu n'est pas sur le segment z(x1)z(x2) on continue la recherche
+	# Si le point n'est pas sur le segment z(x1)z(x2) on continue la recherche
 	if λ1*x.z[1] + λ2*x.z[2] > λ1*x1.z[1] + λ2*x1.z[2]
 		solveRecursion!(prob, Y_SN, x1, x)
 		solveRecursion!(prob, Y_SN, x, x2)
