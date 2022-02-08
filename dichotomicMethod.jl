@@ -29,6 +29,22 @@ function solveWeightedSum(prob::_MOMKP,
 	return x
 end
 
+# Returns the lexicographically optimal solutions
+function lexicographicSolutions(prob::_MOMKP) 
+	
+	r1, r2 = ratios(prob)
+	
+	# Lexicographically optimal solution for (1,2) 
+	seq12 = sortperm(1000*r1 + r2, rev=true) 
+	x12, _ = buildSolution(prob, seq12)
+	
+	# Lexicographically optimal solution for (2,1) 
+	seq21 = sortperm(r1 + 1000*r2, rev=true) 
+	x21, _ = buildSolution(prob, seq21) 
+	
+	return x12, x21
+end
+
 function solveRecursion!(prob::_MOMKP, Y_SN,
 						 x1::Solution, x2::Solution)
 	# Calcul de la direction λ
@@ -51,8 +67,7 @@ function dichotomicMethod(prob::_MOMKP)
 	n = size(prob.P)[2]
 
 	# Calcul des solutions lexicographiquement optimales
-	x12 = solveWeightedSum(prob, 1, 0)
-	x21 = solveWeightedSum(prob, 0, 1)
+	x12, x21 = lexicographicSolutions(prob) 
 
 	# Ensemble de points
 	Y_SN = []

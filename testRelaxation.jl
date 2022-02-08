@@ -48,22 +48,27 @@ function testComparaison(name, prob, ref=Nothing)
     legend(bbox_to_anchor=[1,1], loc=0, borderaxespad=0, fontsize = "x-small")
 end
 
-#= Exemple didactique
-didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
-ref, _ = vSolveBi01IP(GLPK.Optimizer, didactic.P, didactic.W, didactic.ω)
-testComparaison("didactic", didactic, ref) =#
-
-# ----------
-fname = "../instancesPG/set2/A2.DAT"
-
-if fname[length(fname)-3:length(fname)] == ".DAT"
-    prob = readInstanceMOMKPformatPG(false, fname)
-else
-    prob = readInstanceMOMKPformatZL(false, fname)
+# Exemple didactique
+function testDidactic()
+	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
+	ref, _ = vSolveBi01IP(GLPK.Optimizer, didactic.P, didactic.W, didactic.ω)
+	testComparaison("didactic", didactic, ref) 
 end
 
-testComparaison(fname, prob) 
+# Test sur une instance contenue dans le fichier fname
+function testFile(fname::String)
 
+	if fname[length(fname)-3:length(fname)] == ".DAT"
+    	prob = readInstanceMOMKPformatPG(false, fname)
+	else
+    	prob = readInstanceMOMKPformatZL(false, fname)
+	end
+
+	testComparaison(fname, prob) 
+end
+
+fname = "../instancesPG/set1/ZL750.DAT"
+testFile(fname)
 
 
 

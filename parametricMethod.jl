@@ -15,17 +15,17 @@ function parametricMethod(prob::_MOMKP)
 	r1, r2 = ratios(prob)
 	weights, pairs = criticalWeights(prob, r1, r2)
 	
-	# Regroupements des λ identiques
+	# Regroupement des λ identiques
 	transpositions = transpositionPreprocessing(weights, pairs)		
 
 	# Tri des ratios dans l'ordre lexicographique décroissant selon (r1,r2)
-	seq = sortperm(r1, rev=true) # Séquence d'objets
-	pos = sortperm(seq)          # Position des objets dans la séquence
+	seq = sortperm(1000*r1 + r2, rev=true) # Séquence d'objets
+	pos = sortperm(seq)          		   # Position des objets dans la séquence
 	
 	println(seq, "\n")
-	for t in transpositions 
+	#=for t in transpositions 
 		println("λ = ", t.λ, "\t\t", t.pairs) 
-	end 
+	end=# 
 	
 	# Construction de la première solution
 	sol, s, residualCapacity = buildSolution(prob, seq)
@@ -38,7 +38,7 @@ function parametricMethod(prob::_MOMKP)
 	# Boucle principale
 	while iter <= length(transpositions)
 
-		println("Iter ", iter)
+		#println("Iter ", iter)
 		
 		sol = copySolution(sol)
 
@@ -71,7 +71,7 @@ function parametricMethod(prob::_MOMKP)
 			if k == s-1
 			
 				@assert (pos[i] == pos[j]+1 || pos[j] == pos[i]+1) "La transposition doit être entre deux éléments successifs de la séquence"
-
+					
 				# Enlever les objets s-1 et s
 				residualCapacity += prob.W[1,seq[s-1]]
 				sol.z -= prob.P[:,seq[s-1]]
@@ -122,9 +122,9 @@ function parametricMethod(prob::_MOMKP)
 				end
 
 			push!(upperBound, sol)
-
-			end
-
+			
+			end 
+			
 			# Mise à jour de la séquence
 			tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
 			seq[pos[i]] = i ; seq[pos[j]] = j
