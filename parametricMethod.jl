@@ -19,13 +19,15 @@ function parametricMethod(prob::_MOMKP)
 	transpositions = transpositionPreprocessing(weights, pairs)		
 
 	# Tri des ratios dans l'ordre lexicographique décroissant selon (r1,r2)
-	seq = sortperm(1000*r1 + r2, rev=true) # Séquence d'objets
-	pos = sortperm(seq)          		   # Position des objets dans la séquence
+	seq = sortperm(1000000*r1 + r2, rev=true) # Séquence d'objets
+	pos = sortperm(seq)          		      # Position des objets dans la séquence
 	
-	println(seq, "\n")
-	#=for t in transpositions 
+	
+	for t in transpositions 
 		println("λ = ", t.λ, "\t\t", t.pairs) 
-	end=# 
+	end
+	
+	println("Séquence de départ : ", seq, "\n")
 	
 	# Construction de la première solution
 	sol, s, residualCapacity = buildSolution(prob, seq)
@@ -38,17 +40,21 @@ function parametricMethod(prob::_MOMKP)
 	# Boucle principale
 	while iter <= length(transpositions)
 
-		#println("Iter ", iter)
+		println("\nIter ", iter)
 		
 		sol = copySolution(sol)
 
 		# Cas plusieurs λ identiques
 		if length(transpositions[iter].pairs) > 1 
+		
+			print("\nCas égalité : ")
 
 			# On effectue toutes les transpositions associées à λ
 			nbTransp = 1
 			while nbTransp <= length(transpositions[iter].pairs)
 				(i,j) = transpositions[iter].pairs[nbTransp]
+				
+				print("\t", (i,j))
 
 				# Mise à jour de la séquence
 				tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
@@ -56,6 +62,9 @@ function parametricMethod(prob::_MOMKP)
 
 				nbTransp += 1
 			end
+			
+			@assert pos == sortperm(seq) "Positions et séquence ne se correspondent pas"
+			println("\n", seq)
 
 			# Construction de la solution associée à la séquence obtenue
 			sol, s, residualCapacity = buildSolution(prob, seq)
@@ -66,11 +75,19 @@ function parametricMethod(prob::_MOMKP)
 		
 			(i,j) = transpositions[iter].pairs[1]
 			k = min(pos[i], pos[j]) 
+			k_prime = max(pos[i], pos[j])
+			
+			println((i,j))
 
 			# La place de l'objet cassé est échangée avec un objet dans le sac
 			if k == s-1
 			
-				@assert (pos[i] == pos[j]+1 || pos[j] == pos[i]+1) "La transposition doit être entre deux éléments successifs de la séquence"
+				if k_prime != k+1 
+					println("(", i, ",", j, ")") 
+					println("k = ", k)
+					println("k_prime = ", k_prime) 
+					@assert k_prime == k+1 "La transposition doit être entre deux éléments successifs de la séquence"
+				end
 					
 				# Enlever les objets s-1 et s
 				residualCapacity += prob.W[1,seq[s-1]]
@@ -100,7 +117,12 @@ function parametricMethod(prob::_MOMKP)
 			# L'objet cassé est échangée avec un objet qui n'est pas dans le sac
 			elseif k == s
 
-				@assert (pos[i] == pos[j]+1 || pos[j] == pos[i]+1) "La transposition doit être entre deux éléments successifs de la séquence"
+				if k_prime != k+1 
+					println("(", i, ",", j, ")") 
+					println("k = ", k)
+					println("k_prime = ", k_prime) 
+					@assert k_prime == k+1 "La transposition doit être entre deux éléments successifs de la séquence"
+				end
 				
 				# L'objet à la position s est enlevé
 				sol.z -= sol.X[seq[s]] * prob.P[:,seq[s]]
@@ -128,6 +150,9 @@ function parametricMethod(prob::_MOMKP)
 			# Mise à jour de la séquence
 			tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
 			seq[pos[i]] = i ; seq[pos[j]] = j
+			
+			@assert pos == sortperm(seq) "Positions et séquence ne se correspondent pas"
+			println(seq)
 
 			iter += 1
 		end

@@ -61,9 +61,11 @@ function criticalWeights(prob::_MOMKP,
 				if λ > 0 && λ < 1
 					push!(weights, λ)
 					push!(pairs, (i,j))
+				#=else 
+					print("\t\tpas entre 0 et 1")=#
 				end 
-			else 
-				print("\t\tλ n'existe pas")
+			#=else 
+				print("\t\tλ n'existe pas")=#
 			end
 		end
 	end
