@@ -47,3 +47,16 @@ function testTranspositions()
 		@test transpositions[6].pairs == [(1,4), (5,6), (3,5)] 
 	end;
 end 
+
+# ---------------------------------------------------------------------------- #
+function testSwaps() 
+	sequence = [3,1,2] 
+	t = Transposition(1//2, [(1,2), (1,3), (2,3)]) 
+	
+	seq, pos = swaps3(sequence, t) 
+	
+	@testset "Swap Tests" begin
+		@test seq == [2,1,3] 
+		@test pos == sortperm(seq) 
+	end;
+end

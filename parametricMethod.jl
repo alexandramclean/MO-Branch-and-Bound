@@ -23,15 +23,14 @@ function parametricMethod(prob::_MOMKP)
 	pos = sortperm(seq)          		      # Position des objets dans la séquence
 	
 	
-	for t in transpositions 
+	#=for t in transpositions 
 		println("λ = ", t.λ, "\t\t", t.pairs) 
 	end
-	
-	println("Séquence de départ : ", seq, "\n")
+	println("Séquence de départ : ", seq, "\n")=#
 	
 	# Construction de la première solution
 	sol, s, residualCapacity = buildSolution(prob, seq)
-	println("s = ", s)
+	#println("s = ", s)
 	
 	upperBound = Solution[]
 	push!(upperBound, sol)
@@ -40,31 +39,17 @@ function parametricMethod(prob::_MOMKP)
 	# Boucle principale
 	while iter <= length(transpositions)
 
-		println("\nIter ", iter)
+		#println("\nIter ", iter)
 		
 		sol = copySolution(sol)
 
 		# Cas plusieurs λ identiques
 		if length(transpositions[iter].pairs) > 1 
 		
-			print("\nCas égalité : ")
+			#print("\nCas égalité : ")
 
 			# On effectue toutes les transpositions associées à λ
-			nbTransp = 1
-			while nbTransp <= length(transpositions[iter].pairs)
-				(i,j) = transpositions[iter].pairs[nbTransp]
-				
-				print("\t", (i,j))
-
-				# Mise à jour de la séquence
-				tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
-				seq[pos[i]] = i ; seq[pos[j]] = j
-
-				nbTransp += 1
-			end
-			
-			@assert pos == sortperm(seq) "Positions et séquence ne se correspondent pas"
-			println("\n", seq)
+			seq, pos = swaps(seq, transpositions[iter]) 
 
 			# Construction de la solution associée à la séquence obtenue
 			sol, s, residualCapacity = buildSolution(prob, seq)
@@ -77,7 +62,7 @@ function parametricMethod(prob::_MOMKP)
 			k = min(pos[i], pos[j]) 
 			k_prime = max(pos[i], pos[j])
 			
-			println((i,j))
+			#println((i,j))
 
 			# La place de l'objet cassé est échangée avec un objet dans le sac
 			if k == s-1
@@ -151,8 +136,8 @@ function parametricMethod(prob::_MOMKP)
 			tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
 			seq[pos[i]] = i ; seq[pos[j]] = j
 			
-			@assert pos == sortperm(seq) "Positions et séquence ne se correspondent pas"
-			println(seq)
+			#@assert pos == sortperm(seq) "Positions et séquence ne se correspondent pas"
+			#println(seq)
 
 			iter += 1
 		end
