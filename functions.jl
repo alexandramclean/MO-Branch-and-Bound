@@ -112,61 +112,33 @@ function transpositionPreprocessing(weights::Vector{Rational{Int}},
 	return transpositions
 end
 
-# Effectue la suite de transpositions correspondant à une valeur de λ dans un 
-# ordre tel qu'on échange toujours deux éléments consécutifs de la séquence
-function swaps(sequence::Vector{Int}, t::Transposition) 
-	
-	#=println("Nombre de transpositions : ", length(t.pairs))
-	println(sequence)
-	println(t.pairs)=#
-		
-	seq = deepcopy(sequence) 
-	pos = sortperm(seq) 
-	
-	# Donne les positions correspondant à chaque transposition à faire 
-	positions = [(min(pos[i], pos[j]), max(pos[i], pos[j])) for (i,j) in t.pairs] 
-	
-	# Trie les positions dans l'ordre croissant
-	increasing = t.pairs[sortperm(positions)] 
+# Retourne vrai si la suite de transpositions est valide
+function checkTranspositions(seq::Vector{Int}, swaps::Vector{Tuple{Int,Int}})
+
+	seqprime = deepcopy(seq)
+	posprime = sortperm(seqprime) 
 	
 	success = true 
 	
-	# Effectuer les transpositions dans l'ordre croissant 
-	for iter in 1:length(t.pairs) 
-		(i,j) = increasing[iter] 
+	iter = 1 
+	while iter <= length(swaps) && success 
 		
-		if !(pos[i] == pos[j]+1 || pos[j] == pos[i]+1) 
+		(i,j) = swaps[iter] 
+		
+		if !(posprime[i] == posprime[j]+1 || posprime[j] == posprime[i]+1) 
 			success = false
-		else
-			# Mise à jour de la séquence
-			tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
-			seq[pos[i]] = i ; seq[pos[j]] = j
-		end
-	end
-	
-	# Si les transpositions n'étaient pas valides dans l'ordre croissant, 
-	# on essaie l'ordre décroissant
-	if !success 
-	
-		seq = deepcopy(sequence) 
-		pos = sortperm(seq) 
+		end 
 		
-		decreasing = t.pairs[sortperm(positions, rev=true)]
-	
-		for iter in 1:length(t.pairs) 
-			(i,j) = decreasing[iter] 
-			
-			@assert pos[i] == pos[j]+1 || pos[j] == pos[i]+1 "La transposition doit être entre deux éléments successifs de la séquence"
-			
-			# Mise à jour de la séquence
-			tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
-			seq[pos[i]] = i ; seq[pos[j]] = j
-		end
+		# Mise à jour de la séquence
+		tmp = posprime[i] ; posprime[i] = posprime[j] ; posprime[j] = tmp
+		seqprime[posprime[i]] = i ; seqprime[posprime[j]] = j
+		
+		iter += 1 
 	end
 	
-	return seq, pos			
-	
-end
+	return success
+
+end 
 
 # ----- SOLUTIONS ------------------------------------------------------------ #
 # Add an item to a solution

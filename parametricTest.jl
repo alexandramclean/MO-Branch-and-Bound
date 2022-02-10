@@ -49,14 +49,18 @@ function testTranspositions()
 end 
 
 # ---------------------------------------------------------------------------- #
-function testSwaps() 
-	sequence = [3,1,2] 
-	t = Transposition(1//2, [(1,2), (1,3), (2,3)]) 
+function testCheckTranspositions() 
+	seq1 = [3,2,4,1]
+	swaps1 = [(2,3), (3,4), (1,3), (1,2), (1,4)] 
 	
-	seq, pos = swaps3(sequence, t) 
+	seq2 = [1,2,3] 
+	swaps2 = [(1,3), (2,3)]
+	swaps3 = [(2,3), (1,3)] 
 	
-	@testset "Swap Tests" begin
-		@test seq == [2,1,3] 
-		@test pos == sortperm(seq) 
+	@testset "CheckTranspositions Tests" begin 
+		@test checkTranspositions(seq1, swaps1) == false
+		@test checkTranspositions(seq2, swaps2) == false
+		@test checkTranspositions(seq2, swaps3) 
 	end;
 end
+
