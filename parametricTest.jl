@@ -64,3 +64,30 @@ function testCheckTranspositions()
 	end;
 end
 
+# ---------------------------------------------------------------------------- #
+function testReoptSolution() 
+	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
+	prev = [5,1,4,3,2,6] 
+	seq  = [5,3,4,1,2,6] 
+	sol  = Solution([1,0,0,1,1,0], [30,7]) 
+	sol, s, residualCapacity = reoptSolution(didactic, prev, seq, 2, 4, sol, 0)
+	
+	@testset "Reoptimisation Tests" begin 
+		@test sol.X == [0,0,1,1//2,1,0]
+		@test sol.z == [22,11]
+		@test residualCapacity == 2
+		@test s == 3
+	end;
+	
+	sol, s, residualCapacity = reoptSolution(didactic, seq, prev, 2, s, sol, residualCapacity)
+	
+	@testset "Reoptimisation Tests 2" begin 
+		@test sol.X == [1,0,0,1,1,0]
+		@test sol.z == [30,7]
+		@test residualCapacity == 0
+		@test s == 4
+	end;
+end
+
+
+

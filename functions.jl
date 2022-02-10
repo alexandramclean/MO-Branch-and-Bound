@@ -190,3 +190,43 @@ function buildSolution(prob::_MOMKP, sequence::Vector{Int})
 	return sol, s, residualCapacity
 end
 
+# Re-build part of a solution
+function reoptSolution(prob::_MOMKP, 
+					   prev::Vector{Int}, 
+					   seq::Vector{Int}, 
+					   deb::Int, s::Int, 
+					   sol::Solution,
+					   residualCapacity::Union{Int,Rational{Int}})
+					   
+	# Les objets entre deb et s dans la séquence précédente sont retirés 
+	for pos in deb:s-1 
+		
+		item = prev[pos] 
+		sol.X[item] = 0
+		sol.z -= prob.P[:,item]
+		residualCapacity += prob.W[1,item]
+		
+	end 
+	
+	# L'objet cassé est retiré 
+	sol.z -= sol.X[prev[s]] * prob.P[:,prev[s]] 
+	sol.X[prev[s]] = 0 
+	
+	# Les objets sont insérés en partant de deb dans la nouvelle séquence
+	pos = deb 
+	while prob.W[1,seq[pos]] <= residualCapacity
+	
+		# L'objet est inséré en entier
+		addItem!(prob, sol, seq[pos])
+		residualCapacity -= prob.W[1,seq[pos]] 
+		
+		pos += 1
+	end
+	
+	if residualCapacity > 0
+		addBreakItem!(prob, sol, residualCapacity, seq[pos]) 
+	end 
+	
+	return sol, pos, residualCapacity
+	
+end

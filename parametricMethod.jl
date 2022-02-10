@@ -82,7 +82,6 @@ function parametricMethod(prob::_MOMKP)
 	transpositions = transpositionPreprocessing(weights, pairs)		
 
 	# Tri des ratios dans l'ordre lexicographique décroissant selon (r1,r2)
-	println("Tri initial : ")
 	@time seq = sortperm(1000000*r1 + r2, rev=true) # Séquence d'objets
 	@time pos = sortperm(seq)          		      # Position des objets dans la séquence
 	
@@ -92,11 +91,10 @@ function parametricMethod(prob::_MOMKP)
 	upperBound = Solution[]
 	push!(upperBound, sol)
 	
-	
 	nbCasEgalite = 0 
 	tpsCalculPos = 0
 	tpsTri = 0
-	tpsCons = 0
+	tpsReopt = 0
 
 	# Boucle principale
 	for iter in 1:length(transpositions)
@@ -107,23 +105,22 @@ function parametricMethod(prob::_MOMKP)
 		if length(transpositions[iter].pairs) > 1 
 		
 			nbCasEgalite += 1
+			prev = deepcopy(seq)
 			
-			# Donne les positions correspondant à chaque transposition à faire 
-			start = time()
+			# Donne les positions correspondant à chaque transposition à faire
+			start = time() 
 			positions = [(min(pos[i], pos[j]), max(pos[i], pos[j])) for (i,j) in transpositions[iter].pairs] 
-			tpsCalculPos += time() - start 
+			tpsCalculPos += time() - start
 			
 			# Trie les positions dans l'ordre croissant
-			start = time()
+			start = time() 
 			increasing = transpositions[iter].pairs[sortperm(positions)] 
 			tpsTri += time() - start
-	
+			
 			if checkTranspositions(seq, increasing) 
 				swaps = increasing
 			else 
-				start = time()
 				swaps = transpositions[iter].pairs[sortperm(positions, rev=true)]
-				tpsTri += time() - start
 			end 
 	
 			for t in 1:length(swaps) 
@@ -134,10 +131,27 @@ function parametricMethod(prob::_MOMKP)
 				seq[pos[i]] = i ; seq[pos[j]] = j
 			end
 			
-			start = time()
-			sol, s, residualCapacity = buildSolution(prob, seq)
-			tpsCons += time() - start			
-			push!(upperBound, sol)
+			# Début de la sous-séquence qui a été modifiée
+			deb = positions[1][1] 
+			fin = positions[length(positions)][2]
+			
+			if deb <= s && fin >= s
+				# La solution est modifiée
+				start = time() 
+				sol, s, residualCapacity = reoptSolution(prob, prev, seq, deb, s, sol, residualCapacity)	
+				tpsReopt += time() - start	
+				
+				solprime, sprime, capprime = buildSolution(prob, seq) 
+				if solprime.z != sol.z || sprime != s || capprime != residualCapacity
+					println(transpositions[iter])
+					println("sol : ", sol.z)
+					println("sol' : ", solprime.z) 
+					println("s = ", s, "\ts' = ", sprime)
+					println("cap = ", residualCapacity, "\tcap' = ", capprime)
+				end
+				
+				push!(upperBound, sol)
+			end
 			
 		else
 		
@@ -168,7 +182,7 @@ function parametricMethod(prob::_MOMKP)
 	println("Nombre de cas d'égalité : ", nbCasEgalite)
 	println("Temps calcul des positions : ", tpsCalculPos)
 	println("Temps tri : ", tpsTri) 
-	println("Temps construction de solutions : ", tpsCons, "\n")
+	println("Temps construction de solutions : ", tpsReopt, "\n")
 
 	return upperBound
 
