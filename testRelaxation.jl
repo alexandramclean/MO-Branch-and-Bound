@@ -67,7 +67,7 @@ function testFile(fname::String)
 	testComparaison(fname, prob) 
 end
 
-fname = "../instancesPG/set2/D4.DAT"
+fname = "../instancesPG/set1/ZL500.DAT"
 testFile(fname)
 
 

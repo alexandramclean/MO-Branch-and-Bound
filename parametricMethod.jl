@@ -82,14 +82,21 @@ function parametricMethod(prob::_MOMKP)
 	transpositions = transpositionPreprocessing(weights, pairs)		
 
 	# Tri des ratios dans l'ordre lexicographique décroissant selon (r1,r2)
-	seq = sortperm(1000000*r1 + r2, rev=true) # Séquence d'objets
-	pos = sortperm(seq)          		      # Position des objets dans la séquence
+	println("Tri initial : ")
+	@time seq = sortperm(1000000*r1 + r2, rev=true) # Séquence d'objets
+	@time pos = sortperm(seq)          		      # Position des objets dans la séquence
 	
 	# Construction de la première solution
 	sol, s, residualCapacity = buildSolution(prob, seq)
 	
 	upperBound = Solution[]
 	push!(upperBound, sol)
+	
+	
+	nbCasEgalite = 0 
+	tpsCalculPos = 0
+	tpsTri = 0
+	tpsCons = 0
 
 	# Boucle principale
 	for iter in 1:length(transpositions)
@@ -98,47 +105,25 @@ function parametricMethod(prob::_MOMKP)
 
 		# Cas plusieurs λ identiques
 		if length(transpositions[iter].pairs) > 1 
-	
-			#= Donne les positions correspondant à chaque transposition à faire 
-			positions = [(min(pos[i], pos[j]), max(pos[i], pos[j])) for (i,j) in transpositions[iter].pairs] 
-	
-			# Trie les positions dans l'ordre croissant
-			increasing = transpositions[iter].pairs[sortperm(positions)] 
-			
-			if checkTranspositions(seq, increasing) 
-				# On applique les transpositions dans l'ordre croissant 
-				swaps = increasing
-			else 
-				# On applique les transpositions dans l'ordre décroissant 
-				swaps = transpositions[iter].pairs[sortperm(positions, rev=true)] 
-			end 
-				
-			for t in 1:length(swaps) 
-					
-				(i,j) = swaps[t]
-				#=k = min(pos[i], pos[j]) 
-					
-				if k == s-1 
-					sol, s, residualCapacity = swapWithItemInBag(prob, seq, sol, s, residualCapacity)
-				elseif k == s 
-					sol, s, residualCapacity = swapWithItemNotInBag(prob, seq, sol, s, residualCapacity) 
-				end =#
-				
-				# Mise à jour de la séquence
-				tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
-				seq[pos[i]] = i ; seq[pos[j]] = j
-			end =#
+		
+			nbCasEgalite += 1
 			
 			# Donne les positions correspondant à chaque transposition à faire 
+			start = time()
 			positions = [(min(pos[i], pos[j]), max(pos[i], pos[j])) for (i,j) in transpositions[iter].pairs] 
-	
+			tpsCalculPos += time() - start 
+			
 			# Trie les positions dans l'ordre croissant
+			start = time()
 			increasing = transpositions[iter].pairs[sortperm(positions)] 
+			tpsTri += time() - start
 	
 			if checkTranspositions(seq, increasing) 
 				swaps = increasing
 			else 
+				start = time()
 				swaps = transpositions[iter].pairs[sortperm(positions, rev=true)]
+				tpsTri += time() - start
 			end 
 	
 			for t in 1:length(swaps) 
@@ -149,9 +134,11 @@ function parametricMethod(prob::_MOMKP)
 				seq[pos[i]] = i ; seq[pos[j]] = j
 			end
 			
-			sol, s, residualCapacity = buildSolution(prob, seq)			
+			start = time()
+			sol, s, residualCapacity = buildSolution(prob, seq)
+			tpsCons += time() - start			
 			push!(upperBound, sol)
-				
+			
 		else
 		
 			(i,j) = transpositions[iter].pairs[1]
@@ -177,6 +164,11 @@ function parametricMethod(prob::_MOMKP)
 
 		end
 	end
+	
+	println("Nombre de cas d'égalité : ", nbCasEgalite)
+	println("Temps calcul des positions : ", tpsCalculPos)
+	println("Temps tri : ", tpsTri) 
+	println("Temps construction de solutions : ", tpsCons, "\n")
 
 	return upperBound
 
