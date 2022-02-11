@@ -83,10 +83,10 @@ function parametricMethod(prob::_MOMKP)
 
 	# Tri des ratios dans l'ordre lexicographique décroissant selon (r1,r2)
 	@time seq = sortperm(1000000*r1 + r2, rev=true) # Séquence d'objets
-	@time pos = sortperm(seq)          		      # Position des objets dans la séquence
+	@time pos = sortperm(seq)          		        # Position des objets dans la séquence
 	
 	# Construction de la première solution
-	sol, s, residualCapacity = buildSolution(prob, seq)
+	sol, s, ω_ = buildSolution(prob, seq)
 	
 	upperBound = Solution[]
 	push!(upperBound, sol)
@@ -97,7 +97,7 @@ function parametricMethod(prob::_MOMKP)
 	tpsReopt = 0
 
 	# Boucle principale
-	for iter in 1:length(transpositions)
+	for iter in 1:20
 		
 		sol = copySolution(sol)
 
@@ -131,27 +131,22 @@ function parametricMethod(prob::_MOMKP)
 				seq[pos[i]] = i ; seq[pos[j]] = j
 			end
 			
-			# Début de la sous-séquence qui a été modifiée
-			deb = positions[1][1] 
-			fin = positions[length(positions)][2]
+			deb = positions[1][1]
+			fin = positions[end][2]
 			
-			if deb <= s && fin >= s
-				# La solution est modifiée
+			if deb <= s && fin >= s # La solution est modifiée
+			
+				println("deb = ", deb, " fin = ", fin, " s = ", s)
 				start = time() 
-				sol, s, residualCapacity = reoptSolution(prob, prev, seq, deb, s, sol, residualCapacity)	
+				sol, s, ω_ = reoptSolution(prob, prev, seq, deb, sol, s, ω_)
 				tpsReopt += time() - start	
 				
-				solprime, sprime, capprime = buildSolution(prob, seq) 
-				if solprime.z != sol.z || sprime != s || capprime != residualCapacity
-					println(transpositions[iter])
-					println("sol : ", sol.z)
-					println("sol' : ", solprime.z) 
-					println("s = ", s, "\ts' = ", sprime)
-					println("cap = ", residualCapacity, "\tcap' = ", capprime)
-				end
-				
-				push!(upperBound, sol)
 			end
+
+			solprime, sprime, capprime = buildSolution(prob, seq)
+			println("cap = ", capprime, " ω = ", ω_)
+			
+			push!(upperBound, sol)
 			
 		else
 		
@@ -161,13 +156,13 @@ function parametricMethod(prob::_MOMKP)
 			# La place de l'objet cassé est échangée avec un objet dans le sac
 			if k == s-1
 					
-				sol, s, residualCapacity = swapWithItemInBag(prob, seq, sol, s, residualCapacity)
+				sol, s, ω_ = swapWithItemInBag(prob, seq, sol, s, ω_)
 				push!(upperBound, sol)
 
 			# L'objet cassé est échangée avec un objet qui n'est pas dans le sac
 			elseif k == s
 				
-				sol, s, residualCapacity = swapWithItemNotInBag(prob, seq, sol, s, residualCapacity)
+				sol, s, ω_ = swapWithItemNotInBag(prob, seq, sol, s, ω_)
 				push!(upperBound, sol)
 			
 			end 

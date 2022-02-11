@@ -194,8 +194,9 @@ end
 function reoptSolution(prob::_MOMKP, 
 					   prev::Vector{Int}, 
 					   seq::Vector{Int}, 
-					   deb::Int, s::Int, 
-					   sol::Solution,
+					   deb::Int, 
+					   sol::Solution,					   
+					   s::Int,
 					   residualCapacity::Union{Int,Rational{Int}})
 					   
 	# Les objets entre deb et s dans la séquence précédente sont retirés 

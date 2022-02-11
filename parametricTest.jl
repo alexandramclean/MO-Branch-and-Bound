@@ -87,6 +87,20 @@ function testReoptSolution()
 		@test residualCapacity == 0
 		@test s == 4
 	end;
+	
+	prev = [27, 15, 3, 6, 10, 28, 12, 13, 18, 23, 8, 2, 24, 16, 19, 26, 11, 9, 4, 20, 7, 17, 1, 14, 21, 5, 25, 22]
+	seq = [27, 15, 3, 6, 10, 28, 12, 13, 18, 23, 8, 2, 24, 16, 19, 26, 11, 20, 9, 4, 7, 17, 1, 14, 21, 5, 25, 22]
+	sol = Solution([0//1, 1//1, 1//1, 29//133, 0//1, 1//1, 0//1, 1//1, 1//1, 1//1, 1//1, 1//1, 1//1, 0//1, 1//1, 1//1, 0//1, 1//1, 1//1, 0//1, 0//1, 0//1, 1//1, 1//1, 0//1, 1//1, 1//1, 1//1], [135089//133, 147296//133])
+	
+	fname = "../instancesPG/set2/D4.DAT" 
+	prob  = readInstanceMOMKPformatPG(false, fname)
+	sol, s, residualCapacity = reoptSolution(prob, prev, seq, 18, 19, sol, 29)
+	
+	@testset "Reoptimisation Tests 3" begin 
+		@test sol.z == [135039//133, 155049//133]
+		@test s == 19 
+		@test residualCapacity == 73 
+	end;	
 end
 
 
