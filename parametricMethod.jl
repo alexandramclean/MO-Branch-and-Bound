@@ -71,6 +71,21 @@ function swapWithItemNotInBag(prob::_MOMKP,
 	return sol, s, residualCapacity
 end
 
+# Mise à jour des positions après une inversion de séquence 
+function updatePositions!(seq, pos, subseq) 
+
+	if subseq[2] - subseq[1] >= 1
+		# Echange des positions correspondant aux deux extrémités 
+		tmp = pos[seq[subseq[1]]] 
+		pos[seq[subseq[1]]] = pos[seq[subseq[2]]]
+		pos[seq[subseq[2]]] = tmp 
+		
+		updatePositions!(seq, pos, [subseq[1]+1, subseq[2]-1])
+	end
+	
+end
+
+
 # Calcul de la relaxation continue
 function parametricMethod(prob::_MOMKP)
 
@@ -82,8 +97,8 @@ function parametricMethod(prob::_MOMKP)
 	transpositions = transpositionPreprocessing(weights, pairs)
 
 	# Tri des ratios dans l'ordre lexicographique décroissant selon (r1,r2)
-	@time seq = sortperm(1000000*r1 + r2, rev=true) # Séquence d'objets
-	pos = sortperm(seq)          		        # Position des objets dans la séquence
+	seq = sortperm(1000000*r1 + r2, rev=true) # Séquence d'objets
+	pos = sortperm(seq)          		      # Position des objets dans la séquence
 
 	# Construction de la première solution
 	sol, s, ω_ = buildSolution(prob, seq)
@@ -92,9 +107,6 @@ function parametricMethod(prob::_MOMKP)
 	push!(upperBound, sol)
 
 	nbCasEgalite = 0
-	tpsCalculPos = 0
-	tpsTri = 0
-	tpsReopt = 0
 
 	# Boucle principale
 	for iter in 1:length(transpositions)
@@ -108,40 +120,44 @@ function parametricMethod(prob::_MOMKP)
 			prev = deepcopy(seq)
 
 			# Donne les positions correspondant à chaque transposition à faire
-			start = time()
 			positions = [(min(pos[i], pos[j]), max(pos[i], pos[j])) for (i,j) in transpositions[iter].pairs]
-			tpsCalculPos += time() - start
 
 			# Trie les positions dans l'ordre croissant
-			start = time()
-			increasing = transpositions[iter].pairs[sortperm(positions)]
-			tpsTri += time() - start
-
-			if checkTranspositions(seq, increasing)
-				swaps = increasing
-			else
-				swaps = transpositions[iter].pairs[sortperm(positions, rev=true)]
-			end
-
-			for t in 1:length(swaps)
-				(i,j) = swaps[t]
-
-				# Mise à jour de la séquence
-				tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
-				seq[pos[i]] = i ; seq[pos[j]] = j
-			end
-
 			sort!(positions)
-			deb = positions[1][1]
-			fin = positions[end][2]
-
-			if deb <= s && fin >= s # La solution est modifiée
-
-				start = time()
-				sol, s, ω_ = reoptSolution(prob, prev, seq, deb, sol, s, ω_)
-				tpsReopt += time() - start
-
-			end
+			
+			# Identification des sous-séquences distinctes à modifier
+			subSequences = [] 
+			subseq = [positions[1][1], positions[1][2]] 
+			
+			for p in positions[2:end] 
+				if p[1] > subseq[2] 
+					# Nouvelle sous-séquence distincte
+					push!(subSequences, subseq) 
+					subseq = [p[1], p[2]] 
+				else 
+					subseq[2] = p[2] 
+				end
+			end 
+			push!(subSequences, subseq) 
+			
+			for subseq in subSequences 
+				# On inverse la sous-séquence et on remplace dans la séquence 
+				seq[subseq[1]:subseq[2]] = seq[subseq[2]:-1:subseq[1]] 				
+				
+				# On regarde si la solution est modifiée
+				deb = subseq[1] 
+				fin = subseq[2]
+				
+				if deb <= s && fin >= s # La solution est modifiée
+					sol, s, ω_ = reoptSolution(prob, prev, seq, deb, sol, s, ω_)
+				end
+				
+				# Mise à jour des positions
+				updatePositions!(seq, pos, subseq)
+			end 
+			
+			# Mise à jour des positions 
+			#pos = sortperm(seq)
 
 			push!(upperBound, sol)
 
@@ -172,9 +188,6 @@ function parametricMethod(prob::_MOMKP)
 	end
 
 	println("Nombre de cas d'égalité : ", nbCasEgalite)
-	println("Temps calcul des positions : ", tpsCalculPos)
-	println("Temps tri : ", tpsTri)
-	println("Temps construction de solutions : ", tpsReopt, "\n")
 
 	return upperBound
 

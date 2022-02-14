@@ -50,8 +50,6 @@ function criticalWeights(prob::_MOMKP,
 	for i in 1:n
 		for j in i+1:n
 
-			#print("\n(", i, ",", j, ")")
-
 			if (r1[i]-r2[i]-r1[j]+r2[j]) != 0
 
 				λ = (r2[j] - r2[i])//(r1[i]-r2[i]-r1[j]+r2[j])
@@ -61,11 +59,7 @@ function criticalWeights(prob::_MOMKP,
 				if λ > 0 && λ < 1
 					push!(weights, λ)
 					push!(pairs, (i,j))
-				#=else
-					print("\t\tpas entre 0 et 1")=#
 				end
-			#=else
-				print("\t\tλ n'existe pas")=#
 			end
 		end
 	end

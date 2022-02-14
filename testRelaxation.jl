@@ -16,11 +16,14 @@ include("displayGraphic.jl")
 # par méthode paramétrique
 function testComparaison(name, prob, ref=Nothing)
 
+	println("Méthode paramétrique")
 	@time UBparam = parametricMethod(prob)
+	
+	println("Méthode dichotomique")
     @time UBdicho = dichotomicMethod(prob)
 
     # Setup
-    figure("Test",figsize=(6.5,5))
+    figure("Test Relaxation Continue | "*name,figsize=(6.5,5))
     xlabel(L"z^1(x)")
     ylabel(L"z^2(x)")
     PyPlot.title("Test Relaxation Continue | "*name)
@@ -67,5 +70,17 @@ function testFile(fname::String)
 	testComparaison(fname, prob)
 end
 
-fname = "../instancesPG/set1/ZL250.DAT"
-testFile(fname)
+# Test sur toutes les instances 
+function testInstances(dir::String) 
+
+	testDidactic()
+	
+	files = readdir(dir) 
+	for fname in files 
+		println("\n", fname) 
+		testFile(dir*fname) 
+	end
+	
+end 
+
+
