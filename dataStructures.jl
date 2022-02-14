@@ -27,8 +27,8 @@ end
 struct Transposition
 	λ::Rational{Int}			  # Poids critique
 	pairs::Vector{Tuple{Int,Int}} # Liste des paires correspondantes
-end 
-Transposition(λ) = Transposition(λ,[]) 
+end
+Transposition(λ) = Transposition(λ,[])
 
 
 @enum Optimisation Max Min

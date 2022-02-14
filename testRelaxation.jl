@@ -52,7 +52,7 @@ end
 function testDidactic()
 	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
 	ref, _ = vSolveBi01IP(GLPK.Optimizer, didactic.P, didactic.W, didactic.ω)
-	testComparaison("didactic", didactic, ref) 
+	testComparaison("didactic", didactic, ref)
 end
 
 # Test sur une instance contenue dans le fichier fname
@@ -64,11 +64,8 @@ function testFile(fname::String)
     	prob = readInstanceMOMKPformatZL(false, fname)
 	end
 
-	testComparaison(fname, prob) 
+	testComparaison(fname, prob)
 end
 
-fname = "../instancesPG/set2/D4.DAT"
+fname = "../instancesPG/set1/ZL250.DAT"
 testFile(fname)
-
-
-
