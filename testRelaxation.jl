@@ -41,13 +41,13 @@ function testComparaison(name, prob, graphic)
 		plot(y_PN21, y_PN22, color="red", linewidth=0.75, marker="+",
 			markersize=1.0, linestyle=":")
 
-		# Affichage des solutions exactes pour le problème non relâché
+		#= Affichage des solutions exactes pour le problème non relâché
 		if ref != Nothing
 			y_N1 = [y[1] for y in ref] ; y_N2 = [y[2] for y in ref]
 			scatter(y_N1, y_N2, color="black", marker="+", label = "vOpt")
 			plot(y_N1, y_N2, color="black", linewidth=0.75, marker="+",
 				markersize=1.0, linestyle=":")
-		end
+		end=#
 
     	legend(bbox_to_anchor=[1,1], loc=0, borderaxespad=0, fontsize = "x-small")
     end 

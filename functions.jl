@@ -24,15 +24,11 @@ end
 # Computes the ratios for both objective functions
 function ratios(prob::_MOMKP)
 
-	n  = size(prob.P)[2]
-	r1 = Vector{Rational{Int}}(undef,n)
-	r2 = Vector{Rational{Int}}(undef,n)
+	n = size(prob.P)[2]
+	r = Vector{Tuple{Rational{Int}, Rational{Int}}}(undef, n)
 
-	for i in 1:n
-		@assert prob.W[1,i] != 0 "An item cannot have a weight of 0"
-		r1 = [prob.P[1,i]//prob.W[1,i] for i in 1:n]
-		r2 = [prob.P[2,i]//prob.W[1,i] for i in 1:n]
-	end
+	r1 = [prob.P[1,i]//prob.W[1,i] for i in 1:n]
+	r2 = [prob.P[2,i]//prob.W[1,i] for i in 1:n]
 
 	return r1, r2
 end
@@ -55,8 +51,6 @@ function criticalWeights(prob::_MOMKP,
 			if !(r1[i] == r1[j] || r2[i] == r2[j]) 
 
 				λ = (r2[j] - r2[i])//(r1[i]-r2[i]-r1[j]+r2[j])
-
-				#print("\t\tλ = ", λ, " ≈ ", round(λ*1.0, digits=5))
 
 				if λ > 0 && λ < 1
 					nbTransp += 1 
@@ -106,34 +100,6 @@ function transpositionPreprocessing(weights::Vector{Rational{Int}},
 		end
 	end
 	return transpositions
-end
-
-# Retourne vrai si la suite de transpositions est valide
-function checkTranspositions(seq::Vector{Int}, swaps::Vector{Tuple{Int,Int}})
-
-	seqprime = deepcopy(seq)
-	posprime = sortperm(seqprime)
-
-	success = true
-
-	iter = 1
-	while iter <= length(swaps) && success
-
-		(i,j) = swaps[iter]
-
-		if !(posprime[i] == posprime[j]+1 || posprime[j] == posprime[i]+1)
-			success = false
-		end
-
-		# Mise à jour de la séquence
-		tmp = posprime[i] ; posprime[i] = posprime[j] ; posprime[j] = tmp
-		seqprime[posprime[i]] = i ; seqprime[posprime[j]] = j
-
-		iter += 1
-	end
-
-	return success
-
 end
 
 # ----- SOLUTIONS ------------------------------------------------------------ #
