@@ -6,14 +6,13 @@
 
 include("dataStructures.jl")
 include("functions.jl")
-# Précondition : cas uni-dimensionnel
 
 # La place de l'objet cassé est échangée avec un objet dans le sac
 function swapWithItemInBag(prob::_MOMKP,
 						   seq::Vector{Int},
 						   sol::Solution,
 						   s::Int,
-						   residualCapacity::Union{Int,Rational{Int}})
+						   residualCapacity::Int)
 
 	# Enlever les objets s-1 et s
 	residualCapacity += prob.W[1,seq[s-1]]
@@ -47,7 +46,7 @@ function swapWithItemNotInBag(prob::_MOMKP,
 						   	  seq::Vector{Int},
 						   	  sol::Solution,
 						   	  s::Int,
-						   	  residualCapacity::Union{Int,Rational{Int}})
+						   	  residualCapacity::Int)
 
 	# L'objet à la position s est enlevé
 	sol.z -= sol.X[seq[s]] * prob.P[:,seq[s]]
@@ -72,15 +71,18 @@ function swapWithItemNotInBag(prob::_MOMKP,
 end
 
 # Mise à jour des positions après une inversion de séquence 
-function updatePositions!(seq, pos, subseq) 
+function updatePositions!(seq::Vector{Int}, 
+						  pos::Vector{Int}, 
+						  deb::Int, 
+						  fin::Int) 
 
-	if subseq[2] - subseq[1] >= 1
+	if fin - deb >= 1
 		# Echange des positions correspondant aux deux extrémités 
-		tmp = pos[seq[subseq[1]]] 
-		pos[seq[subseq[1]]] = pos[seq[subseq[2]]]
-		pos[seq[subseq[2]]] = tmp 
+		tmp = pos[seq[deb]] 
+		pos[seq[deb]] = pos[seq[fin]]
+		pos[seq[fin]] = tmp 
 		
-		updatePositions!(seq, pos, [subseq[1]+1, subseq[2]-1])
+		updatePositions!(seq, pos, deb+1, fin-1)
 	end
 	
 end
@@ -91,6 +93,7 @@ function parametricMethod(prob::_MOMKP)
 
 	# Calcul des ratios et poids critiques
 	r1, r2 = ratios(prob)
+	
 	weights, pairs = criticalWeights(prob, r1, r2)
 
 	# Regroupement des λ identiques
@@ -126,38 +129,39 @@ function parametricMethod(prob::_MOMKP)
 			sort!(positions)
 			
 			# Identification des sous-séquences distinctes à modifier
-			subSequences = [] 
-			subseq = [positions[1][1], positions[1][2]] 
+			# subSequences::Vector{Tuple{Int,Int}} = [] 
+			deb = positions[1][1] ; fin = positions[1][2]
 			
 			for p in positions[2:end] 
-				if p[1] > subseq[2] 
-					# Nouvelle sous-séquence distincte
-					push!(subSequences, subseq) 
-					subseq = [p[1], p[2]] 
+				if p[1] > fin # Nouvelle sous-séquence distincte
+					
+					# On inverse la sous-séquence 
+					seq[deb:fin] = seq[fin:-1:deb]
+					
+					# On regarde si la solution est modifiée
+					if deb <= s && fin >= s 
+						sol, s, ω_ = reoptSolution(prob, prev, seq, deb, sol, s, ω_)
+					end
+					
+					# Mise à jour des positions
+					updatePositions!(seq, pos, deb, fin)
+					
+					deb = p[1] ; fin = p[2] 
 				else 
-					subseq[2] = p[2] 
+					fin = p[2] 
 				end
 			end 
-			push!(subSequences, subseq) 
 			
-			for subseq in subSequences 
-				# On inverse la sous-séquence et on remplace dans la séquence 
-				seq[subseq[1]:subseq[2]] = seq[subseq[2]:-1:subseq[1]] 				
-				
-				# On regarde si la solution est modifiée
-				deb = subseq[1] 
-				fin = subseq[2]
-				
-				if deb <= s && fin >= s # La solution est modifiée
-					sol, s, ω_ = reoptSolution(prob, prev, seq, deb, sol, s, ω_)
-				end
-				
-				# Mise à jour des positions
-				updatePositions!(seq, pos, subseq)
-			end 
-			
-			# Mise à jour des positions 
-			#pos = sortperm(seq)
+			# On inverse la sous-séquence 
+			seq[deb:fin] = seq[fin:-1:deb]
+					
+			# On regarde si la solution est modifiée
+			if deb <= s && fin >= s 
+				sol, s, ω_ = reoptSolution(prob, prev, seq, deb, sol, s, ω_)
+			end
+					
+			# Mise à jour des positions
+			updatePositions!(seq, pos, deb, fin)
 
 			push!(upperBound, sol)
 
@@ -187,7 +191,7 @@ function parametricMethod(prob::_MOMKP)
 		end
 	end
 
-	println("Nombre de cas d'égalité : ", nbCasEgalite)
+	println("\tNombre de cas d'égalité : ", nbCasEgalite)
 
 	return upperBound
 

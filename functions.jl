@@ -45,18 +45,21 @@ function criticalWeights(prob::_MOMKP,
 	n       = size(prob.P)[2]
 	weights = Rational{Int}[]
 	pairs   = Tuple{Int,Int}[]
+	
+	nbTransp = 0
 
 	# Computes the critical weight for each pair of items (i,j)
 	for i in 1:n
 		for j in i+1:n
 
-			if (r1[i]-r2[i]-r1[j]+r2[j]) != 0
+			if !(r1[i] == r1[j] || r2[i] == r2[j]) 
 
 				λ = (r2[j] - r2[i])//(r1[i]-r2[i]-r1[j]+r2[j])
 
 				#print("\t\tλ = ", λ, " ≈ ", round(λ*1.0, digits=5))
 
 				if λ > 0 && λ < 1
+					nbTransp += 1 
 					push!(weights, λ)
 					push!(pairs, (i,j))
 				end
@@ -64,7 +67,7 @@ function criticalWeights(prob::_MOMKP,
 		end
 	end
 
-	println()
+	println("\tNombre de transpositions : ", nbTransp, " / ", n*(n-1)/2)
 
 	# Sorts the critical weights and associated item pairs in decreasing order
 	perm = sortperm(weights, rev=true)
@@ -143,7 +146,7 @@ end
 # Add a break item to a solution
 function addBreakItem!(prob::_MOMKP,
 					   sol::Solution,
-					   residualCapacity::Union{Int,Rational{Int}},
+					   residualCapacity::Int,
 					   item::Int)
 
 	sol.X[item] = residualCapacity//prob.W[1,item]
@@ -190,7 +193,7 @@ function reoptSolution(prob::_MOMKP,
 					   deb::Int,
 					   sol::Solution,
 					   s::Int,
-					   residualCapacity::Union{Int,Rational{Int}})
+					   residualCapacity::Int)
 
 	# Les objets entre deb et s dans la séquence précédente sont retirés
 	for pos in deb:s-1
