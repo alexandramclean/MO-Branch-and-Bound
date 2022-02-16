@@ -71,31 +71,12 @@ function swapWithItemNotInBag(prob::_MOMKP,
 	return sol, s, residualCapacity
 end
 
-# Updates the positions after reversing the subsequence between deb and fin 
-function updatePositions!(seq::Vector{Int}, 
-						  pos::Vector{Int}, 
-						  deb::Int, 
-						  fin::Int) 
-
-	if fin - deb >= 1
-		# Swaps the positions of the items at the edge of the subsequence 
-		tmp = pos[seq[deb]] 
-		pos[seq[deb]] = pos[seq[fin]]
-		pos[seq[fin]] = tmp 
-		
-		# Appel récursif sur la sous-séquence privée des extrémités
-		updatePositions!(seq, pos, deb+1, fin-1)
-	end
-	
-end
-
-
 # LP relaxation
 function parametricMethod(prob::_MOMKP)
 
 	# Computes the ratios and critical weights
 	r1, r2 = ratios(prob)
-	weights, pairs = criticalWeights(prob, r1, r2)
+	@time weights, pairs = criticalWeights(prob, r1, r2)
 
 	# Regroupement des λ identiques
 	transpositions = transpositionPreprocessing(weights, pairs)
@@ -106,20 +87,17 @@ function parametricMethod(prob::_MOMKP)
 
 	# Builds the initial solution
 	sol, s, ω_ = buildSolution(prob, seq)
-	upperBound = Solution[]
-	push!(upperBound, sol)
+	upperBound = Vector{Float64}[]
+	push!(upperBound, sol.z)
 
 	nbCasEgalite = 0
 
 	for iter in 1:length(transpositions)
 
-		sol = copySolution(sol)
-
 		# Multiple identical critical weights λ
 		if length(transpositions[iter].pairs) > 1
 
 			nbCasEgalite += 1
-			prev = deepcopy(seq)
 
 			# Positions corresponding to each transposition
 			positions = [(min(pos[i], pos[j]), max(pos[i], pos[j])) 
@@ -136,7 +114,7 @@ function parametricMethod(prob::_MOMKP)
 					seq[deb:fin] = seq[fin:-1:deb]
 					
 					if deb <= s && fin >= s # The solution is modified
-						sol, s, ω_ = reoptSolution(prob, prev, seq, deb, sol, s, ω_)
+						sol, s, ω_ = reoptSolution(prob, seq, deb, fin, sol, s, ω_)
 					end
 					
 					updatePositions!(seq, pos, deb, fin)
@@ -151,12 +129,12 @@ function parametricMethod(prob::_MOMKP)
 			seq[deb:fin] = seq[fin:-1:deb]
 					
 			if deb <= s && fin >= s # The solution is modified
-				sol, s, ω_ = reoptSolution(prob, prev, seq, deb, sol, s, ω_)
+				sol, s, ω_ = reoptSolution(prob, seq, deb, fin, sol, s, ω_)
 			end
 					
 			updatePositions!(seq, pos, deb, fin)
 
-			push!(upperBound, sol)
+			push!(upperBound, sol.z)
 
 		else
 
@@ -166,12 +144,12 @@ function parametricMethod(prob::_MOMKP)
 			if k == s-1
 
 				sol, s, ω_ = swapWithItemInBag(prob, seq, sol, s, ω_)
-				push!(upperBound, sol)
+				push!(upperBound, sol.z)
 
 			elseif k == s
 
 				sol, s, ω_ = swapWithItemNotInBag(prob, seq, sol, s, ω_)
-				push!(upperBound, sol)
+				push!(upperBound, sol.z)
 
 			end
 

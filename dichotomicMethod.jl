@@ -70,7 +70,7 @@ function dichotomicMethod(prob::_MOMKP)
 	x12, x21 = lexicographicSolutions(prob) 
 
 	# Ensemble de points
-	Y_SN = []
+	Y_SN = Vector{Rational{Int}}[]
 	ajouter!(Y_SN, x12.z)
 	ajouter!(Y_SN, x21.z)
 

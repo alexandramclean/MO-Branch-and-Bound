@@ -102,6 +102,24 @@ function transpositionPreprocessing(weights::Vector{Rational{Int}},
 	return transpositions
 end
 
+# Updates the positions after reversing the subsequence between deb and fin 
+function updatePositions!(seq::Vector{Int}, 
+						  pos::Vector{Int}, 
+						  deb::Int, 
+						  fin::Int) 
+
+	if fin - deb >= 1
+		# Swaps the positions of the items at the edge of the subsequence 
+		tmp = pos[seq[deb]] 
+		pos[seq[deb]] = pos[seq[fin]]
+		pos[seq[fin]] = tmp 
+		
+		# Appel récursif sur la sous-séquence privée des extrémités
+		updatePositions!(seq, pos, deb+1, fin-1)
+	end
+	
+end
+
 # ----- SOLUTIONS ------------------------------------------------------------ #
 # Add an item to a solution
 function addItem!(prob::_MOMKP, sol::Solution, item::Int)
@@ -154,26 +172,31 @@ end
 
 # Re-build part of a solution
 function reoptSolution(prob::_MOMKP,
-					   prev::Vector{Int},
 					   seq::Vector{Int},
 					   deb::Int,
+					   fin::Int, 
 					   sol::Solution,
 					   s::Int,
 					   residualCapacity::Int)
 
-	# Les objets entre deb et s dans la séquence précédente sont retirés
-	for pos in deb:s-1
+	# Les objets entre deb et fin dans la séquence sont retirés
+	for pos in deb:fin
 
-		item = prev[pos]
-		sol.X[item] = 0
-		sol.z -= prob.P[:,item]
-		residualCapacity += prob.W[1,item]
-
+		item = seq[pos]
+		
+		if sol.X[item] < 1 && sol.X[item] > 0 
+			# L'objet cassé est retiré
+			sol.z -= sol.X[item] * prob.P[:,item]
+			sol.X[item] = 0
+			
+		elseif sol.X[item] == 1 
+			# Un objet inséré dans le sac est retiré
+			sol.z -= prob.P[:,item]
+			residualCapacity += prob.W[1,item]
+			sol.X[item] = 0
+		end 
+		
 	end
-
-	# L'objet cassé est retiré
-	sol.z -= sol.X[prev[s]] * prob.P[:,prev[s]]
-	sol.X[prev[s]] = 0
 
 	# Les objets sont insérés en partant de deb dans la nouvelle séquence
 	pos = deb

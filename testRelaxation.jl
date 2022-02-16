@@ -17,10 +17,10 @@ include("displayGraphic.jl")
 function testComparaison(name, prob, graphic)
 
 	println("Méthode paramétrique")
-	UBparam = @code_warntype parametricMethod(prob)
+	@time UBparam = parametricMethod(prob)
 	
 	println("Méthode dichotomique")
-    @time UBdicho = dichotomicMethod(prob)
+    UBdicho = @code_warntype dichotomicMethod(prob)
 
 	if graphic 
    		# Setup
@@ -30,7 +30,7 @@ function testComparaison(name, prob, graphic)
     	PyPlot.title("Test Relaxation Continue | "*name)
 
 		# Affichage des points calculés par méthode paramétrique
-		y_PN11 = [y.z[1] for y in UBparam] ; y_PN12 = [y.z[2] for y in UBparam]
+		y_PN11 = [y[1] for y in UBparam] ; y_PN12 = [y[2] for y in UBparam]
 		scatter(y_PN11, y_PN12, color="green", marker="+", label = "parametric")
 		plot(y_PN11, y_PN12, color="green", linewidth=0.75, marker="+",
 			markersize=1.0, linestyle=":")

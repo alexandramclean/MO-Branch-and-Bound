@@ -9,28 +9,24 @@ include("functions.jl")
 include("listeOrdonnee.jl")
 
 # Borne de Martello et Toth
-function u0(prob::_MOMKP, seq, sol, residualCapacity, s) 
+function u0(prob::_MOMKP, seq::Vector{Int}, sol::Solution, s::Int, ω_::Int) 
 	U0 = sol.z + [0,0] 
-	U0[1] += residualCapacity * (prob.P[1,seq[s+1]]/prob.W[1,seq[s+1]])
-	U0[2] += residualCapacity * (prob.P[2,seq[s+1]]/prob.W[1,seq[s+1]])
+	U0[1] += residualCapacity/prob.W[1,seq[s+1]] * prob.P[1,seq[s+1]]
+	U0[2] += residualCapacity/prob.W[1,seq[s+1]] * prob.P[2,seq[s+1]]
 	return U0
 end
 
-function u1(prob::_MOMKP, seq, sol, residualCapacity, s)
+function u1(prob::_MOMKP, seq::Vector{Int}, sol::Solution, s::Int, ω_::Int)
 	U1 = sol.z + prob.P[:,seq[s]]
-	U1[1] -= (prob.W[1,seq[s]] - residualCapacity) * (prob.P[1,seq[s-1]]/prob.W[1,seq[s-1]])
-	U1[2] -= (prob.W[1,seq[s]] - residualCapacity) * (prob.P[2,seq[s-1]]/prob.W[1,seq[s-1]])
+	U1[1] -= (prob.W[1,seq[s]] - residualCapacity)/prob.W[1,seq[s-1]] * prob.P[1,seq[s-1]]
+	U1[2] -= (prob.W[1,seq[s]] - residualCapacity)/prob.W[1,seq[s-1]] * prob.P[2,seq[s-1]]
 	return U1
 end 
 
-function uMT(prob::_MOMKP, 
-			 seq,
-	     	 sol, # Solution dantzig
-	     	 residualCapacity, 
-	     	 s) # Position de l'objet cassé 
+function uMT(prob::_MOMKP, seq, sol, s, residualCapacity)
 	
-	U0 = u0(prob, seq, sol, residualCapacity, s)
-	U1 = u1(prob, seq, sol, residualCapacity, s)
+	U0 = u0(prob, seq, sol, s, residualCapacity)
+	U1 = u1(prob, seq, sol, s, residualCapacity)
 	return U0, U1
 end 
 
@@ -50,7 +46,7 @@ function chooseBound!(upperBound, weights, U0, U1, iter)
 		
 	else # Pas de dominance entre U0 et U1
 		λeq = (U1[2] - U0[2])/(U0[1] - U0[2] - U1[1] + U1[2]) 
-		#println("λ = ", λeq)
+		println("λ = ", λeq)
 		
 		# Le λeq d'égalité est plus petit que le λ critique suivant
 		if iter < length(weights) && λeq < weights[iter+1] 
@@ -79,7 +75,7 @@ end
 
 function martelloAndToth(prob::_MOMKP) 
 
-	upperBound = []
+	upperBound = Vector{Float64}[]
 	
 	# Calcul des ratios 
 	r1, r2 = ratios(prob)
@@ -87,26 +83,60 @@ function martelloAndToth(prob::_MOMKP)
 	# Calcul des poids critiques
 	weights, pairs = criticalWeights(prob, r1, r2)
 	
+	# Regroupement des λ identiques
+	transpositions = transpositionPreprocessing(weights, pairs)
+	
 	# Tri des ratios dans l'ordre lexicographique décroissant selon (r1,r2)
-	seq = sortperm(r1, rev=true) # Séquence d'objets
+	seq = sortperm(1000000*r1 + r2, rev=true) # Séquence d'objets
 	pos = sortperm(seq)          # Position des objets dans la séquence
 	
 	# Construction de la première solution dantzig 
-	sol, s, residualCapacity = dantzigSolution(prob, seq) 
+	sol, s, ω_ = dantzigSolution(prob, seq) 
 	
 	# Calcul de la première borne de Martello et Toth
-	U0, U1 = uMT(prob, seq, sol, residualCapacity, s) 
+	U0, U1 = uMT(prob, seq, sol, s, ω_) 
+	
+	# Borne à conserver 
+	upperBound = Vector{Float64}[]
 	chooseBound!(upperBound, weights, U0, U1, 0)
 	
 	println("U0 = ", U0)
 	println("U1 = ", U1)
 	
 	# Boucle principale
+	for iter in 1:length(transpositions) 
+	
+		if !(length(transpositions[iter].pairs) > 1)
+		
+			(i,j) = transpositions[iter].pairs[1]
+			k = min(pos[i], pos[j])
+
+			if k == s-2
+				# Echange des objets s-2 et s-1 
+
+				
+			elseif k == s-1 
+				# Echange des objets s-1 et s
+				
+			
+			elseif k == s 
+				# Echange des objets s et s+1
+				
+			
+			elseif k == s+1
+				# Echange des objets s+1 et s+2 			
+	
+	
+			end
+
+			# Update the sequence and positions
+			tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
+			seq[pos[i]] = i ; seq[pos[j]] = j
+	
+		end
+	end
 			
 	return upperBound
 end
-
-# Exemple didactique
-prob = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
 
 
