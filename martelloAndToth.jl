@@ -117,7 +117,7 @@ function martelloAndToth(prob::_MOMKP)
 	chooseBound!(upperBound, weights, U0, U1, 0)
 	
 	# Boucle principale
-	for iter in 1:6 
+	for iter in 1:length(transpositions)
 	
 		println("\nIter ", iter)
 		println(transpositions[iter])
@@ -174,6 +174,24 @@ function martelloAndToth(prob::_MOMKP)
 			
 			elseif k == s 
 				# Echange des objets s et s+1
+				
+				# Solution dantzig potentiellement modifiée 
+				if prob.W[1,seq[s+1]] <= ω_
+					addItem!(prob, sol, seq[s+1])
+					ω_ -= prob.W[1,seq[s+1]]
+				end
+				
+				# Update the sequence and positions
+				tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
+				seq[pos[i]] = i ; seq[pos[j]] = j
+				
+				# U0 et U1 modifiés
+				U0, U1 = uMT(prob, seq, sol, s, ω_)
+				
+				println("U0 = ", U0)
+				println("U1 = ", U1)
+				
+				chooseBound!(upperBound, weights, U0, U1, iter)	
 				
 			
 			elseif k == s+1
