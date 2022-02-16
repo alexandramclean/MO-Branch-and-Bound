@@ -21,16 +21,20 @@ function testChooseBound()
 	upperBound = Vector{Float64}[]
 	
 	@testset "ChooseBound Tests" begin 
+	
+		# Cas λeq plus petit que le λ critique suivant 
 		U0 = [30.0, 7.0]
 		U1 = [23.0, 9.0]
 		chooseBound!(upperBound, weights, U0, U1, 0)
 		@test upperBound == [[30.0, 7.0]] 
 		
+		# Cas λeq égal au λ critique suivant
 		U0 = [30.0, 7.0]
-		U1 = [21.5, 12.0]
-		chooseBound!(upperBound, weights, U0, U1, 1)
-		@test upperBound == [[30.0, 7.0]] 
+		U1 = [20.0, 13.0]
+		chooseBound!(upperBound, weights, U0, U1, 3)
+		@test upperBound == [[30.0, 7.0]]
 		
+		# Cas λeq strictement compris entre les λ critiques précédent et suivant
 		U0 = [30.0, 7.0]
 		U1 = [83/4, 25/2]
 		chooseBound!(upperBound, weights, U0, U1, 4)
@@ -44,3 +48,11 @@ function testChooseBound()
 	end;
 	
 end 
+
+# ---------------------------------------------------------------------------- #
+function testMartelloAndToth()
+	# Exemple didactique
+	prob = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
+	
+	upperBound = martelloAndToth(prob)
+end
