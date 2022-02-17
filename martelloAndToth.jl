@@ -35,52 +35,92 @@ function weightedSum(λ::Rational{Int}, y::Vector{Float64})
 	return λ*y[1] + (1 - λ)*y[2]
 end
 
-# Retourne vrai si la somme pondérée pour λ est plus grande avec U0
-function isBigger(U0::Vector{Float64}, 
-				  U1::Vector{Float64}, 
-				  λ::Rational{Int})
-	return weightedSum(λ, U0) >= weightedSum(λ, U1) 
+# Retourne la borne pour laquelle la somme pondérée pour λ est plus grande
+function returnBiggest(U0::Vector{Float64}, 
+				  	   U1::Vector{Float64}, 
+				  	   λ::Rational{Int})
+	if weightedSum(λ, U0) >= weightedSum(λ, U1)
+		return U0 
+	else 
+		return U1
+	end		 
 end
 
 # Détermine quel point est obtenu pour la borne supérieure de Martello et Toth 
 function chooseBound!(upperBound::Vector{Vector{Float64}}, 
-					  weights::Vector{Rational{Int}}, 
+					  constraints::Vector{Constraint},
+					  prev::Rational{Int}, # λ précédent
+					  next::Rational{Int}, # λ suivant 
 					  U0::Vector{Float64}, 
-					  U1::Vector{Float64}, 
-					  iter::Int)
+					  U1::Vector{Float64})
+	
+	len = length(upperBound)
 	
 	if domine(U0,U1) 
 		ajouter!(upperBound, U0) 
+		if length(upperBound) != len
+			push!(constraints, Constraint(prev, U0))
+		end
 		
 	elseif domine(U1,U0) 
 		ajouter!(upperBound, U1)
+		if length(upperBound) != len
+			push!(constraints, Constraint(prev, U1))
+		end
 		
 	else # Pas de dominance entre U0 et U1
 		λeq = (U1[2] - U0[2])/(U0[1] - U0[2] - U1[1] + U1[2]) 
-		println("λ = ", λeq)
+		#println("λ = ", λeq)
 		
-		# Le λeq d'égalité est plus petit ou égale au λ critique suivant
-		if iter < length(weights) && λeq <= weights[iter+1] 
+		if λeq < prev && λeq > next
 		
-			# La somme pondérée avec U0 est plus grande lorsque λ > λeq
-			if isBigger(U0, U1, weights[iter+1]) 
-				ajouter!(upperBound, U0) 
+			if weightedSum(prev, U0) >= weightedSum(prev, U1)
+				# U0 est plus grand sur l'intervalle [λeq, weights[iter]]
+				ajouter!(upperBound, U0)
+				
+				if length(upperBound) != len
+					push!(constraints, Constraint(prev, U0))
+				end
+				
+				# U1 est plus grand sur l'intervalle [weights[iter+1], λeq]
+				ajouter!(upperBound, U1)
+				
+				if length(upperBound) != len
+					push!(constraints, Constraint(λeq, U1))
+				end
+				
 			else 
-				ajouter!(upperBound, U1) 
+				# U1 est plus grand sur l'intervalle [λeq, weights[iter]]
+				ajouter!(upperBound, U1)
+				
+				if length(upperBound) != len
+					push!(constraints, Constraint(prev, U1))
+				end
+				
+				# U0 est plus grand sur l'intervalle [weights[iter+1], λeq]
+				ajouter!(upperBound, U0)
+				
+				if length(upperBound) != len
+					push!(constraints, Constraint(λeq, U0))
+				end
 			end 
 			
-		# Le λeq d'égalité est plus grand ou égal au λ critique précédent
-		elseif iter > 1 && λeq >= weights[iter] 
-		
-			# La somme pondérée avec U0 est plus grande lorsque λ < λeq
-			if isBigger(U0, U1, weights[iter]) 
-				ajouter!(upperBound, U0) 
-			else 
-				ajouter!(upperBound, U1) 
-			end 
 		else 
-			ajouter!(upperBound, U0)
-			ajouter!(upperBound, U1)
+		
+			# Le λeq d'égalité est plus petit ou égal au λ critique suivant
+			if λeq <= next 
+				U = returnBiggest(U0, U1, next)
+				
+			# Le λeq d'égalité est plus grand ou égal au λ critique précédent
+			elseif λeq >= prev
+				U = returnBiggest(U0, U1, prev)
+			end
+			
+			ajouter!(upperBound, U)
+			
+			if length(upperBound) != len
+				push!(constraints, Constraint(prev, U))
+			end
 		end
 	end
 	
@@ -88,41 +128,103 @@ end
 
 function martelloAndToth(prob::_MOMKP) 
 
-	upperBound = Vector{Float64}[]
+	upperBound  = Vector{Float64}[]
+	constraints = Constraint[] 
 	
 	# Calcul des ratios 
 	r1, r2 = ratios(prob)
 	
 	# Calcul des poids critiques
-	weights, pairs = criticalWeights(prob, r1, r2)
+	@time weights, pairs = criticalWeights(prob, r1, r2)
 	
 	# Regroupement des λ identiques
 	transpositions = transpositionPreprocessing(weights, pairs)
 	
 	# Tri des ratios dans l'ordre lexicographique décroissant selon (r1,r2)
-	seq = sortperm(1000000*r1 + r2, rev=true) # Séquence d'objets
-	pos = sortperm(seq)          # Position des objets dans la séquence
+	seq = sortperm(1000000*r1 + r2, rev=true) # Item sequence 
+	pos = sortperm(seq)          			  # Item positions
 	
 	# Construction de la première solution dantzig 
 	sol, s, ω_ = dantzigSolution(prob, seq) 
 	
 	# Calcul de la première borne de Martello et Toth
-	U0::Vector{Float64}, U1::Vector{Float64} = uMT(prob, seq, sol, s, ω_) 
+	U0, U1 = uMT(prob, seq, sol, s, ω_) 
 	
 	println("U0 = ", U0)
 	println("U1 = ", U1)
 	
 	# Borne à conserver 
-	upperBound = Vector{Float64}[]
-	chooseBound!(upperBound, weights, U0, U1, 0)
+	chooseBound!(upperBound, constraints, 1//1, weights[1], U0, U1)
+	println(upperBound)
+		
+	nbCasEgalite = 0
 	
 	# Boucle principale
 	for iter in 1:length(transpositions)
 	
 		println("\nIter ", iter)
-		println(transpositions[iter])
 	
-		if !(length(transpositions[iter].pairs) > 1)
+		# Poids critiques précédents et suivants
+		prev = transpositions[iter].λ
+		if iter == length(transpositions)
+			next = 0//1
+		else 
+			next = transpositions[iter+1].λ
+		end
+	
+		# Cas d'égalité
+		if length(transpositions[iter].pairs) > 1
+			
+			nbCasEgalite += 1
+			
+			# Positions corresponding to each transposition
+			positions = [(min(pos[i], pos[j]), max(pos[i], pos[j])) 
+						for (i,j) in transpositions[iter].pairs]
+			sort!(positions)
+			
+			# Identification of the modified subsequences
+			subsequences = Tuple{Int,Int}[] 
+			start = positions[1][1] ; finish = positions[1][2]
+			
+			for p in positions[2:end] 
+				if p[1] > finish # Start of a new distinct subsequence
+					push!(subsequences, (start, finish))
+					start = p[1] ; finish = p[2] 	
+				else 
+					finish = p[2] 
+				end
+			end 
+			push!(subsequences, (start, finish))
+			
+			# Reversing the subsequences
+			for (start, finish) in subsequences
+			
+				# The subsequence is reversed 
+				seq[start:finish] = seq[finish:-1:start]	
+				updatePositions!(seq, pos, start, finish)
+			
+				if start < s-1 && finish == s-1 		# Seul U1 est modifié 
+					U1 = u1(prob, seq, sol, s, ω_)
+					println("U1 = ", U1)		
+						
+				elseif start == s+1 && finish > s+1		# Seul U0 est modifié
+					U0 = u0(prob, seq, sol, s, ω_)
+					println("U0 = ", U0)
+						
+				elseif start <= s && finish >= s 
+					# La solution dantzig est potentiellement modifiée
+					sol, s, ω_ = reoptSolution(prob, seq, start, finish, sol, s, ω_)
+					U0, U1 = uMT(prob, seq, sol, s, ω_)
+					
+					println("U0 = ", U0)
+					println("U1 = ", U1)
+				end
+				
+			end
+
+			chooseBound!(upperBound, constraints, prev, next, U0, U1)	
+			println(upperBound)
+		else
 		
 			(i,j) = transpositions[iter].pairs[1]
 			k = min(pos[i], pos[j])
@@ -139,7 +241,7 @@ function martelloAndToth(prob::_MOMKP)
 				
 				println("U1 = ", U1)
 				
-				chooseBound!(upperBound, weights, U0, U1, iter)
+				chooseBound!(upperBound, constraints, prev, next, U0, U1)
 				
 			elseif k == s-1 
 				# Echange des objets s-1 et s
@@ -169,9 +271,8 @@ function martelloAndToth(prob::_MOMKP)
 				println("U0 = ", U0)
 				println("U1 = ", U1)
 				
-				chooseBound!(upperBound, weights, U0, U1, iter)	
-							
-			
+				chooseBound!(upperBound, constraints, prev, next, U0, U1)	
+								
 			elseif k == s 
 				# Echange des objets s et s+1
 				
@@ -191,7 +292,7 @@ function martelloAndToth(prob::_MOMKP)
 				println("U0 = ", U0)
 				println("U1 = ", U1)
 				
-				chooseBound!(upperBound, weights, U0, U1, iter)	
+				chooseBound!(upperBound, constraints, prev, next, U0, U1)
 				
 			
 			elseif k == s+1
@@ -206,11 +307,10 @@ function martelloAndToth(prob::_MOMKP)
 				
 				println("U0 = ", U0)
 				
-				chooseBound!(upperBound, weights, U0, U1, iter)	
+				chooseBound!(upperBound, constraints, prev, next, U0, U1)	
 	
 			else 
-			
-				println("Inchangé")
+
 				# Update the sequence and positions
 				tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
 				seq[pos[i]] = i ; seq[pos[j]] = j
@@ -220,9 +320,8 @@ function martelloAndToth(prob::_MOMKP)
 		end
 	end
 	
-	println("\n", upperBound)
-			
-	return upperBound
+	println("\tNombre de cas d'égalité : ", nbCasEgalite)
+	return upperBound, constraints
 end
 
 

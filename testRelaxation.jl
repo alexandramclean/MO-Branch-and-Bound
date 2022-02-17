@@ -5,6 +5,7 @@
 ################################################################################
 
 include("parametricMethod.jl")
+include("martelloAndToth.jl")
 include("dichotomicMethod.jl")
 include("vOptMomkp.jl")
 include("parserMomkpPG.jl")
@@ -20,7 +21,7 @@ function testComparaison(name, prob, graphic)
 	@time UBparam = parametricMethod(prob)
 	
 	println("Méthode dichotomique")
-    UBdicho = @code_warntype dichotomicMethod(prob)
+    @time UBdicho = dichotomicMethod(prob)
 
 	if graphic 
    		# Setup

@@ -64,8 +64,9 @@ function criticalWeights(prob::_MOMKP,
 	println("\tNombre de transpositions : ", nbTransp, " / ", n*(n-1)/2)
 
 	# Sorts the critical weights and associated item pairs in decreasing order
-	perm = sortperm(weights, rev=true)
+	perm    = sortperm(weights, rev=true)
 	return weights[perm], pairs[perm]
+	
 end
 
 # Returns a list containing all the distinct λ values in decreasing order and
@@ -170,17 +171,17 @@ function buildSolution(prob::_MOMKP, sequence::Vector{Int})
 	return sol, s, residualCapacity
 end
 
-# Re-build part of a solution
+# Re-build part of a solution after a sequence reversal
 function reoptSolution(prob::_MOMKP,
 					   seq::Vector{Int},
-					   deb::Int,
-					   fin::Int, 
+					   start::Int,
+					   finish::Int, 
 					   sol::Solution,
 					   s::Int,
-					   residualCapacity::Int)
+					   ω_::Int)
 
 	# Les objets entre deb et fin dans la séquence sont retirés
-	for pos in deb:fin
+	for pos in start:finish
 
 		item = seq[pos]
 		
@@ -192,27 +193,23 @@ function reoptSolution(prob::_MOMKP,
 		elseif sol.X[item] == 1 
 			# Un objet inséré dans le sac est retiré
 			sol.z -= prob.P[:,item]
-			residualCapacity += prob.W[1,item]
+			ω_ += prob.W[1,item]
 			sol.X[item] = 0
 		end 
 		
 	end
 
 	# Les objets sont insérés en partant de deb dans la nouvelle séquence
-	pos = deb
-	while prob.W[1,seq[pos]] <= residualCapacity
+	pos = start
+	while prob.W[1,seq[pos]] <= ω_
 
 		# L'objet est inséré en entier
 		addItem!(prob, sol, seq[pos])
-		residualCapacity -= prob.W[1,seq[pos]]
+		ω_ -= prob.W[1,seq[pos]]
 
 		pos += 1
 	end
 
-	if residualCapacity > 0
-		addBreakItem!(prob, sol, residualCapacity, seq[pos])
-	end
-
-	return sol, pos, residualCapacity
+	return sol, pos, ω_
 
 end

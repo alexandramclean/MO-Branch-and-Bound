@@ -30,6 +30,12 @@ struct Transposition
 end
 Transposition(λ) = Transposition(λ,[])
 
+# Data structure of a constraint generated whilst computing the upper bound set
+struct Constraint 
+	λ::Rational{Int}              # Critical weight
+	point::Vector{Float64} # Associated point (u1,u2)
+end
+# La contrainte associée est λz1 + (1-λ)z2 <= λu1 + (1-λ)u2 où point = (u1,u2)
 
 @enum Optimisation Max Min
 

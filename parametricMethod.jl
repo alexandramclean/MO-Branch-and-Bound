@@ -77,13 +77,13 @@ function parametricMethod(prob::_MOMKP)
 	# Computes the ratios and critical weights
 	r1, r2 = ratios(prob)
 	@time weights, pairs = criticalWeights(prob, r1, r2)
-
+	
 	# Regroupement des λ identiques
 	transpositions = transpositionPreprocessing(weights, pairs)
 
 	# The ratios are sorted in decreasing lexicographical order on (r1,r2)
 	seq = sortperm(1000000*r1 + r2, rev=true) # Item sequence
-	pos = sortperm(seq) # Positions of the items in the sequence
+	pos = sortperm(seq) 					  # Item positions
 
 	# Builds the initial solution
 	sol, s, ω_ = buildSolution(prob, seq)
@@ -105,34 +105,40 @@ function parametricMethod(prob::_MOMKP)
 			sort!(positions)
 			
 			# Identification of the modified subsequences
-			deb = positions[1][1] ; fin = positions[1][2]
+			start = positions[1][1] ; finish = positions[1][2]
 			
 			for p in positions[2:end] 
-				if p[1] > fin # Start of a new distinct subsequence
+				if p[1] > finish # Start of a new distinct subsequence
 					
 					# The subsequence is reversed 
-					seq[deb:fin] = seq[fin:-1:deb]
+					seq[start:finish] = seq[finish:-1:start]
 					
-					if deb <= s && fin >= s # The solution is modified
-						sol, s, ω_ = reoptSolution(prob, seq, deb, fin, sol, s, ω_)
+					if start <= s && finish >= s # The solution is modified
+						sol, s, ω_ = reoptSolution(prob, seq, start, finish, sol, s, ω_)
+						if ω_ > 0
+							addBreakItem!(prob, sol, ω_, seq[s])
+						end
 					end
 					
-					updatePositions!(seq, pos, deb, fin)
+					updatePositions!(seq, pos, start, finish)
 					
-					deb = p[1] ; fin = p[2] 
+					start = p[1] ; finish = p[2] 
 				else 
-					fin = p[2] 
+					finish = p[2] 
 				end
 			end 
 			
 			# The subsequence is reversed 
-			seq[deb:fin] = seq[fin:-1:deb]
+			seq[start:finish] = seq[finish:-1:start]
 					
-			if deb <= s && fin >= s # The solution is modified
-				sol, s, ω_ = reoptSolution(prob, seq, deb, fin, sol, s, ω_)
+			if start <= s && finish >= s # The solution is modified
+				sol, s, ω_ = reoptSolution(prob, seq, start, finish, sol, s, ω_)
+				if ω_ > 0
+					addBreakItem!(prob, sol, ω_, seq[s])
+				end
 			end
 					
-			updatePositions!(seq, pos, deb, fin)
+			updatePositions!(seq, pos, start, finish)
 
 			push!(upperBound, sol.z)
 
