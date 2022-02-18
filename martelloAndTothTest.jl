@@ -7,6 +7,8 @@
 include("dataStructures.jl")
 include("functions.jl")
 include("martelloAndToth.jl")
+include("parserMomkpPG.jl")
+include("parserMomkpZL.jl")
 
 using Test 
 
@@ -50,11 +52,30 @@ function testChooseBound()
 end 
 
 # ---------------------------------------------------------------------------- #
-function testMartelloAndToth()
-	# Exemple didactique
-	prob = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
+function testMartelloAndToth(dir::String)
 	
-	# Exemple pathologique
-	#prob = _MOMKP([8 28 28 23 6 17 10 24 ; 15 9 9 10 23 16 24 8], [12 30 30 26 14 22 13 31], [152]) 
-	upperBound, constraints = martelloAndToth(prob)
+	#= Exemple pathologique
+	prob = _MOMKP([8 28 28 23 6 17 10 24 ; 15 9 9 10 23 16 24 8], [12 30 30 26 14 22 13 31], [152]) =#
+	
+	# Exemple didactique
+	println("Exemple didactique")
+	prob = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
+	@time upperBound, constraints = martelloAndToth(prob)
+	
+	# Test sur toutes les instances du répertoire dir
+	files = readdir(dir)
+	for f in files 
+	
+		println("\n", f)
+		
+		fname = dir*f
+		if fname[length(fname)-3:length(fname)] == ".DAT"
+			prob = readInstanceMOMKPformatPG(false, fname)
+		else
+			prob = readInstanceMOMKPformatZL(false, fname)
+		end
+		
+		@time upperBound, constraints = martelloAndToth(prob)
+	end
+
 end
