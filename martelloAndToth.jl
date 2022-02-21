@@ -150,19 +150,13 @@ function martelloAndToth(prob::_MOMKP)
 	# Calcul de la première borne de Martello et Toth
 	U0, U1 = uMT(prob, seq, sol, s, ω_) 
 	
-	println("U0 = ", U0)
-	println("U1 = ", U1)
-	
 	# Borne à conserver 
 	chooseBound!(upperBound, constraints, 1//1, weights[1], U0, U1)
-	println(upperBound)
-		
+
 	nbCasEgalite = 0
 	
 	# Boucle principale
 	for iter in 1:length(transpositions)
-	
-		println("\nIter ", iter)
 	
 		# Poids critiques précédents et suivants
 		prev = transpositions[iter].λ
@@ -204,26 +198,22 @@ function martelloAndToth(prob::_MOMKP)
 				updatePositions!(seq, pos, start, finish)
 			
 				if start < s-1 && finish == s-1 		# Seul U1 est modifié 
-					U1 = u1(prob, seq, sol, s, ω_)
-					println("U1 = ", U1)		
+					U1 = u1(prob, seq, sol, s, ω_)	
 						
 				elseif start == s+1 && finish > s+1		# Seul U0 est modifié
 					U0 = u0(prob, seq, sol, s, ω_)
-					println("U0 = ", U0)
 						
 				elseif start <= s && finish >= s 
 					# La solution dantzig est potentiellement modifiée
 					sol, s, ω_ = reoptSolution(prob, seq, start, finish, sol, s, ω_)
 					U0, U1 = uMT(prob, seq, sol, s, ω_)
-					
-					println("U0 = ", U0)
-					println("U1 = ", U1)
+
 				end
 				
 			end
 
 			chooseBound!(upperBound, constraints, prev, next, U0, U1)	
-			println(upperBound)
+			
 		else
 		
 			(i,j) = transpositions[iter].pairs[1]
@@ -238,8 +228,6 @@ function martelloAndToth(prob::_MOMKP)
 				
 				# Seul U1 est changé
 				U1 = u1(prob, seq, sol, s, ω_)
-				
-				println("U1 = ", U1)
 				
 				chooseBound!(upperBound, constraints, prev, next, U0, U1)
 				
@@ -268,10 +256,7 @@ function martelloAndToth(prob::_MOMKP)
 				# U0 et U1 modifiés en conséquence
 				U0, U1 = uMT(prob, seq, sol, s, ω_)
 				
-				println("U0 = ", U0)
-				println("U1 = ", U1)
-				
-				chooseBound!(upperBound, constraints, prev, next, U0, U1)	
+				chooseBound!(upperBound, constraints, prev, next, U0, U1)
 								
 			elseif k == s 
 				# Echange des objets s et s+1
@@ -289,26 +274,20 @@ function martelloAndToth(prob::_MOMKP)
 				# U0 et U1 modifiés
 				U0, U1 = uMT(prob, seq, sol, s, ω_)
 				
-				println("U0 = ", U0)
-				println("U1 = ", U1)
-				
 				chooseBound!(upperBound, constraints, prev, next, U0, U1)
-				
 			
 			elseif k == s+1
-				# Echange des objets s+1 et s+2 
+				# Swap items s+1 et s+2 
 				
 				# Update the sequence and positions
 				tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
 				seq[pos[i]] = i ; seq[pos[j]] = j	
 				
-				# Seul U0 est modifié 
+				# Only U0 is modified 
 				U0 = u0(prob, seq, sol, s, ω_)	
 				
-				println("U0 = ", U0)
-				
 				chooseBound!(upperBound, constraints, prev, next, U0, U1)	
-	
+				
 			else 
 
 				# Update the sequence and positions
