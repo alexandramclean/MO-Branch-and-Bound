@@ -121,6 +121,26 @@ function updatePositions!(seq::Vector{Int},
 	
 end
 
+# ----- INITIALISATION ------------------------------------------------------- #
+function initialisation(prob::_MOMKP)
+
+	# Calcul des ratios 
+	r1, r2 = ratios(prob)
+	
+	# Calcul des poids critiques
+	weights, pairs = criticalWeights(prob, r1, r2)
+	
+	# Regroupement des λ identiques
+	transpositions = transpositionPreprocessing(weights, pairs)
+	
+	# Tri des ratios dans l'ordre lexicographique décroissant selon (r1,r2)
+	seq = sortperm(1000000*r1 + r2, rev=true) # Item sequence 
+	pos = sortperm(seq)          			  # Item positions
+	
+	return transpositions, seq, pos
+	
+end
+
 # ----- SOLUTIONS ------------------------------------------------------------ #
 # Add an item to a solution
 function addItem!(prob::_MOMKP, sol::Solution, item::Int)

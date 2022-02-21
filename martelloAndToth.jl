@@ -47,58 +47,58 @@ function returnBiggest(U0::Vector{Float64},
 end
 
 # Détermine quel point est obtenu pour la borne supérieure de Martello et Toth 
+# sur l'intervalle [prev, next]
 function chooseBound!(upperBound::Vector{Vector{Float64}}, 
 					  constraints::Vector{Constraint},
-					  prev::Rational{Int}, # λ précédent
-					  next::Rational{Int}, # λ suivant 
+					  prev::Rational{Int}, # Previous λ 
+					  next::Rational{Int}, # Next λ 
 					  U0::Vector{Float64}, 
 					  U1::Vector{Float64})
 	
 	len = length(upperBound)
 	
 	if domine(U0,U1) 
-		ajouter!(upperBound, U0) 
+		push!(upperBound, U0) 
 		if length(upperBound) != len
 			push!(constraints, Constraint(prev, U0))
 		end
 		
 	elseif domine(U1,U0) 
-		ajouter!(upperBound, U1)
+		push!(upperBound, U1)
 		if length(upperBound) != len
 			push!(constraints, Constraint(prev, U1))
 		end
 		
-	else # Pas de dominance entre U0 et U1
+	else # No dominance between U0 and U1
 		λeq = (U1[2] - U0[2])/(U0[1] - U0[2] - U1[1] + U1[2]) 
-		#println("λ = ", λeq)
-		
+
 		if λeq < prev && λeq > next
 		
 			if weightedSum(prev, U0) >= weightedSum(prev, U1)
-				# U0 est plus grand sur l'intervalle [λeq, weights[iter]]
-				ajouter!(upperBound, U0)
+				# The weighted sum with U0 is bigger when λ in [λeq, prev]
+				push!(upperBound, U0)
 				
 				if length(upperBound) != len
 					push!(constraints, Constraint(prev, U0))
 				end
 				
-				# U1 est plus grand sur l'intervalle [weights[iter+1], λeq]
-				ajouter!(upperBound, U1)
+				# The weighted sum with U1 is bigger when λ in [next, λeq]
+				push!(upperBound, U1)
 				
 				if length(upperBound) != len
 					push!(constraints, Constraint(λeq, U1))
 				end
 				
 			else 
-				# U1 est plus grand sur l'intervalle [λeq, weights[iter]]
-				ajouter!(upperBound, U1)
+				# The weighted sum with U1 is bigger when λ in [λeq, prev]
+				push!(upperBound, U1)
 				
 				if length(upperBound) != len
 					push!(constraints, Constraint(prev, U1))
 				end
 				
-				# U0 est plus grand sur l'intervalle [weights[iter+1], λeq]
-				ajouter!(upperBound, U0)
+				# The weighted sum with U0 is bigger when λ in [next, λeq]
+				push!(upperBound, U0)
 				
 				if length(upperBound) != len
 					push!(constraints, Constraint(λeq, U0))
@@ -107,16 +107,14 @@ function chooseBound!(upperBound::Vector{Vector{Float64}},
 			
 		else 
 		
-			# Le λeq d'égalité est plus petit ou égal au λ critique suivant
 			if λeq <= next 
 				U = returnBiggest(U0, U1, next)
 				
-			# Le λeq d'égalité est plus grand ou égal au λ critique précédent
 			elseif λeq >= prev
 				U = returnBiggest(U0, U1, prev)
 			end
 			
-			ajouter!(upperBound, U)
+			push!(upperBound, U)
 			
 			if length(upperBound) != len
 				push!(constraints, Constraint(prev, U))
@@ -126,23 +124,13 @@ function chooseBound!(upperBound::Vector{Vector{Float64}},
 	
 end
 
-function martelloAndToth(prob::_MOMKP) 
+function martelloAndToth(prob::_MOMKP, 
+						 transpositions::Vector{Transposition},
+						 seq::Vector{Int},
+						 pos::Vector{Int}) 
 
 	upperBound  = Vector{Float64}[]
 	constraints = Constraint[] 
-	
-	# Calcul des ratios 
-	r1, r2 = ratios(prob)
-	
-	# Calcul des poids critiques
-	@time weights, pairs = criticalWeights(prob, r1, r2)
-	
-	# Regroupement des λ identiques
-	transpositions = transpositionPreprocessing(weights, pairs)
-	
-	# Tri des ratios dans l'ordre lexicographique décroissant selon (r1,r2)
-	seq = sortperm(1000000*r1 + r2, rev=true) # Item sequence 
-	pos = sortperm(seq)          			  # Item positions
 	
 	# Construction de la première solution dantzig 
 	sol, s, ω_ = dantzigSolution(prob, seq) 
@@ -151,7 +139,7 @@ function martelloAndToth(prob::_MOMKP)
 	U0, U1 = uMT(prob, seq, sol, s, ω_) 
 	
 	# Borne à conserver 
-	chooseBound!(upperBound, constraints, 1//1, weights[1], U0, U1)
+	chooseBound!(upperBound, constraints, 1//1, transpositions[1].λ, U0, U1)
 
 	nbCasEgalite = 0
 	

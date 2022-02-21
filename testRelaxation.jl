@@ -86,4 +86,38 @@ function testInstances(dir::String, graphic=false)
 	
 end 
 
+# Compare execution times for the LP relaxation and Martello and Toth
+function compareLP_MT(prob::_MOMKP)
 
+	# Initialisation
+	println("Initialisation : ")
+	@time transpositions, seq, pos = initialisation(prob)
+
+	println("Relaxation continue : ")
+	@time UBparam = parametricMethod(prob, transpositions, seq, pos)
+	
+	println("Martello et Toth : ")
+    @time UB, constraints = martelloAndToth(prob, transpositions, seq, pos)
+
+end 
+
+function testInstancesMT(dir::String)
+
+	println("Exemple didactique")
+	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
+	compareLP_MT(didactic)
+	
+	files = readdir(dir)
+	for fname in files
+		println("\n", fname)
+		
+		if fname[length(fname)-3:length(fname)] == ".DAT"
+			prob = readInstanceMOMKPformatPG(false, dir*fname)
+		else
+			prob = readInstanceMOMKPformatZL(false, dir*fname)
+		end
+		compareLP_MT(prob)
+	end
+	
+end
+	
