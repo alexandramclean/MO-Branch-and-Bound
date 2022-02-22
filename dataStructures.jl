@@ -14,7 +14,7 @@ end
 # Solution qui peut contenir des fractions d'objets
 mutable struct Solution
     X::Vector{Rational{Int}} # Liste des éléments insérés dans le sac
-    z::Vector{<: Real}       # Valeurs pour les fonctions objectif
+    z::Vector{<:Real}        # Valeurs pour les fonctions objectif
 end
 Solution(n) = Solution(zeros(Rational{Int},n), [0,0])
 
@@ -32,7 +32,7 @@ Transposition(λ) = Transposition(λ,[])
 
 # Data structure of a constraint generated whilst computing the upper bound set
 struct Constraint 
-	λ::Rational{Int}              # Critical weight
+	λ::Rational{Int}       # Critical weight
 	point::Vector{Float64} # Associated point (u1,u2)
 end
 # La contrainte associée est λz1 + (1-λ)z2 <= λu1 + (1-λ)u2 où point = (u1,u2)

@@ -11,7 +11,7 @@ include("listeOrdonnee.jl")
 # Borne de Martello et Toth
 function u0(prob::_MOMKP, seq::Vector{Int}, sol::Solution, s::Int, ω_::Int)
 
-	U0     = sol.z + [0,0]
+	U0::Vector{Float64} = sol.z
 	U0[1] += ω_/prob.W[1,seq[s+1]] * prob.P[1,seq[s+1]]
 	U0[2] += ω_/prob.W[1,seq[s+1]] * prob.P[2,seq[s+1]]
 	return U0
@@ -19,7 +19,7 @@ end
 
 function u1(prob::_MOMKP, seq::Vector{Int}, sol::Solution, s::Int, ω_::Int)
 
-	U1     = sol.z + prob.P[:,seq[s]]
+	U1::Vector{Float64} = sol.z + prob.P[:,seq[s]]
 	U1[1] -= (prob.W[1,seq[s]] - ω_)/prob.W[1,seq[s-1]] * prob.P[1,seq[s-1]]
 	U1[2] -= (prob.W[1,seq[s]] - ω_)/prob.W[1,seq[s-1]] * prob.P[2,seq[s-1]]
 	return U1
@@ -39,7 +39,12 @@ end
 
 # Returns the point for which the weighted sum with λ is bigger
 function returnBiggest(x::Vector{Float64}, y::Vector{Float64}, λ::Rational{Int})
-	weightedSum(λ, x) >= weightedSum(λ, y) ? return x : return y
+  
+	if weightedSum(λ, x) >= weightedSum(λ, y)
+		return x 
+	else 
+		return y
+	end
 end
 
 # Determines which point is obtained for the Martello and Toth upper bound in
@@ -111,29 +116,20 @@ function chooseBound!(upperBound::Vector{Vector{Float64}},
 	end
 end
 
-function martelloAndToth(prob::_MOMKP)
+function martelloAndToth(prob::_MOMKP,
+						 transpositions::Vector{Transposition},
+						 seq::Vector{Int},
+						 pos::Vector{Int})
 
 	upperBound  = Vector{Float64}[]
 	constraints = Constraint[]
-
-	# Calcul des ratios
-	r1, r2 = ratios(prob)
-
-	# Calcul des poids critiques
-	@time weights, pairs = criticalWeights(prob, r1, r2)
-
-	# Regroupement des λ identiques
-	transpositions = transpositionPreprocessing(weights, pairs)
-
-	# Tri des ratios dans l'ordre lexicographique décroissant selon (r1,r2)
-	seq = sortperm(1000000*r1 + r2, rev=true) # Item sequence
-	pos = sortperm(seq)          			  # Item positions
 
 	# Builds the initial dantzig solution
 	sol, s, ω_ = dantzigSolution(prob, seq)
 
 	U0, U1 = uMT(prob, seq, sol, s, ω_)
-	chooseBound!(upperBound, constraints, 1//1, weights[1], U0, U1)
+
+	chooseBound!(upperBound, constraints, 1//1, transpositions[1].λ, U0, U1)
 
 	numberCasesIdenticalWeights = 0
 

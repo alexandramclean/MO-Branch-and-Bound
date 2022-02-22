@@ -71,19 +71,65 @@ function swapWithItemNotInBag(prob::_MOMKP,
 	return sol, s, residualCapacity
 end
 
-# LP relaxation
-function parametricMethod(prob::_MOMKP)
-
-	# Computes the ratios and critical weights
-	r1, r2 = ratios(prob)
-	@time weights, pairs = criticalWeights(prob, r1, r2)
+# Fixer une variable à 1 
+function setVariable(prob::_MOMKP, 
+					 transpositions::Vector{Transposition},
+					 seq::Vector{Int},
+					 pos::Vector{Int},
+					 var::Int)
+						
+	newTranspositions = Transposition[]
+	newSeq = Vector{Int}(undef,length(seq)-1)
+	newPos = deepcopy(pos)
 	
-	# Regroupement des λ identiques
-	transpositions = transpositionPreprocessing(weights, pairs)
+	# On enlève la variable des transpositions
+	for t in transpositions
+	
+		if length(t.pairs) > 1
+		
+			swaps = Tuple{Int,Int}[]
+			for pair in pairs 
+				if !(var in pair) 
+					push!(swaps, pair)
+				end
+			end
+			
+			if length(swaps) > 0 
+				push!(transpositions, Transposition(t.λ, swaps))
+			end
+		else
+		
+			if !(var in t.pairs[1])
+				push!(newTranspositions, Transposition(t.λ, t.pairs))
+			end
+		end
+		
+	end
+	
+	# On enlève la variable dans la séquence
+	inser = 1
+	for i in 1:length(seq)
+		if seq[i] != var
+			newSeq[inser] = seq[i] 
+			inser += 1 
+		end
+	end
+	
+	# Mise à jour des positions
+	# La position des éléments après var dans la séquence diminue de 1
+	for p in pos[var]+1:length(pos)
+		newPos[seq[p]] = pos[seq[p]] - 1
+	end
+	
+	return newTranspositions, newSeq, newPos
+	
+end
 
-	# The ratios are sorted in decreasing lexicographical order on (r1,r2)
-	seq = sortperm(1000000*r1 + r2, rev=true) # Item sequence
-	pos = sortperm(seq) 					  # Item positions
+# LP relaxation
+function parametricMethod(prob::_MOMKP,
+						  transpositions::Vector{Transposition},
+						  seq::Vector{Int},
+						  pos::Vector{Int})
 
 	# Builds the initial solution
 	sol, s, ω_ = buildSolution(prob, seq)

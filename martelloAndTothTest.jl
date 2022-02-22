@@ -57,7 +57,7 @@ function testCasEgalite()
 	# Exemple pathologique
 	prob = _MOMKP([11 2 2 8 10 9 1 9 16 ; 2 7 7 8 4 1 3 1 4], [4 4 4 6 4 3 2 3 6], [13])
 	
-	#=r1, r2 = ratios(prob)
+	r1, r2 = ratios(prob)
 	weights, pairs = criticalWeights(prob, r1, r2)
 	transpositions = transpositionPreprocessing(weights, pairs)
 	
@@ -71,9 +71,9 @@ function testCasEgalite()
 	
 	for t in transpositions
 		println("λ = ", t.λ, " pairs = ", t.pairs)
-	end =#
+	end 
 	
-	upperBound, constraints = martelloAndToth(prob)
+	#non = @code_warntype martelloAndToth(prob)
 
 end
 

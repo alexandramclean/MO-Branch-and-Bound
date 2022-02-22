@@ -61,12 +61,11 @@ function criticalWeights(prob::_MOMKP,
 		end
 	end
 
-	println("\tNombre de transpositions : ", nbTransp, " / ", n*(n-1)/2)
+	println("\tNumber of transpositions : ", nbTransp, " / ", n*(n-1)/2)
 
 	# Sorts the critical weights and associated item pairs in decreasing order
 	perm    = sortperm(weights, rev=true)
 	return weights[perm], pairs[perm]
-	
 end
 
 # Returns a list containing all the distinct λ values in decreasing order and
@@ -103,22 +102,38 @@ function transpositionPreprocessing(weights::Vector{Rational{Int}},
 	return transpositions
 end
 
-# Updates the positions after reversing the subsequence between deb and fin 
+# Updates the positions after reversing the subsequence between start and finish
 function updatePositions!(seq::Vector{Int}, 
 						  pos::Vector{Int}, 
-						  deb::Int, 
-						  fin::Int) 
+						  start::Int, 
+						  finish::Int) 
 
-	if fin - deb >= 1
+	if finish - start >= 1
 		# Swaps the positions of the items at the edge of the subsequence 
-		tmp = pos[seq[deb]] 
-		pos[seq[deb]] = pos[seq[fin]]
-		pos[seq[fin]] = tmp 
+		tmp              = pos[seq[start]] 
+		pos[seq[start]]  = pos[seq[finish]]
+		pos[seq[finish]] = tmp 
 		
 		# Appel récursif sur la sous-séquence privée des extrémités
-		updatePositions!(seq, pos, deb+1, fin-1)
+		updatePositions!(seq, pos, start+1, finish-1)
 	end
+end
+
+# ----- INITIALISATION ------------------------------------------------------- #
+function initialisation(prob::_MOMKP)
+
+	# Ratios and critical weights
+	r1, r2 = ratios(prob)
+	weights, pairs = criticalWeights(prob, r1, r2)
 	
+	# Identical critical weights are grouped together 
+	transpositions = transpositionPreprocessing(weights, pairs)
+	
+	# Sorts the ratios in lexicographically decreasing order according to (r1, r2) 
+	seq = sortperm(1000000*r1 + r2, rev=true) # Item sequence 
+	pos = sortperm(seq)          			  # Item positions
+	
+	return transpositions, seq, pos
 end
 
 # ----- SOLUTIONS ------------------------------------------------------------ #
@@ -131,44 +146,44 @@ end
 # Add a break item to a solution
 function addBreakItem!(prob::_MOMKP,
 					   sol::Solution,
-					   residualCapacity::Int,
+					   ω_::Int,
 					   item::Int)
 
-	sol.X[item] = residualCapacity//prob.W[1,item]
+	sol.X[item] = ω_//prob.W[1,item]
 	sol.z += sol.X[item] * prob.P[:,item]
 end
 
 # Computes the dantzig solution for a given sequence
 function dantzigSolution(prob::_MOMKP, sequence::Vector{Int})
 
-	n                = size(prob.P)[2]
-	residualCapacity = prob.ω[1]
-	sol              = Solution(n)
-	i                = 1
+	n   = size(prob.P)[2]
+	ω_  = prob.ω[1]
+	sol = Solution(n)
+	i   = 1
 
-	while i <= n && prob.W[1,sequence[i]] <= residualCapacity
+	while i <= n && prob.W[1,sequence[i]] <= ω_
 		item = sequence[i]
 		# L'objet est inséré
 		addItem!(prob, sol, item)
-		residualCapacity -= prob.W[1,item]
+		ω_ -= prob.W[1,item]
 		i += 1
 	end
 
-	return sol, i, residualCapacity
+	return sol, i, ω_
 end
 
 # Builds a solution including the break item
-function buildSolution(prob::_MOMKP, sequence::Vector{Int})
+function buildSolution(prob::_MOMKP, seq::Vector{Int})
 
-	n = size(prob.P)[2]
-	sol, s, residualCapacity = dantzigSolution(prob, sequence)
+	n          = size(prob.P)[2]
+	sol, s, ω_ = dantzigSolution(prob, seq)
 
-	if residualCapacity > 0
+	if ω_ > 0
 		# Une fraction de l'objet s est insérée
-		addBreakItem!(prob, sol, residualCapacity, sequence[s])
+		addBreakItem!(prob, sol, ω_, seq[s])
 	end
 
-	return sol, s, residualCapacity
+	return sol, s, ω_
 end
 
 # Re-build part of a solution after a sequence reversal
@@ -180,26 +195,25 @@ function reoptSolution(prob::_MOMKP,
 					   s::Int,
 					   ω_::Int)
 
-	# Les objets entre deb et fin dans la séquence sont retirés
+	# Les objets entre start et fin dans la séquence sont retirés
 	for pos in start:finish
 
 		item = seq[pos]
 		
 		if sol.X[item] < 1 && sol.X[item] > 0 
 			# L'objet cassé est retiré
-			sol.z -= sol.X[item] * prob.P[:,item]
+			sol.z      -= sol.X[item] * prob.P[:,item]
 			sol.X[item] = 0
 			
 		elseif sol.X[item] == 1 
 			# Un objet inséré dans le sac est retiré
-			sol.z -= prob.P[:,item]
-			ω_ += prob.W[1,item]
+			sol.z      -= prob.P[:,item]
+			ω_         += prob.W[1,item]
 			sol.X[item] = 0
 		end 
-		
 	end
 
-	# Les objets sont insérés en partant de deb dans la nouvelle séquence
+	# Les objets sont insérés en partant de start dans la nouvelle séquence
 	pos = start
 	while prob.W[1,seq[pos]] <= ω_
 
@@ -211,5 +225,4 @@ function reoptSolution(prob::_MOMKP,
 	end
 
 	return sol, pos, ω_
-
 end
