@@ -39,6 +39,7 @@ end
 
 # Returns the point for which the weighted sum with λ is bigger
 function returnBiggest(x::Vector{Float64}, y::Vector{Float64}, λ::Rational{Int})
+  
 	if weightedSum(λ, x) >= weightedSum(λ, y)
 		return x 
 	else 
@@ -127,6 +128,7 @@ function martelloAndToth(prob::_MOMKP,
 	sol, s, ω_ = dantzigSolution(prob, seq)
 
 	U0, U1 = uMT(prob, seq, sol, s, ω_)
+
 	chooseBound!(upperBound, constraints, 1//1, transpositions[1].λ, U0, U1)
 
 	numberCasesIdenticalWeights = 0
