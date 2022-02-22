@@ -61,10 +61,10 @@ function criticalWeights(prob::_MOMKP,
 		end
 	end
 
-	println("\tNumber of transpositions : ", nbTransp, " / ", n*(n-1)/2)
+	println("\tNumber of transpositions : ", nbTransp, " / ", Int(n*(n-1)/2))
 
 	# Sorts the critical weights and associated item pairs in decreasing order
-	perm    = sortperm(weights, rev=true)
+	perm = sortperm(weights, rev=true)
 	return weights[perm], pairs[perm]
 end
 
@@ -124,7 +124,7 @@ function initialisation(prob::_MOMKP)
 
 	# Ratios and critical weights
 	r1, r2 = ratios(prob)
-	weights, pairs = criticalWeights(prob, r1, r2)
+	weights, transpositions = criticalWeights(prob, r1, r2)
 	
 	# Identical critical weights are grouped together 
 	transpositions = transpositionPreprocessing(weights, pairs)

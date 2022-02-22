@@ -13,12 +13,14 @@ include("parserMomkpZL.jl")
 include("displayGraphic.jl")
 
 # Produit un graphique affichant l'ensemble des points non-dominés pour un
-# problème donné, ainsi que la relaxation calculée par méthode dichotomique et
-# par méthode paramétrique
-function testComparaison(name, prob, graphic)
+# problème donné, ainsi que la relaxation continue calculée par méthode 
+# dichotomique et par méthode paramétrique
+function testComparaison(name, prob, graphic=false)
 
 	println("Méthode paramétrique")
-	@time UBparam = parametricMethod(prob)
+	println("\tInitialisation : ")
+	@time transpositions, seq, pos = initialisation(prob)
+	@time UBparam = parametricMethod(prob, transpositions, seq, pos)
 	
 	println("Méthode dichotomique")
     @time UBdicho = dichotomicMethod(prob)
@@ -82,8 +84,7 @@ function testInstances(dir::String, graphic=false)
 	for fname in files 
 		println("\n", fname) 
 		testFile(dir*fname, graphic) 
-	end
-	
+	end	
 end 
 
 # Compare execution times for the LP relaxation and Martello and Toth
@@ -98,9 +99,27 @@ function compareLP_MT(prob::_MOMKP)
 	
 	println("Martello et Toth : ")
     @time UB, constraints = martelloAndToth(prob, transpositions, seq, pos)
-
 end 
 
+# Compare execution times before and after setting a variable 
+function compareLP_setvar(prob::_MOMKP)
+
+	# Initialisation
+	println("Initialisation : ")
+	@time transpositions, seq, pos = initialisation(prob)
+
+	#=println("Relaxation : ")
+	@time UBparam = parametricMethod(prob, transpositions, seq, pos)=#
+	
+	println("After setting a variable : ")
+	@time newTranspositions, newSeq, newPos = setVariable(transpositions, seq, pos, rand(1:length(seq)))
+
+	@assert length(newTranspositions) <= length(transpositions) && length(newSeq) < length(seq) && length(newPos) == length(pos) "Erreur dimensions"
+    
+	@time UBsetvar = parametricMethod(prob, transpositions, seq, pos)
+end
+
+# Compute LP relaxation and Martello and Toth on all instances in dir
 function testInstancesMT(dir::String)
 
 	println("Exemple didactique")
@@ -117,6 +136,25 @@ function testInstancesMT(dir::String)
 			prob = readInstanceMOMKPformatZL(false, dir*fname)
 		end
 		compareLP_MT(prob)
+	end
+end
+
+function test_setvar(dir::String)
+
+	println("Exemple didactique")
+	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
+	compareLP_setvar(didactic)
+	
+	files = readdir(dir)
+	for fname in files
+		println("\n", fname)
+		
+		if fname[length(fname)-3:length(fname)] == ".DAT"
+			prob = readInstanceMOMKPformatPG(false, dir*fname)
+		else
+			prob = readInstanceMOMKPformatZL(false, dir*fname)
+		end
+		compareLP_setvar(prob)
 	end
 	
 end
