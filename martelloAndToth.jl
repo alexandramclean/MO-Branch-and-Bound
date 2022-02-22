@@ -9,286 +9,240 @@ include("functions.jl")
 include("listeOrdonnee.jl")
 
 # Borne de Martello et Toth
-function u0(prob::_MOMKP, seq::Vector{Int}, sol::Solution, s::Int, ω_::Int) 
-	U0::Vector{Float64} = sol.z + [0,0] 
+function u0(prob::_MOMKP, seq::Vector{Int}, sol::Solution, s::Int, ω_::Int)
+
+	U0::Vector{Float64} = sol.z
 	U0[1] += ω_/prob.W[1,seq[s+1]] * prob.P[1,seq[s+1]]
 	U0[2] += ω_/prob.W[1,seq[s+1]] * prob.P[2,seq[s+1]]
 	return U0
 end
 
 function u1(prob::_MOMKP, seq::Vector{Int}, sol::Solution, s::Int, ω_::Int)
+
 	U1::Vector{Float64} = sol.z + prob.P[:,seq[s]]
 	U1[1] -= (prob.W[1,seq[s]] - ω_)/prob.W[1,seq[s-1]] * prob.P[1,seq[s-1]]
 	U1[2] -= (prob.W[1,seq[s]] - ω_)/prob.W[1,seq[s-1]] * prob.P[2,seq[s-1]]
 	return U1
-end 
+end
 
 function uMT(prob::_MOMKP, seq::Vector{Int}, sol::Solution, s::Int, ω_::Int)
-	
+
 	U0 = u0(prob, seq, sol, s, ω_)
 	U1 = u1(prob, seq, sol, s, ω_)
 	return U0, U1
-end 
+end
 
-# Retourne la valeur de la somme pondérée 
+# Retourne la valeur de la somme pondérée
 function weightedSum(λ::Rational{Int}, y::Vector{Float64})
 	return λ*y[1] + (1 - λ)*y[2]
 end
 
-# Retourne la borne pour laquelle la somme pondérée pour λ est plus grande
-function returnBiggest(U0::Vector{Float64}, 
-				  	   U1::Vector{Float64}, 
-				  	   λ::Rational{Int})
-	if weightedSum(λ, U0) >= weightedSum(λ, U1)
-		return U0 
+# Returns the point for which the weighted sum with λ is bigger
+function returnBiggest(x::Vector{Float64}, y::Vector{Float64}, λ::Rational{Int})
+	if weightedSum(λ, x) >= weightedSum(λ, y)
+		return x 
 	else 
-		return U1
-	end		 
+		return y
+	end
 end
 
-# Détermine quel point est obtenu pour la borne supérieure de Martello et Toth 
-# sur l'intervalle [prev, next]
-function chooseBound!(upperBound::Vector{Vector{Float64}}, 
+# Determines which point is obtained for the Martello and Toth upper bound in
+# the interval [next, prev]
+function chooseBound!(upperBound::Vector{Vector{Float64}},
 					  constraints::Vector{Constraint},
-					  prev::Rational{Int}, # Previous λ 
-					  next::Rational{Int}, # Next λ 
-					  U0::Vector{Float64}, 
+					  prev::Rational{Int}, # Previous critical weight
+					  next::Rational{Int}, # Next critical weight
+					  U0::Vector{Float64},
 					  U1::Vector{Float64})
-	
-	len = length(upperBound)
-	
-	if domine(U0,U1) 
-		push!(upperBound, U0) 
-		if length(upperBound) != len
-			push!(constraints, Constraint(prev, U0))
-		end
-		
-	elseif domine(U1,U0) 
-		push!(upperBound, U1)
-		if length(upperBound) != len
-			push!(constraints, Constraint(prev, U1))
-		end
-		
+
+	# Constraints to be added if the corresponding point was not already in the
+	# upper bound
+	len              = length(upperBound)
+	constraintsToAdd = Constraint[]
+
+	if domine(U0,U1)
+		ajouter!(upperBound, U0)
+		push!(constraintsToAdd, Constraint(prev, U0))
+
+	elseif domine(U1,U0)
+		ajouter!(upperBound, U1)
+		push!(constraintsToAdd, Constraint(prev, U1))
+
 	else # No dominance between U0 and U1
-		λeq = (U1[2] - U0[2])/(U0[1] - U0[2] - U1[1] + U1[2]) 
+
+		# λ for which the weighted sums with U0 and U1 are equal
+		λeq = (U1[2] - U0[2])/(U0[1] - U0[2] - U1[1] + U1[2])
 
 		if λeq < prev && λeq > next
-		
+
 			if weightedSum(prev, U0) >= weightedSum(prev, U1)
-				# The weighted sum with U0 is bigger when λ in [λeq, prev]
-				push!(upperBound, U0)
-				
-				if length(upperBound) != len
-					push!(constraints, Constraint(prev, U0))
-				end
-				
-				# The weighted sum with U1 is bigger when λ in [next, λeq]
-				push!(upperBound, U1)
-				
-				if length(upperBound) != len
-					push!(constraints, Constraint(λeq, U1))
-				end
-				
-			else 
-				# The weighted sum with U1 is bigger when λ in [λeq, prev]
-				push!(upperBound, U1)
-				
-				if length(upperBound) != len
-					push!(constraints, Constraint(prev, U1))
-				end
-				
-				# The weighted sum with U0 is bigger when λ in [next, λeq]
-				push!(upperBound, U0)
-				
-				if length(upperBound) != len
-					push!(constraints, Constraint(λeq, U0))
-				end
-			end 
-			
-		else 
-		
-			if λeq <= next 
+				# The weighted sum with U0 is bigger in [λeq, prev]
+				ajouter!(upperBound, U0)
+				push!(constraintsToAdd, Constraint(prev, U0))
+
+				# The weighted sum with U1 is bigger in [next, λeq]
+				ajouter!(upperBound, U1)
+				push!(constraintsToAdd, Constraint(λeq, U1))
+
+			else
+				# The weighted sum with U1 is bigger in [λeq, prev]
+				ajouter!(upperBound, U1)
+				push!(constraintsToAdd, Constraint(prev, U1))
+
+				# The weighted sum with U0 is bigger in [next, λeq]
+				ajouter!(upperBound, U0)
+				push!(constraintsToAdd, Constraint(λeq, U0))
+
+			end
+		else
+
+			if λeq <= next
 				U = returnBiggest(U0, U1, next)
-				
+
 			elseif λeq >= prev
 				U = returnBiggest(U0, U1, prev)
 			end
-			
-			push!(upperBound, U)
-			
-			if length(upperBound) != len
-				push!(constraints, Constraint(prev, U))
-			end
+
+			ajouter!(upperBound, U)
+			push!(constraintsToAdd, Constraint(prev, U))
 		end
 	end
-	
+
+	if length(upperBound) != len
+		for c in constraintsToAdd
+			push!(constraints, c)
+		end
+	end
 end
 
-function martelloAndToth(prob::_MOMKP, 
+function martelloAndToth(prob::_MOMKP,
 						 transpositions::Vector{Transposition},
 						 seq::Vector{Int},
-						 pos::Vector{Int}) 
+						 pos::Vector{Int})
 
 	upperBound  = Vector{Float64}[]
-	constraints = Constraint[] 
-	
-	# Construction de la première solution dantzig 
-	sol, s, ω_ = dantzigSolution(prob, seq) 
-	
-	# Calcul de la première borne de Martello et Toth
-	U0, U1 = uMT(prob, seq, sol, s, ω_) 
-	
-	# Borne à conserver 
+	constraints = Constraint[]
+
+	# Builds the initial dantzig solution
+	sol, s, ω_ = dantzigSolution(prob, seq)
+
+	U0, U1 = uMT(prob, seq, sol, s, ω_)
 	chooseBound!(upperBound, constraints, 1//1, transpositions[1].λ, U0, U1)
 
-	nbCasEgalite = 0
-	
-	# Boucle principale
+	numberCasesIdenticalWeights = 0
+
 	for iter in 1:length(transpositions)
-	
-		# Poids critiques précédents et suivants
+
+		# Previous and next critical weights
 		prev = transpositions[iter].λ
 		if iter == length(transpositions)
 			next = 0//1
-		else 
+		else
 			next = transpositions[iter+1].λ
 		end
-	
-		# Cas d'égalité
+
+		# Multiple identical critical weights
 		if length(transpositions[iter].pairs) > 1
-			
-			nbCasEgalite += 1
-			
+
+			numberCasesIdenticalWeights += 1
+
 			# Positions corresponding to each transposition
-			positions = [(min(pos[i], pos[j]), max(pos[i], pos[j])) 
+			positions = [(min(pos[i], pos[j]), max(pos[i], pos[j]))
 						for (i,j) in transpositions[iter].pairs]
 			sort!(positions)
-			
+
 			# Identification of the modified subsequences
-			subsequences = Tuple{Int,Int}[] 
+			subsequences = Tuple{Int,Int}[]
 			start = positions[1][1] ; finish = positions[1][2]
-			
-			for p in positions[2:end] 
+
+			for p in positions[2:end]
+
 				if p[1] > finish # Start of a new distinct subsequence
 					push!(subsequences, (start, finish))
-					start = p[1] ; finish = p[2] 	
-				else 
-					finish = p[2] 
+					start = p[1] ; finish = p[2]
+				else
+					finish = p[2]
 				end
-			end 
+			end
 			push!(subsequences, (start, finish))
-			
+
 			# Reversing the subsequences
 			for (start, finish) in subsequences
-			
-				# The subsequence is reversed 
-				seq[start:finish] = seq[finish:-1:start]	
+
+				seq[start:finish] = seq[finish:-1:start]
 				updatePositions!(seq, pos, start, finish)
-			
-				if start < s-1 && finish == s-1 		# Seul U1 est modifié 
-					U1 = u1(prob, seq, sol, s, ω_)	
-						
-				elseif start == s+1 && finish > s+1		# Seul U0 est modifié
+
+				if start < s-1 && finish == s-1 		# Only U1 is modified
+					U1 = u1(prob, seq, sol, s, ω_)
+
+				elseif start == s+1 && finish > s+1		# Only U0 is modified
 					U0 = u0(prob, seq, sol, s, ω_)
-						
-				elseif start <= s && finish >= s 
-					# La solution dantzig est potentiellement modifiée
+
+				elseif start <= s && finish >= s
+
+					# The dantzig solution is potentially modified
 					sol, s, ω_ = reoptSolution(prob, seq, start, finish, sol, s, ω_)
 					U0, U1 = uMT(prob, seq, sol, s, ω_)
-
 				end
-				
 			end
 
-			chooseBound!(upperBound, constraints, prev, next, U0, U1)	
-			
+			chooseBound!(upperBound, constraints, prev, next, U0, U1)
 		else
-		
+
 			(i,j) = transpositions[iter].pairs[1]
 			k = min(pos[i], pos[j])
 
-			if k == s-2
-				# Echange des objets s-2 et s-1 
-				
-				# Update the sequence and positions
-				tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
-				seq[pos[i]] = i ; seq[pos[j]] = j
-				
-				# Seul U1 est changé
-				U1 = u1(prob, seq, sol, s, ω_)
-				
-				chooseBound!(upperBound, constraints, prev, next, U0, U1)
-				
-			elseif k == s-1 
-				# Echange des objets s-1 et s
-				
-				# Solution dantzig modifiée 
-				# Objet s-1 retiré 
-				sol.z -= prob.P[:,seq[s-1]]
-				ω_ += prob.W[1,seq[s-1]] 
-				sol.X[seq[s-1]] = 0
-				
-				if prob.W[1,seq[s]] <= ω_ 
-					# Objet s inséré 
-					addItem!(prob, sol, seq[s])
-					ω_ -= prob.W[1,seq[s]] 
-				else 
-					# La position de l'objet cassé change
-					s = s-1
-				end 
-				
-				# Update the sequence and positions
-				tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
-				seq[pos[i]] = i ; seq[pos[j]] = j
-				
-				# U0 et U1 modifiés en conséquence
-				U0, U1 = uMT(prob, seq, sol, s, ω_)
-				
-				chooseBound!(upperBound, constraints, prev, next, U0, U1)
-								
-			elseif k == s 
-				# Echange des objets s et s+1
-				
-				# Solution dantzig potentiellement modifiée 
-				if prob.W[1,seq[s+1]] <= ω_
-					addItem!(prob, sol, seq[s+1])
-					ω_ -= prob.W[1,seq[s+1]]
-				end
-				
-				# Update the sequence and positions
-				tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
-				seq[pos[i]] = i ; seq[pos[j]] = j
-				
-				# U0 et U1 modifiés
-				U0, U1 = uMT(prob, seq, sol, s, ω_)
-				
-				chooseBound!(upperBound, constraints, prev, next, U0, U1)
-			
-			elseif k == s+1
-				# Swap items s+1 et s+2 
-				
-				# Update the sequence and positions
-				tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
-				seq[pos[i]] = i ; seq[pos[j]] = j	
-				
-				# Only U0 is modified 
-				U0 = u0(prob, seq, sol, s, ω_)	
-				
-				chooseBound!(upperBound, constraints, prev, next, U0, U1)	
-				
-			else 
+			# Update the sequence and positions
+			tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
+			seq[pos[i]] = i ; seq[pos[j]] = j
 
-				# Update the sequence and positions
-				tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
-				seq[pos[i]] = i ; seq[pos[j]] = j
-	
+			if k == s-2 # Swap items s-2 and s-1
+
+				# Only U1 is modified
+				U1 = u1(prob, seq, sol, s, ω_)
+				chooseBound!(upperBound, constraints, prev, next, U0, U1)
+
+			elseif k == s-1 # Swap items s-1 and s
+
+				# The item previously in position s-1 is removed
+				sol.z -= prob.P[:,seq[s]]
+				ω_ += prob.W[1,seq[s]]
+				sol.X[seq[s]] = 0
+
+				if prob.W[1,seq[s-1]] <= ω_
+					# The item previously in position s is inserted
+					addItem!(prob, sol, seq[s-1])
+					ω_ -= prob.W[1,seq[s-1]]
+				else
+					# The position of the break item changes
+					s = s-1
+				end
+
+				U0, U1 = uMT(prob, seq, sol, s, ω_)
+				chooseBound!(upperBound, constraints, prev, next, U0, U1)
+
+			elseif k == s # Swap items s and s+1
+
+				if prob.W[1,seq[s]] <= ω_
+					# The item previously in position s+1 is inserted
+					addItem!(prob, sol, seq[s])
+					ω_ -= prob.W[1,seq[s]]
+					# The position of the break item changes
+					s = s+1
+				end
+
+				U0, U1 = uMT(prob, seq, sol, s, ω_)
+				chooseBound!(upperBound, constraints, prev, next, U0, U1)
+
+			elseif k == s+1 # Swap items s+1 and s+2
+
+				# Only U0 is modified
+				U0 = u0(prob, seq, sol, s, ω_)
+				chooseBound!(upperBound, constraints, prev, next, U0, U1)
 			end
-	
 		end
 	end
-	
-	println("\tNombre de cas d'égalité : ", nbCasEgalite)
+
+	println("\tNumber of cases of identical critical weights : ", numberCasesIdenticalWeights)
 	return upperBound, constraints
 end
-
-
