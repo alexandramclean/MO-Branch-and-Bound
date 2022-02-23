@@ -12,10 +12,10 @@ function swapWithItemInBag(prob::_MOMKP,
 						   seq::Vector{Int},
 						   sol::Solution,
 						   s::Int,
-						   residualCapacity::Int)
+						   ω_::Int)
 
 	# Remove item s-1
-	residualCapacity += prob.W[1,seq[s-1]]
+	ω_ += prob.W[1,seq[s-1]]
 	sol.z -= prob.P[:,seq[s-1]]
 	sol.X[seq[s-1]] = 0
 
@@ -23,22 +23,22 @@ function swapWithItemInBag(prob::_MOMKP,
 	sol.z -= sol.X[seq[s]] * prob.P[:,seq[s]]
 	sol.X[seq[s]] = 0
 
-	if prob.W[1,seq[s]] <= residualCapacity
+	if prob.W[1,seq[s]] <= ω_
 		# Item s is inserted
 		addItem!(prob, sol, seq[s])
-		residualCapacity -= prob.W[1,seq[s]]
+		ω_ -= prob.W[1,seq[s]]
 
-		if residualCapacity > 0
+		if ω_ > 0
 			# A fraction of item s-1 is inserted 
-			addBreakItem!(prob, sol, residualCapacity, seq[s-1])
+			addBreakItem!(prob, sol, ω_, seq[s-1])
 		end
 
 	else # Item s remains the break item
-		addBreakItem!(prob, sol, residualCapacity, seq[s])
+		addBreakItem!(prob, sol, ω_, seq[s])
 		s = s-1 # The position of the break item changes
 	end
 
-	return sol, s, residualCapacity
+	return sol, s, ω_
 
 end
 
@@ -47,55 +47,54 @@ function swapWithItemNotInBag(prob::_MOMKP,
 						   	  seq::Vector{Int},
 						   	  sol::Solution,
 						   	  s::Int,
-						   	  residualCapacity::Int)
+						   	  ω_::Int)
 
 	# The item in position s is removed
 	sol.z -= sol.X[seq[s]] * prob.P[:,seq[s]]
 	sol.X[seq[s]] = 0
 
-	if prob.W[1,seq[s+1]] <= residualCapacity
+	if prob.W[1,seq[s+1]] <= ω_
 		# Item s+1 can be inserted 
 		addItem!(prob, sol, seq[s+1])
-		residualCapacity -= prob.W[1,seq[s+1]]
+		ω_ -= prob.W[1,seq[s+1]]
 
-		if residualCapacity > 0
+		if ω_ > 0
 			# A fraction of item s is inserted
-			addBreakItem!(prob, sol, residualCapacity, seq[s])
+			addBreakItem!(prob, sol, ω_, seq[s])
 		end
 		s = s+1 # The position of the break item changes
 
 	else # Item s+1 becomes the break item
-		addBreakItem!(prob, sol, residualCapacity, seq[s+1])
+		addBreakItem!(prob, sol, ω_, seq[s+1])
 	end
 
-	return sol, s, residualCapacity
+	return sol, s, ω_
 end
 
-# Fixer une variable à 1 
-function setVariable(prob::_MOMKP, 
-					 transpositions::Vector{Transposition},
+# Set the value of a variable 
+function setVariable(transpositions::Vector{Transposition},
 					 seq::Vector{Int},
 					 pos::Vector{Int},
 					 var::Int)
 						
 	newTranspositions = Transposition[]
-	newSeq = Vector{Int}(undef,length(seq)-1)
-	newPos = deepcopy(pos)
+	newSeq            = Vector{Int}(undef,length(seq)-1)
+	newPos            = sortperm(seq)
 	
-	# On enlève la variable des transpositions
+	# The variable is removed from the set of transpositions
 	for t in transpositions
-	
-		if length(t.pairs) > 1
-		
+
+		if length(t.pairs) > 1	
+			
 			swaps = Tuple{Int,Int}[]
-			for pair in pairs 
+			for pair in t.pairs 
 				if !(var in pair) 
 					push!(swaps, pair)
 				end
 			end
 			
 			if length(swaps) > 0 
-				push!(transpositions, Transposition(t.λ, swaps))
+				push!(newTranspositions, Transposition(t.λ, swaps))
 			end
 		else
 		
@@ -103,10 +102,9 @@ function setVariable(prob::_MOMKP,
 				push!(newTranspositions, Transposition(t.λ, t.pairs))
 			end
 		end
-		
 	end
 	
-	# On enlève la variable dans la séquence
+	# The variable is removed from the sequence
 	inser = 1
 	for i in 1:length(seq)
 		if seq[i] != var
@@ -115,14 +113,12 @@ function setVariable(prob::_MOMKP,
 		end
 	end
 	
-	# Mise à jour des positions
-	# La position des éléments après var dans la séquence diminue de 1
+	# The positions of items after var in the sequence are diminished by 1
 	for p in pos[var]+1:length(pos)
 		newPos[seq[p]] = pos[seq[p]] - 1
 	end
 	
 	return newTranspositions, newSeq, newPos
-	
 end
 
 # LP relaxation
@@ -193,12 +189,12 @@ function parametricMethod(prob::_MOMKP,
 			(i,j) = transpositions[iter].pairs[1]
 			k = min(pos[i], pos[j])
 
-			if k == s-1
+			if k == s-1 # Swap items s-1 and s
 
 				sol, s, ω_ = swapWithItemInBag(prob, seq, sol, s, ω_)
 				push!(upperBound, sol.z)
 
-			elseif k == s
+			elseif k == s # Swap items s and s+1
 
 				sol, s, ω_ = swapWithItemNotInBag(prob, seq, sol, s, ω_)
 				push!(upperBound, sol.z)
