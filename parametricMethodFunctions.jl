@@ -78,6 +78,24 @@ function transpositionPreprocessing(weights::Vector{Rational{Int}},
 end
 
 # ----- SEQUENCE AND POSITIONS ----------------------------------------------- #
+# Identification of the modified subsequences
+function identifySubsequences(positions)
+    subsequences = Tuple{Int,Int}[]
+	start = positions[1][1] ; finish = positions[1][2]
+
+	for p in positions[2:end]
+
+		if p[1] > finish # Start of a new distinct subsequence
+			push!(subsequences, (start, finish))
+			start = p[1] ; finish = p[2]
+		else
+			finish = p[2]
+		end
+	end
+	push!(subsequences, (start, finish))
+    return subsequences
+end
+
 # Updates the positions after reversing the subsequence between start and finish
 function updatePositions!(seq::Vector{Int}, 
                          pos::Vector{Int}, 
@@ -111,3 +129,70 @@ function initialisation(prob::_MOMKP)
 	
 	return transpositions, seq, pos
 end
+
+# ----- SETTING VARIABLES ---------------------------------------------------- #
+# Remove a variable from the sequence and transpositions
+function setVariable(transpositions::Vector{Transposition},
+                     seq::Vector{Int},
+                     pos::Vector{Int},
+                     var::Int)
+       
+    newTranspositions = Transposition[]
+    newSeq            = Vector{Int}(undef,length(seq)-1)
+    newPos            = sortperm(seq)
+
+    # The variable is removed from the set of transpositions
+    for t in transpositions
+
+        if length(t.pairs) > 1	
+
+            swaps = Tuple{Int,Int}[]
+            for pair in t.pairs 
+                if !(var in pair) 
+                    push!(swaps, pair)
+                end
+            end
+
+            if length(swaps) > 0 
+                push!(newTranspositions, Transposition(t.λ, swaps))
+            end
+        else
+
+            if !(var in t.pairs[1])
+                push!(newTranspositions, Transposition(t.λ, t.pairs))
+            end
+        end
+    end
+
+    # The variable is removed from the sequence
+    inser = 1
+    for i in 1:length(seq)
+        if seq[i] != var
+            newSeq[inser] = seq[i] 
+            inser += 1 
+        end
+    end
+
+    # The positions of items after var in the sequence are diminished by 1
+    for p in pos[var]+1:length(pos)
+        newPos[seq[p]] = pos[seq[p]] - 1
+    end
+
+    return newTranspositions, newSeq, newPos
+end
+
+# Set a variable to 1 
+function setVariableToOne(prob::_MOMKP, 
+                          transpositions::Vector{Transposition},
+                          seq::Vector{Int},
+                          pos::Vector{Int},
+                          var::Int)
+
+    # New sequence, positions, and transpositions 
+    newTranspositions, newSeq, newPos 
+
+    # Subproblem 
+    newProb = _MOMKP(prob.P, prob.W, prob.ω - prob.W[1,var])
+
+    return newProb, newTranspositions, newSeq, newPos
+end 

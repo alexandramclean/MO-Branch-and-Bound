@@ -4,7 +4,7 @@
 #         Tests : Calcul paramétrique de la relaxation continue                #
 ################################################################################
 
-include("parametricMethod.jl")
+include("lpRelaxation.jl")
 include("martelloAndToth.jl")
 include("dichotomicMethod.jl")
 include("vOptMomkp.jl")

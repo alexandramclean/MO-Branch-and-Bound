@@ -4,8 +4,7 @@
 #         Calcul paramétrique de la borne de Martello et Toth                  #
 ################################################################################
 
-include("dataStructures.jl")
-include("functions.jl")
+include("parametricMethodFunctions.jl")
 include("listeOrdonnee.jl")
 
 # Borne de Martello et Toth
@@ -154,19 +153,7 @@ function martelloAndToth(prob::_MOMKP,
 			sort!(positions)
 
 			# Identification of the modified subsequences
-			subsequences = Tuple{Int,Int}[]
-			start = positions[1][1] ; finish = positions[1][2]
-
-			for p in positions[2:end]
-
-				if p[1] > finish # Start of a new distinct subsequence
-					push!(subsequences, (start, finish))
-					start = p[1] ; finish = p[2]
-				else
-					finish = p[2]
-				end
-			end
-			push!(subsequences, (start, finish))
+			subsequences = identifySubsequences(positions)
 
 			# Reversing the subsequences
 			for (start, finish) in subsequences
