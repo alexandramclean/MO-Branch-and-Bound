@@ -35,14 +35,14 @@ end
 
 # ----- SOLUTIONS ------------------------------------------------------------ #
 # Add an item to a solution
-function addItem!(prob::_MOMKP, sol::Solution, item::Int)
+function addItem!(prob::_MOMKP, sol::Union{Solution,SolutionD}, item::Int)
 	sol.X[item] = 1
 	sol.z += prob.P[:,item]
 end
 
 # Add a break item to a solution
 function addBreakItem!(prob::_MOMKP,
-					   sol::Solution,
+					   sol::Union{Solution,SolutionD},
 					   ω_::Int,
 					   item::Int)
 
