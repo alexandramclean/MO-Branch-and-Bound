@@ -70,56 +70,6 @@ function swapWithItemNotInBag(prob::_MOMKP,
 	return sol, s, ω_
 end
 
-# Set the value of a variable 
-function setVariable(transpositions::Vector{Transposition},
-					 seq::Vector{Int},
-					 pos::Vector{Int},
-					 var::Int)
-						
-	newTranspositions = Transposition[]
-	newSeq            = Vector{Int}(undef,length(seq)-1)
-	newPos            = sortperm(seq)
-	
-	# The variable is removed from the set of transpositions
-	for t in transpositions
-
-		if length(t.pairs) > 1	
-			
-			swaps = Tuple{Int,Int}[]
-			for pair in t.pairs 
-				if !(var in pair) 
-					push!(swaps, pair)
-				end
-			end
-			
-			if length(swaps) > 0 
-				push!(newTranspositions, Transposition(t.λ, swaps))
-			end
-		else
-		
-			if !(var in t.pairs[1])
-				push!(newTranspositions, Transposition(t.λ, t.pairs))
-			end
-		end
-	end
-	
-	# The variable is removed from the sequence
-	inser = 1
-	for i in 1:length(seq)
-		if seq[i] != var
-			newSeq[inser] = seq[i] 
-			inser += 1 
-		end
-	end
-	
-	# The positions of items after var in the sequence are diminished by 1
-	for p in pos[var]+1:length(pos)
-		newPos[seq[p]] = pos[seq[p]] - 1
-	end
-	
-	return newTranspositions, newSeq, newPos
-end
-
 # LP relaxation
 function parametricMethod(prob::_MOMKP,
 						  transpositions::Vector{Transposition},
@@ -146,40 +96,22 @@ function parametricMethod(prob::_MOMKP,
 			sort!(positions)
 			
 			# Identification of the modified subsequences
-			start = positions[1][1] ; finish = positions[1][2]
+			subsequences = identifySubsequences(positions)
 			
-			for p in positions[2:end] 
-				if p[1] > finish # Start of a new distinct subsequence
+			for (start,finish) in subsequences
 					
-					# The subsequence is reversed 
-					seq[start:finish] = seq[finish:-1:start]
+				# The subsequence is reversed 
+				seq[start:finish] = seq[finish:-1:start]
 					
-					if start <= s && finish >= s # The solution is modified
-						sol, s, ω_ = reoptSolution(prob, seq, start, finish, sol, s, ω_)
-						if ω_ > 0
-							addBreakItem!(prob, sol, ω_, seq[s])
-						end
+				if start <= s && finish >= s # The solution is modified
+					sol, s, ω_ = reoptSolution(prob, seq, start, finish, sol, s, ω_)
+					if ω_ > 0
+						addBreakItem!(prob, sol, ω_, seq[s])
 					end
-					
-					updatePositions!(seq, pos, start, finish)
-					
-					start = p[1] ; finish = p[2] 
-				else 
-					finish = p[2] 
 				end
+					
+				updatePositions!(seq, pos, start, finish)
 			end 
-			
-			# The subsequence is reversed 
-			seq[start:finish] = seq[finish:-1:start]
-					
-			if start <= s && finish >= s # The solution is modified
-				sol, s, ω_ = reoptSolution(prob, seq, start, finish, sol, s, ω_)
-				if ω_ > 0
-					addBreakItem!(prob, sol, ω_, seq[s])
-				end
-			end
-					
-			updatePositions!(seq, pos, start, finish)
 
 			push!(upperBound, sol.z)
 

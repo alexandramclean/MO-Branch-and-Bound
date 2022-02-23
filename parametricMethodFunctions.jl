@@ -118,12 +118,12 @@ function initialisation(prob::_MOMKP)
 
 	# Ratios and critical weights
 	r1, r2 = ratios(prob)
-	weights, transpositions = criticalWeights(prob, r1, r2)
+	weights, pairs = criticalWeights(prob, r1, r2)
 	
 	# Identical critical weights are grouped together 
 	transpositions = transpositionPreprocessing(weights, pairs)
 	
-	# Sorts the ratios in lexicographically decreasing order according to (r1, r2) 
+	# Sort the ratios in lexicographically decreasing order according to (r1,r2) 
 	seq = sortperm(1000000*r1 + r2, rev=true) # Item sequence 
 	pos = sortperm(seq)          			  # Item positions
 	
@@ -139,7 +139,7 @@ function setVariable(transpositions::Vector{Transposition},
        
     newTranspositions = Transposition[]
     newSeq            = Vector{Int}(undef,length(seq)-1)
-    newPos            = sortperm(seq)
+    newPos            = copy(pos)
 
     # The variable is removed from the set of transpositions
     for t in transpositions
@@ -180,19 +180,3 @@ function setVariable(transpositions::Vector{Transposition},
 
     return newTranspositions, newSeq, newPos
 end
-
-# Set a variable to 1 
-function setVariableToOne(prob::_MOMKP, 
-                          transpositions::Vector{Transposition},
-                          seq::Vector{Int},
-                          pos::Vector{Int},
-                          var::Int)
-
-    # New sequence, positions, and transpositions 
-    newTranspositions, newSeq, newPos 
-
-    # Subproblem 
-    newProb = _MOMKP(prob.P, prob.W, prob.ω - prob.W[1,var])
-
-    return newProb, newTranspositions, newSeq, newPos
-end 

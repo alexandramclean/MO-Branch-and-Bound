@@ -12,8 +12,8 @@ include("parserMomkpPG.jl")
 include("parserMomkpZL.jl")
 include("displayGraphic.jl")
 
-# Produit un graphique affichant l'ensemble des points non-dominés pour un
-# problème donné, ainsi que la relaxation continue calculée par méthode 
+# ----- DICHOTOMIC METHOD --------------------------------------------------- #
+# Produit un graphique affichant la relaxation continue calculée par méthode 
 # dichotomique et par méthode paramétrique
 function testComparaison(name, prob, graphic=false)
 
@@ -74,7 +74,7 @@ function testFile(fname::String, graphic=false)
 	testComparaison(fname, prob, graphic)
 end
 
-# Test sur toutes les instances 
+# Compare les méthodes paramétrique et dichotomique sur toutes les instances 
 function testInstances(dir::String, graphic=false) 
 
 	println("Exemple didactique")
@@ -87,6 +87,7 @@ function testInstances(dir::String, graphic=false)
 	end	
 end 
 
+# ----- MARTELLO AND TOTH --------------------------------------------------- #
 # Compare execution times for the LP relaxation and Martello and Toth
 function compareLP_MT(prob::_MOMKP)
 
@@ -100,24 +101,6 @@ function compareLP_MT(prob::_MOMKP)
 	println("Martello et Toth : ")
     @time UB, constraints = martelloAndToth(prob, transpositions, seq, pos)
 end 
-
-# Compare execution times before and after setting a variable 
-function compareLP_setvar(prob::_MOMKP)
-
-	# Initialisation
-	println("Initialisation : ")
-	@time transpositions, seq, pos = initialisation(prob)
-
-	#=println("Relaxation : ")
-	@time UBparam = parametricMethod(prob, transpositions, seq, pos)=#
-	
-	println("After setting a variable : ")
-	@time newTranspositions, newSeq, newPos = setVariable(transpositions, seq, pos, rand(1:length(seq)))
-
-	@assert length(newTranspositions) <= length(transpositions) && length(newSeq) < length(seq) && length(newPos) == length(pos) "Erreur dimensions"
-    
-	@time UBsetvar = parametricMethod(prob, transpositions, seq, pos)
-end
 
 # Compute LP relaxation and Martello and Toth on all instances in dir
 function testInstancesMT(dir::String)
@@ -137,6 +120,32 @@ function testInstancesMT(dir::String)
 		end
 		compareLP_MT(prob)
 	end
+end
+
+# ----- SETTING VARIABLES ---------------------------------------------------- #
+# Compare execution times before and after setting a variable 
+function compareLP_setvar(prob::_MOMKP)
+
+	# Initialisation
+	#println("Initialisation : ")
+	transpositions, seq, pos = initialisation(prob)
+
+	#=println("Relaxation continue : ")
+	@time UBparam = parametricMethod(prob, transpositions, seq, pos)=#
+	
+	println("Une variable fixée à 1 : ")
+	var = 1
+	#transpositions, seq, pos = initialisation(prob)
+	@time newTranspositions, newSeq, newPos = setVariable(transpositions, seq, pos, var)
+	# Subproblem 
+    newProb = _MOMKP(prob.P, prob.W, [prob.ω[1] - prob.W[1,var]])
+
+	@time UBsetvar1 = parametricMethod(newProb, newTranspositions, newSeq, newPos)
+
+	#=println("Deuxième variable fixée à 1 : ")
+	@time newTranspositions, newSeq, newPos = setVariable(transpositions, seq, pos, var)
+
+	@time UBsetvar2 = parametricMethod(newProb, newTranspositions, newSeq, newPos)=#
 end
 
 function test_setvar(dir::String)
