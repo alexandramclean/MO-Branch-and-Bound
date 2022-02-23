@@ -40,8 +40,10 @@ end
 function returnBiggest(x::Vector{Float64}, y::Vector{Float64}, λ::Rational{Int})
   
 	if weightedSum(λ, x) >= weightedSum(λ, y)
+		println("ajouter U0")
 		return x 
 	else 
+		println("ajouter U1")
 		return y
 	end
 end
@@ -62,10 +64,12 @@ function chooseBound!(upperBound::Vector{Vector{Float64}},
 
 	if domine(U0,U1)
 		ajouter!(upperBound, U0)
+		println("ajouter U0")
 		push!(constraintsToAdd, Constraint(prev, U0))
 
 	elseif domine(U1,U0)
 		ajouter!(upperBound, U1)
+		println("ajouter U1")
 		push!(constraintsToAdd, Constraint(prev, U1))
 
 	else # No dominance between U0 and U1
@@ -78,19 +82,23 @@ function chooseBound!(upperBound::Vector{Vector{Float64}},
 			if weightedSum(prev, U0) >= weightedSum(prev, U1)
 				# The weighted sum with U0 is bigger in [λeq, prev]
 				ajouter!(upperBound, U0)
+				println("ajouter U0")
 				push!(constraintsToAdd, Constraint(prev, U0))
 
 				# The weighted sum with U1 is bigger in [next, λeq]
 				ajouter!(upperBound, U1)
+				println("ajouter U1")
 				push!(constraintsToAdd, Constraint(λeq, U1))
 
 			else
 				# The weighted sum with U1 is bigger in [λeq, prev]
 				ajouter!(upperBound, U1)
+				println("ajouter U1")
 				push!(constraintsToAdd, Constraint(prev, U1))
 
 				# The weighted sum with U0 is bigger in [next, λeq]
 				ajouter!(upperBound, U0)
+				println("ajouter U0")
 				push!(constraintsToAdd, Constraint(λeq, U0))
 
 			end
@@ -109,6 +117,7 @@ function chooseBound!(upperBound::Vector{Vector{Float64}},
 	end
 
 	if length(upperBound) != len
+		println("Contrainte(s) ajoutée(s)")
 		for c in constraintsToAdd
 			push!(constraints, c)
 		end
@@ -128,11 +137,16 @@ function martelloAndToth(prob::_MOMKP,
 
 	U0, U1 = uMT(prob, seq, sol, s, ω_)
 
+	println("U0 = ", U0)
+	println("U1 = ", U1)
+
 	chooseBound!(upperBound, constraints, 1//1, transpositions[1].λ, U0, U1)
 
 	numberCasesIdenticalWeights = 0
 
 	for iter in 1:length(transpositions)
+
+		println("\nIter ", iter)
 
 		# Previous and next critical weights
 		prev = transpositions[iter].λ
@@ -146,6 +160,7 @@ function martelloAndToth(prob::_MOMKP,
 		if length(transpositions[iter].pairs) > 1
 
 			numberCasesIdenticalWeights += 1
+			println("Cas égalité")
 
 			# Positions corresponding to each transposition
 			positions = [(min(pos[i], pos[j]), max(pos[i], pos[j]))
@@ -175,6 +190,9 @@ function martelloAndToth(prob::_MOMKP,
 				end
 			end
 
+			println("U0 = ", U0)
+			println("U1 = ", U1)
+
 			chooseBound!(upperBound, constraints, prev, next, U0, U1)
 		else
 
@@ -189,6 +207,7 @@ function martelloAndToth(prob::_MOMKP,
 
 				# Only U1 is modified
 				U1 = u1(prob, seq, sol, s, ω_)
+				println("U1 = ", U1)
 				chooseBound!(upperBound, constraints, prev, next, U0, U1)
 
 			elseif k == s-1 # Swap items s-1 and s
@@ -208,6 +227,10 @@ function martelloAndToth(prob::_MOMKP,
 				end
 
 				U0, U1 = uMT(prob, seq, sol, s, ω_)
+
+				println("U0 = ", U0)
+				println("U1 = ", U1)
+
 				chooseBound!(upperBound, constraints, prev, next, U0, U1)
 
 			elseif k == s # Swap items s and s+1
@@ -221,12 +244,17 @@ function martelloAndToth(prob::_MOMKP,
 				end
 
 				U0, U1 = uMT(prob, seq, sol, s, ω_)
+
+				println("U0 = ", U0)
+				println("U1 = ", U1)
+
 				chooseBound!(upperBound, constraints, prev, next, U0, U1)
 
 			elseif k == s+1 # Swap items s+1 and s+2
 
 				# Only U0 is modified
 				U0 = u0(prob, seq, sol, s, ω_)
+				println("U0 = ", U0)
 				chooseBound!(upperBound, constraints, prev, next, U0, U1)
 			end
 		end

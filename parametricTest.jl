@@ -4,9 +4,7 @@
 #         Calcul paramétrique de la relaxation continue - Tests                #
 ################################################################################
 
-include("dataStructures.jl")
-include("functions.jl")
-include("parametricMethod.jl")
+include("lpRelaxation.jl")
 
 using Test 
 
@@ -106,7 +104,7 @@ end
 function testSetVariable()
 	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
 	transpositions, seq, pos = initialisation(didactic)
-	newTranspositions, newSeq, newPos = setVariable(didactic, transpositions, seq, pos, 4)
+	newTranspositions, newSeq, newPos = setVariable(transpositions, seq, pos, 4)
 	println(newSeq)
 	println(newPos)
 end

@@ -92,11 +92,13 @@ end
 function compareLP_MT(prob::_MOMKP)
 
 	# Initialisation
-	println("Initialisation : ")
-	@time transpositions, seq, pos = initialisation(prob)
+	transpositions, seq, pos = initialisation(prob)
 
 	println("Relaxation continue : ")
 	@time UBparam = parametricMethod(prob, transpositions, seq, pos)
+
+	# Initialisation
+	transpositions, seq, pos = initialisation(prob)
 	
 	println("Martello et Toth : ")
     @time UB, constraints = martelloAndToth(prob, transpositions, seq, pos)
@@ -118,6 +120,7 @@ function testInstancesMT(dir::String)
 		else
 			prob = readInstanceMOMKPformatZL(false, dir*fname)
 		end
+		println("n = ", size(prob.P)[2])
 		compareLP_MT(prob)
 	end
 end
