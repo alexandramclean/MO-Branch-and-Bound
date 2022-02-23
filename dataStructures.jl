@@ -18,9 +18,10 @@ mutable struct Solution
 end
 Solution(n) = Solution(zeros(Rational{Int},n), [0,0])
 
-function copySolution(sol::Solution)
-    return Solution(sol.X[1:end],
-                    sol.z[1:end])
+# Pour la méthode dichotomique
+mutable struct SolutionD
+    X::Vector{Rational{Int}} # Liste des éléments insérés dans le sac
+    z::Vector{Rational{Int}} # Valeurs pour les fonctions objectif
 end
 
 # Structure qui stocke une valeur de λ et les transpositions correspondantes
