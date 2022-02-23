@@ -8,6 +8,30 @@ include("dataStructures.jl")
 include("functions.jl")
 include("listeOrdonnee.jl")
 
+# Builds a solution including the break item for a given sequence
+function buildSolutionD(prob::_MOMKP, seq::Vector{Int})
+
+	n   = size(prob.P)[2]
+	ω_  = prob.ω[1]
+	sol = SolutionD(zeros(Rational{Int}, n), [0//1, 0//1])
+	i   = 1
+
+	while i <= n && prob.W[1,seq[i]] <= ω_
+		item = seq[i]
+		# L'objet est inséré
+		addItem!(prob, sol, item)
+		ω_ -= prob.W[1,item]
+		i += 1
+	end
+
+	if ω_ > 0
+		# Une fraction de l'objet s est insérée
+		addBreakItem!(prob, sol, ω_, seq[i])
+	end
+
+	return sol, i, ω_
+end
+
 # Retourne une fonction objectif pondérée définie par les paramètres λ1 et λ2
 function weightedObjective(prob::_MOMKP,
 						   λ1::Union{Int,Rational{Int}},
@@ -25,7 +49,7 @@ function solveWeightedSum(prob::_MOMKP,
 	r_λ = [obj[i]//prob.W[1,i] for i in 1:n]
 
 	seq = sortperm(r_λ, rev=true)
-	x, _ = buildSolution(prob, seq)
+	x, _ = buildSolutionD(prob, seq)
 	return x
 end
 
@@ -36,17 +60,17 @@ function lexicographicSolutions(prob::_MOMKP)
 	
 	# Lexicographically optimal solution for (1,2) 
 	seq12 = sortperm(1000000*r1 + r2, rev=true) 
-	x12, _ = buildSolution(prob, seq12)
+	x12, _ = buildSolutionD(prob, seq12)
 	
 	# Lexicographically optimal solution for (2,1) 
 	seq21 = sortperm(r1 + 1000000*r2, rev=true) 
-	x21, _ = buildSolution(prob, seq21) 
+	x21, _ = buildSolutionD(prob, seq21) 
 	
 	return x12, x21
 end
 
 function solveRecursion!(prob::_MOMKP, Y_SN,
-						 x1::Solution, x2::Solution)
+						 x1::SolutionD, x2::SolutionD)
 	# Calcul de la direction λ
 	λ1 = x2.z[2] - x1.z[2]
 	λ2 = x1.z[1] - x2.z[1]
