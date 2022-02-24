@@ -5,6 +5,7 @@
 ################################################################################
 
 include("functions.jl")
+using TimerOutputs
 
 # ----- RATIOS AND CRITICAL WEIGHTS ------------------------------------------ #
 # Computes the critical weights
@@ -116,17 +117,18 @@ end
 # ----- INITIALISATION ------------------------------------------------------- #
 function initialisation(prob::_MOMKP)
 
-	# Ratios and critical weights
-	r1, r2 = ratios(prob)
-	weights, pairs = criticalWeights(prob, r1, r2)
-	
-	# Identical critical weights are grouped together 
-	transpositions = transpositionPreprocessing(weights, pairs)
-	
-	# Sort the ratios in lexicographically decreasing order according to (r1,r2) 
-	seq = sortperm(1000000*r1 + r2, rev=true) # Item sequence 
-	pos = sortperm(seq)          			  # Item positions
-	
+    @timeit to "Initialisation" begin 
+        # Ratios and critical weights
+        @timeit to "Ratios" r1, r2 = ratios(prob)
+        @timeit to "Critical weights" weights, pairs = criticalWeights(prob, r1, r2)
+        
+        # Identical critical weights are grouped together 
+        @timeit to "Transpositions" transpositions = transpositionPreprocessing(weights, pairs)
+        
+        # Sort the ratios in lexicographically decreasing order according to (r1,r2) 
+        @timeit to "Sequence" seq = sortperm(1000000*r1 + r2, rev=true) # Item sequence 
+        @timeit to "Positions" pos = sortperm(seq)          			  # Item positions
+	end
 	return transpositions, seq, pos
 end
 

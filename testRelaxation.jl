@@ -12,10 +12,13 @@ include("parserMomkpPG.jl")
 include("parserMomkpZL.jl")
 include("displayGraphic.jl")
 
-# ----- DICHOTOMIC METHOD --------------------------------------------------- #
+using TimerOutputs
+const to = TimerOutput()
+
+# ----- DICHOTOMIC METHOD ---------------------------------------------------- #
 # Produit un graphique affichant la relaxation continue calculée par méthode 
 # dichotomique et par méthode paramétrique
-function testComparaison(name, prob, graphic=false)
+function compareLP_DM(name, prob, graphic=false)
 
 	println("Méthode paramétrique")
 	println("\tInitialisation : ")
@@ -87,7 +90,7 @@ function testInstances(dir::String, graphic=false)
 	end	
 end 
 
-# ----- MARTELLO AND TOTH --------------------------------------------------- #
+# ----- MARTELLO AND TOTH ---------------------------------------------------- #
 # Compare execution times for the LP relaxation and Martello and Toth
 function compareLP_MT(prob::_MOMKP)
 
@@ -126,36 +129,24 @@ function testInstancesMT(dir::String)
 end
 
 # ----- SETTING VARIABLES ---------------------------------------------------- #
-# Compare execution times before and after setting a variable 
-function compareLP_setvar(prob::_MOMKP)
+# Compare execution times for the initialisation and setVariable functions 
+function compareLP_SetVar(prob::_MOMKP)
 
 	# Initialisation
 	#println("Initialisation : ")
 	transpositions, seq, pos = initialisation(prob)
 
-	#=println("Relaxation continue : ")
-	@time UBparam = parametricMethod(prob, transpositions, seq, pos)=#
-	
-	println("Une variable fixée à 1 : ")
+	#println("Set variable : ")
 	var = 1
-	#transpositions, seq, pos = initialisation(prob)
-	@time newTranspositions, newSeq, newPos = setVariable(transpositions, seq, pos, var)
-	# Subproblem 
-    newProb = _MOMKP(prob.P, prob.W, [prob.ω[1] - prob.W[1,var]])
-
-	@time UBsetvar1 = parametricMethod(newProb, newTranspositions, newSeq, newPos)
-
-	#=println("Deuxième variable fixée à 1 : ")
-	@time newTranspositions, newSeq, newPos = setVariable(transpositions, seq, pos, var)
-
-	@time UBsetvar2 = parametricMethod(newProb, newTranspositions, newSeq, newPos)=#
+	@timeit to "Set variable" newTranspositions, newSeq, newPos = setVariable(transpositions, seq, pos, var)
+	
 end
 
-function test_setvar(dir::String)
+function testInstancesSetVar(dir::String)
 
 	println("Exemple didactique")
 	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
-	compareLP_setvar(didactic)
+	compareLP_SetVar(didactic)
 	
 	files = readdir(dir)
 	for fname in files
@@ -166,8 +157,7 @@ function test_setvar(dir::String)
 		else
 			prob = readInstanceMOMKPformatZL(false, dir*fname)
 		end
-		compareLP_setvar(prob)
+		compareLP_SetVar(prob)
 	end
 	
 end
-	
