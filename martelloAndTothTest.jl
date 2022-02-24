@@ -56,49 +56,9 @@ end
 function testCasEgalite()
 	# Exemple pathologique
 	prob = _MOMKP([11 2 2 8 10 9 1 9 16 ; 2 7 7 8 4 1 3 1 4], [4 4 4 6 4 3 2 3 6], [13])
-	
-	r1, r2 = ratios(prob)
-	weights, pairs = criticalWeights(prob, r1, r2)
-	transpositions = transpositionPreprocessing(weights, pairs)
-	
-	seq = sortperm(1000000*r1 + r2, rev=true) # Item sequence 
-	pos = sortperm(seq)          			  # Item positions
-	println("seq : ", seq)
-	
-	sol, s, ω_ = dantzigSolution(prob, seq)
-	println("X = ", sol.X, " z = ", sol.z)
-	println("s = ", s, " ω_ = ", ω_)
-	
-	for t in transpositions
-		println("λ = ", t.λ, " pairs = ", t.pairs)
-	end 
-	
-	#non = @code_warntype martelloAndToth(prob)
+	transpositions, seq, pos = initialisation(prob)
 
-end
-
-# ---------------------------------------------------------------------------- #
-function testMartelloAndToth(dir::String)
-
-	# Exemple didactique
-	println("Exemple didactique")
-	prob = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
-	@time upperBound, constraints = martelloAndToth(prob)
-	
-	# Test sur toutes les instances du répertoire dir
-	files = readdir(dir)
-	for f in files 
-	
-		println("\n", f)
-		
-		fname = dir*f
-		if fname[length(fname)-3:length(fname)] == ".DAT"
-			prob = readInstanceMOMKPformatPG(false, fname)
-		else
-			prob = readInstanceMOMKPformatZL(false, fname)
-		end
-		
-		@time upperBound, constraints = martelloAndToth(prob)
-	end 
-
+	upperBound, constraints = martelloAndToth(prob, transpositions, seq, pos)
+	println(upperBound)
+	println(constraints)
 end
