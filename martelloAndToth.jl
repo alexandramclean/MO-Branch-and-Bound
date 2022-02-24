@@ -10,7 +10,7 @@ include("listeOrdonnee.jl")
 # Borne de Martello et Toth
 function u0(prob::_MOMKP, seq::Vector{Int}, sol::Solution, s::Int, ω_::Int)
 
-	U0::Vector{Float64} = sol.z
+	U0::Vector{Float64} = sol.z + [0.0, 0.0]
 	U0[1] += ω_/prob.W[1,seq[s+1]] * prob.P[1,seq[s+1]]
 	U0[2] += ω_/prob.W[1,seq[s+1]] * prob.P[2,seq[s+1]]
 	return U0
@@ -89,7 +89,6 @@ function chooseBound!(upperBound::Vector{Vector{Float64}},
 				ajouter!(upperBound, U1)
 				println("ajouter U1")
 				push!(constraintsToAdd, Constraint(λeq, U1))
-
 			else
 				# The weighted sum with U1 is bigger in [λeq, prev]
 				ajouter!(upperBound, U1)
@@ -100,7 +99,6 @@ function chooseBound!(upperBound::Vector{Vector{Float64}},
 				ajouter!(upperBound, U0)
 				println("ajouter U0")
 				push!(constraintsToAdd, Constraint(λeq, U0))
-
 			end
 		else
 
