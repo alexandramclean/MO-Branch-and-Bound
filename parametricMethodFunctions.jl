@@ -127,7 +127,7 @@ function initialisation(prob::_MOMKP)
         
         # Sort the ratios in lexicographically decreasing order according to (r1,r2) 
         @timeit to "Sequence" seq = sortperm(1000000*r1 + r2, rev=true) # Item sequence 
-        @timeit to "Positions" pos = sortperm(seq)          			  # Item positions
+        @timeit to "Positions" pos = sortperm(seq)          			# Item positions
 	end
 	return transpositions, seq, pos
 end
