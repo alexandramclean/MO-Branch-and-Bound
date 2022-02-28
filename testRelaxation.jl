@@ -22,11 +22,11 @@ function compareLP_DM(name, prob, graphic=false)
 
 	println("Méthode paramétrique")
 	println("\tInitialisation : ")
-	@time transpositions, seq, pos = initialisation(prob)
-	@time UBparam = parametricMethod(prob, transpositions, seq, pos)
+	transpositions, seq, pos = initialisation(prob)
+	@timeit to "Relaxation continue" UBparam = parametricMethod(prob, transpositions, seq, pos)
 	
 	println("Méthode dichotomique")
-    @time UBdicho = dichotomicMethod(prob)
+    UBdicho = dichotomicMethod(prob)
 
 	if graphic 
    		# Setup
@@ -62,7 +62,7 @@ end
 # Exemple didactique
 function testDidactic(graphic=false)
 	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
-	testComparaison("didactic", didactic, graphic)
+	compareLP_DM("didactic", didactic, graphic)
 end
 
 # Test sur une instance contenue dans le fichier fname
@@ -74,7 +74,7 @@ function testFile(fname::String, graphic=false)
     	prob = readInstanceMOMKPformatZL(false, fname)
 	end
 
-	testComparaison(fname, prob, graphic)
+	compareLP_DM(fname, prob, graphic)
 end
 
 # Compare les méthodes paramétrique et dichotomique sur toutes les instances 
@@ -160,4 +160,38 @@ function testInstancesSetVar(dir::String)
 		compareLP_SetVar(prob)
 	end
 	
+end
+
+# ----- SIMPLEX ALGORITHM ---------------------------------------------------- #
+function compareLP_SP(name, prob, graphic=false)
+
+	println("Méthode paramétrique")
+	println("\tInitialisation : ")
+	@time transpositions, seq, pos = initialisation(prob)
+	@time UBparam = parametricMethod(prob, transpositions, seq, pos)
+	
+	println("Algorithme du simplexe")
+    @time UBsimplexe = dichotomicMethod(prob)
+
+	if graphic 
+   		# Setup
+    	figure("Test Relaxation Continue | "*name,figsize=(6.5,5))
+    	xlabel(L"z^1(x)")
+    	ylabel(L"z^2(x)")
+    	PyPlot.title("Test Relaxation Continue | "*name)
+
+		# Affichage des points calculés par méthode paramétrique
+		y_PN11 = [y[1] for y in UBparam] ; y_PN12 = [y[2] for y in UBparam]
+		scatter(y_PN11, y_PN12, color="green", marker="+", label = "parametric")
+		plot(y_PN11, y_PN12, color="green", linewidth=0.75, marker="+",
+			markersize=1.0, linestyle=":")
+
+		# Affichage des points calculés par méthode dichotomique
+		y_PN21 = [y[1] for y in UBsimplexe] ; y_PN22 = [y[2] for y in UBsimplexe]
+		scatter(y_PN21, y_PN22, color="red", marker="+", label = "simplex")
+		plot(y_PN21, y_PN22, color="red", linewidth=0.75, marker="+",
+			markersize=1.0, linestyle=":")
+
+    	legend(bbox_to_anchor=[1,1], loc=0, borderaxespad=0, fontsize = "x-small")
+    end 
 end

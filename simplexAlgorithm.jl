@@ -13,6 +13,7 @@ function V(prob::_MOMKP,
            k::Int) # Objective function 
     return prob.P[k,j] - prob.P[k,i]*(prob.W[1,j]//prob.W[1,i])
 end 
+
 # Computes the reduced costs
 function reducedCosts(prob::_MOMKP, 
                       c::Int) # Basic variable 
@@ -49,24 +50,20 @@ function candidateVariables(costs::Matrix{Rational{Int}},
 end
 
 # Degeneration case : the obtained solution is integer
-function degeneration(prob::_MOMKP, sol::Solution, c::Int)
+function degeneration(costs::Matrix{Rational{Int}}, 
+                      sol::Solution, 
+                      c::Int) # Basic variable
 
-    n = size(prob.P)[2] 
-    candidates = [] 
+    n = length(sol.X) 
+    candidates = Int[] 
 
-    for i in 1:n 
-        for j in i+1:n 
-
-            if (sol.X[i] == 0 && sol.X[j] == 1 
-                && V(prob, i, j, 1) > 0 && V(prob, i, j, 2) < 0) 
-                push!(candidates, (i,j))
-            
-            elseif (sol.X[i] == 1 && sol.X[j] == 0 
-                && V(prob, i, j, 1) < 0 && V(prob, i, j, 2) > 0)
-                push!(candidates, (i,j))
-            end
+    for j in c+1:n 
+        if sol.X[c] == 0 && sol.X[j] == 1 && costs[1,j] > 0 && costs[2,j] < 0 
+            push!(candidates, j)
+        elseif sol.X[c] == 1 && sol.X[j] == 0 && costs[1,j] < 0 && costs[2,j] > 0
+            push!(candidates, j)
         end 
-    end 
+    end     
     return candidates 
 end
 
@@ -98,37 +95,47 @@ function simplex(prob::_MOMKP)
 
     # The critical objet constitutes an efficient basic variable 
     c = seq[s] 
+    println("c = ", c)
     
-    # Compute the reduced costs
     costs = reducedCosts(prob, c)
+    println(costs)
 
     # Candidate variables
     is_integer = isInteger(sol)
     if is_integer 
-        candidates = degeneration(prob, sol, c)
+        candidates = degeneration(costs, sol, c)
     else
         candidates = candidateVariables(costs, sol, c)
     end 
 
     # Stopping criterion : no candidate variables
     stop = (length(candidates) == 0)
-    
+    println("Candidats : ", candidates)
+
     # Main loop 
     while !stop 
 
+        println("\nX = ", sol.X)
+        println("z = ", sol.z)
+
         costRatios = [costs[2,j]//costs[1,j] for j in candidates]
-        j = candidates[sortperm(costRatios)[1]] 
+        perm = sortperm(costRatios)
+        j = candidates[perm[1]] 
+        println("Candidat : ", j)
     
         δ = prob.W[1,c]//prob.W[1,j] 
-        
+        println("δ = ", δ)
+
         if sol.X[j] == 0 
+
+            println("cas xj = 0")
 
             if δ*sol.X[c] < 1 
 
                 sol.X[j] = δ*sol.X[c] 
                 sol.z   += sol.X[j] * prob.P[:,j] 
 
-                sol.z   -= sol.X[c] * prob.P[:,j] 
+                sol.z   -= sol.X[c] * prob.P[:,c] 
                 sol.X[c] = 0 
 
                 # xj enters the basis in substitution of xc 
@@ -158,11 +165,14 @@ function simplex(prob::_MOMKP)
             end 
         else 
 
+            println("cas xj = 1") 
+
             if δ*(1 - sol.X[c]) < 1 
 
                 sol.X[j] = 1 - δ*(1 - sol.X[c]) 
                 sol.z   -= δ * (1 - sol.X[c]) * prob.P[:,j] 
 
+                sol.z   -= sol.X[c] * prob.P[:,c]  
                 sol.X[c] = 1 
                 sol.z   += prob.P[:,c]
 
@@ -174,8 +184,8 @@ function simplex(prob::_MOMKP)
                 sol.X[j] = 0 
                 sol.z   -= prob.P[:,j]
 
-                sol.X[c] = sol.X[c] + δ
-                sol.z   += δ * prob.P[:,c] 
+                sol.X[c] = sol.X[c] + 1//δ
+                sol.z   += 1//δ * prob.P[:,c] 
 
                 # xc remains in the basis 
                 is_integer = false 
@@ -185,6 +195,7 @@ function simplex(prob::_MOMKP)
                 sol.X[j] = 0
                 sol.z   -= prob.P[:,j] 
 
+                sol.z -= sol.X[c] * prob.P[:,c] 
                 sol.X[c] = 1
                 sol.z   += prob.P[:,c] 
                 
@@ -195,12 +206,12 @@ function simplex(prob::_MOMKP)
         push!(upperBound, sol.z)
         
         costs = reducedCosts(prob, c)
+        
         if is_integer 
             candidates = degeneration(prob, sol, c)
         else 
             candidates = candidateVariables(costs, sol, c) 
         end 
-
         stop = (length(candidates) == 0)
     end 
         
