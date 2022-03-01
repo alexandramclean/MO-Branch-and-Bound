@@ -7,6 +7,7 @@
 include("lpRelaxation.jl")
 include("martelloAndToth.jl")
 include("dichotomicMethod.jl")
+include("simplexAlgorithm.jl")
 include("vOptMomkp.jl")
 include("parserMomkpPG.jl")
 include("parserMomkpZL.jl")
@@ -165,13 +166,16 @@ end
 # ----- SIMPLEX ALGORITHM ---------------------------------------------------- #
 function compareLP_SP(name, prob, graphic=false)
 
+	newProb = groupEquivalentItems(prob)
+
 	println("Méthode paramétrique")
 	println("\tInitialisation : ")
-	@time transpositions, seq, pos = initialisation(prob)
-	@time UBparam = parametricMethod(prob, transpositions, seq, pos)
+	@time transpositions, seq, pos = initialisation(newProb)
+	@time UBparam = parametricMethod(newProb, transpositions, seq, pos)
 	
 	println("Algorithme du simplexe")
-    @time UBsimplexe = dichotomicMethod(prob)
+	
+    @time UBsimplexe = simplex(newProb)
 
 	if graphic 
    		# Setup
@@ -194,4 +198,24 @@ function compareLP_SP(name, prob, graphic=false)
 
     	legend(bbox_to_anchor=[1,1], loc=0, borderaxespad=0, fontsize = "x-small")
     end 
+end
+
+function testInstancesSimplex(dir::String, graphic=false)
+
+	println("Exemple didactique")
+	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
+	compareLP_SP("didactic", didactic, graphic)
+	
+	files = readdir(dir)
+	for fname in files
+		println("\n", fname)
+		
+		if fname[length(fname)-3:length(fname)] == ".DAT"
+			prob = readInstanceMOMKPformatPG(false, dir*fname)
+		else
+			prob = readInstanceMOMKPformatZL(false, dir*fname)
+		end
+		compareLP_SP(fname, prob, graphic)
+	end
+	
 end
