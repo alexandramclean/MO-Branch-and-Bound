@@ -60,52 +60,42 @@ function compareLP_DM(name, prob, graphic=false)
     end 
 end
 
-# Exemple didactique
-function testDidactic(graphic=false)
-	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
-	compareLP_DM("didactic", didactic, graphic)
-end
-
-# Test sur une instance contenue dans le fichier fname
-function testFile(fname::String, graphic=false)
-
-	if fname[length(fname)-3:length(fname)] == ".DAT"
-    	prob = readInstanceMOMKPformatPG(false, fname)
-	else
-    	prob = readInstanceMOMKPformatZL(false, fname)
-	end
-
-	compareLP_DM(fname, prob, graphic)
-end
-
 # Compare les méthodes paramétrique et dichotomique sur toutes les instances 
+# dans le répertoire passé en paramètre 
 function testInstances(dir::String, graphic=false) 
 
 	println("Exemple didactique")
-	testDidactic(graphic)
+	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
+	compareLP_DM("didactic", didactic, graphic)
 	
 	files = readdir(dir) 
 	for fname in files 
 		println("\n", fname) 
-		testFile(dir*fname, graphic) 
+		if fname[length(fname)-3:length(fname)] == ".DAT"
+			prob = readInstanceMOMKPformatPG(false, dir*fname)
+		else
+			prob = readInstanceMOMKPformatZL(false, dir*fname)
+		end
+	
+		compareLP_DM(fname, prob, graphic)
 	end	
 end 
 
 # ----- MARTELLO AND TOTH ---------------------------------------------------- #
-# Compare execution times for the LP relaxation and Martello and Toth
+# Compare CPU times for the LP relaxation and the Martello and Toth upper bound
 function compareLP_MT(prob::_MOMKP)
 
 	# Initialisation
 	transpositions, seq, pos = initialisation(prob)
 
-	println("Relaxation continue : ")
-	@time UBparam = parametricMethod(prob, transpositions, seq, pos)
+	println("LP Relaxation : ")
+	@timeit to "LP Relaxation" UBparam = parametricMethod(prob, transpositions, seq, pos)
 
 	# Initialisation
 	transpositions, seq, pos = initialisation(prob)
 	
-	println("Martello et Toth : ")
-    @time UB, constraints = martelloAndToth(prob, transpositions, seq, pos)
+	println("Martello and Toth : ")
+    @timeit to "Martello and Toth" UB, constraints = martelloAndToth(prob, transpositions, seq, pos)
 end 
 
 # Compute LP relaxation and Martello and Toth on all instances in dir
@@ -130,24 +120,21 @@ function testInstancesMT(dir::String)
 end
 
 # ----- SETTING VARIABLES ---------------------------------------------------- #
-# Compare execution times for the initialisation and setVariable functions 
-function compareLP_SetVar(prob::_MOMKP)
+# Compare CPU times for the initialisation and setVariable functions 
+function compareInit_SetVar(prob::_MOMKP)
 
-	# Initialisation
-	#println("Initialisation : ")
-	transpositions, seq, pos = initialisation(prob)
+	@timeit to "Initialisation" transpositions, seq, pos = initialisation(prob)
 
-	#println("Set variable : ")
-	var = 1
+	var = rand(1:size(prob.P)[2])
 	@timeit to "Set variable" newTranspositions, newSeq, newPos = setVariable(transpositions, seq, pos, var)
-	
 end
 
+# Calls compareInit_SetVar on all files in directory dir 
 function testInstancesSetVar(dir::String)
 
 	println("Exemple didactique")
 	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
-	compareLP_SetVar(didactic)
+	compareInit_SetVar(didactic)
 	
 	files = readdir(dir)
 	for fname in files
@@ -158,40 +145,46 @@ function testInstancesSetVar(dir::String)
 		else
 			prob = readInstanceMOMKPformatZL(false, dir*fname)
 		end
-		compareLP_SetVar(prob)
+		compareInit_SetVar(prob)
 	end
 	
 end
 
 # ----- SIMPLEX ALGORITHM ---------------------------------------------------- #
-function compareLP_SP(name, prob, graphic=false)
+# Compares the parametric method and the simplex algorithm for computing the 
+# LP relaxation of instance prob
+# If graphic=true, produces a figure showing both obtained upper bound sets 
+function compareLP_SP(prob, name, graphic=false)
 
-	newProb = groupEquivalentItems(prob)
+	#newProb = groupEquivalentItems(prob)
 
-	println("Méthode paramétrique")
-	println("\tInitialisation : ")
-	@time transpositions, seq, pos = initialisation(newProb)
-	@time UBparam = parametricMethod(newProb, transpositions, seq, pos)
-	
-	println("Algorithme du simplexe")
-	
-    @time UBsimplexe = simplex(newProb)
+	println("Parametric method")
+	@timeit to "Parametric method" begin 
+		@timeit to "Initialisation" transpositions, seq, pos = initialisation(prob)
+		@timeit to "Relaxation" UBparam = parametricMethod(prob, transpositions, seq, pos)
+	end 
+
+	println("Simplex algorithm")
+	@timeit to "Simplex algorithm" begin 
+		@timeit to "Initialisaiton" seq = simplexInitialisation(prob)
+    	@timeit to "Relaxation" UBsimplex = simplex(prob, seq)
+	end 
 
 	if graphic 
    		# Setup
-    	figure("Test Relaxation Continue | "*name,figsize=(6.5,5))
+    	figure("Parametric method and simplex algorithm | "*name,figsize=(6.5,5))
     	xlabel(L"z^1(x)")
     	ylabel(L"z^2(x)")
-    	PyPlot.title("Test Relaxation Continue | "*name)
+    	PyPlot.title("LP Relaxation | "*name)
 
-		# Affichage des points calculés par méthode paramétrique
+		# Show the upper bound set computed by the parametric method
 		y_PN11 = [y[1] for y in UBparam] ; y_PN12 = [y[2] for y in UBparam]
 		scatter(y_PN11, y_PN12, color="green", marker="+", label = "parametric")
 		plot(y_PN11, y_PN12, color="green", linewidth=0.75, marker="+",
 			markersize=1.0, linestyle=":")
 
-		# Affichage des points calculés par méthode dichotomique
-		y_PN21 = [y[1] for y in UBsimplexe] ; y_PN22 = [y[2] for y in UBsimplexe]
+		# Show the upper bound set computed by the simplex algorithm 
+		y_PN21 = [y[1] for y in UBsimplex] ; y_PN22 = [y[2] for y in UBsimplex]
 		scatter(y_PN21, y_PN22, color="red", marker="+", label = "simplex")
 		plot(y_PN21, y_PN22, color="red", linewidth=0.75, marker="+",
 			markersize=1.0, linestyle=":")
@@ -200,11 +193,15 @@ function compareLP_SP(name, prob, graphic=false)
     end 
 end
 
+# Calls compareLP_SP on all instances in directory dir 
 function testInstancesSimplex(dir::String, graphic=false)
 
 	println("Exemple didactique")
 	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
-	compareLP_SP("didactic", didactic, graphic)
+	transpositions, seq, pos = initialisation(didactic)
+	UBparam = parametricMethod(didactic, transpositions, seq, pos)
+	seq = simplexInitialisation(didactic)
+	UBsimplex = simplex(didactic, seq)
 	
 	files = readdir(dir)
 	for fname in files
@@ -215,7 +212,7 @@ function testInstancesSimplex(dir::String, graphic=false)
 		else
 			prob = readInstanceMOMKPformatZL(false, dir*fname)
 		end
-		compareLP_SP(fname, prob, graphic)
+		compareLP_SP(prob, fname, graphic)
 	end
 	
 end
