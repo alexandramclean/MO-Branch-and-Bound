@@ -4,12 +4,7 @@
 #         Calcul paramétrique de la borne de Martello et Toth - Tests          #
 ################################################################################
 
-include("dataStructures.jl")
-include("functions.jl")
 include("martelloAndToth.jl")
-include("parserMomkpPG.jl")
-include("parserMomkpZL.jl")
-
 using Test 
 
 # ---------------------------------------------------------------------------- #
@@ -23,7 +18,7 @@ function testChooseBound()
 	upperBound = Vector{Float64}[]
 	constraints = Constraint[]
 	
-	@testset "ChooseBound Tests" begin 
+	@testset "chooseBound Tests" begin 
 	
 		# Cas λeq plus petit que le λ critique suivant 
 		U0 = [30.0, 7.0]
@@ -49,16 +44,4 @@ function testChooseBound()
 		chooseBound!(upperBound, constraints, weights[6], weights[7], U0, U1)
 		@test upperBound == [[37/2, 55/4], [83/4, 25/2], [30.0, 7.0]]
 	end;
-	
 end 
-
-# ---------------------------------------------------------------------------- #
-function testCasEgalite()
-	# Exemple pathologique
-	prob = _MOMKP([11 2 2 8 10 9 1 9 16 ; 2 7 7 8 4 1 3 1 4], [4 4 4 6 4 3 2 3 6], [13])
-	transpositions, seq, pos = initialisation(prob)
-
-	upperBound, constraints = martelloAndToth(prob, transpositions, seq, pos)
-	println(upperBound)
-	println(constraints)
-end
