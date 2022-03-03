@@ -1,7 +1,7 @@
 ################################################################################
 #         Stage M2 - Ensembles bornants pour un B&B multi-objectif             #
 #         MCLEAN Alexandra, encadré par Gandibleux X. et Przybylski A.         #
-#         Structures de données                                                #
+#         Data structures                                                      #
 ################################################################################
 
 # Datastructure of a multi-objective multi-dimensionnal KP with 0/1 variables
@@ -11,23 +11,23 @@ struct _MOMKP
     ω  :: Vector{Int} # capacity of knapsacks, i=1..m
 end
 
-# Solution qui peut contenir des fractions d'objets
+# Data structure of a solution that can contain fractions of an object
 mutable struct Solution
-    X::Vector{Rational{Int}} # Liste des éléments insérés dans le sac
-    z::Vector{Float64}        # Valeurs pour les fonctions objectif
+    X::Vector{Rational{Int}} # Vector of binary variables 
+    z::Vector{Float64}       # Values for the objective functions 
 end
 Solution(n) = Solution(zeros(Rational{Int},n), [0,0])
 
-# Pour la méthode dichotomique
+# Solution data structure for the dichotomic method (rational values)
 mutable struct SolutionD
     X::Vector{Rational{Int}} # Liste des éléments insérés dans le sac
     z::Vector{Rational{Int}} # Valeurs pour les fonctions objectif
 end
 
-# Structure qui stocke une valeur de λ et les transpositions correspondantes
+# Stores a critical weight λ and the corresponding transposition(s)
 struct Transposition
-	λ::Rational{Int}			  # Poids critique
-	pairs::Vector{Tuple{Int,Int}} # Liste des paires correspondantes
+	λ::Rational{Int}			  # Critical weight 
+	pairs::Vector{Tuple{Int,Int}} # List of pairs of items to swap 
 end
 Transposition(λ) = Transposition(λ,[])
 
@@ -36,7 +36,15 @@ struct Constraint
 	λ::Rational{Int}       # Critical weight
 	point::Vector{Float64} # Associated point (u1,u2)
 end
-# La contrainte associée est λz1 + (1-λ)z2 <= λu1 + (1-λ)u2 où point = (u1,u2)
+# The associated constraint is λz1 + (1-λ)z2 <= λu1 + (1-λ)u2
+
+# Data structure representing an upper bound set 
+mutable struct DualBoundSet 
+    points::Vector{Vector{Float64}}    
+    constraints::Vector{Constraint}
+    integerSols::Vector{Solution} # Integer solutions
+end 
+DualBoundSet() = DualBoundSet(Solution[], Constraint[], Int[]) 
 
 @enum Optimisation Max Min
 

@@ -38,7 +38,6 @@ function swapWithItemInBag(prob::_MOMKP,
 	end
 
 	return sol, s, ω_
-
 end
 
 # The break item is swapped with an item that is not in the knapsack
@@ -70,7 +69,7 @@ function swapWithItemNotInBag(prob::_MOMKP,
 	return sol, s, ω_
 end
 
-# LP relaxation
+# Computes the LP relaxation using the parametric method 
 function parametricMethod(prob::_MOMKP,
 						  transpositions::Vector{Transposition},
 						  seq::Vector{Int},
@@ -78,17 +77,18 @@ function parametricMethod(prob::_MOMKP,
 
 	# Builds the initial solution
 	sol, s, ω_ = buildSolution(prob, seq)
-	upperBound = Vector{Float64}[]
-	push!(upperBound, sol.z)
 
-	nbCasEgalite = 0
+	upperBound = DualBoundSet()
+	updateBoundSet!(upperBound, sol, seq[s])
+
+	numberCasesIdenticalWeights = 0
 
 	for iter in 1:length(transpositions)
 
 		# Multiple identical critical weights
 		if length(transpositions[iter].pairs) > 1
 
-			nbCasEgalite += 1
+			numberCasesIdenticalWeights += 1
 
 			# Positions corresponding to each transposition
 			positions = [(min(pos[i], pos[j]), max(pos[i], pos[j])) 
@@ -104,7 +104,7 @@ function parametricMethod(prob::_MOMKP,
 				seq[start:finish] = seq[finish:-1:start]
 					
 				if start <= s && finish >= s # The solution is modified
-					sol, s, ω_ = reoptSolution(prob, seq, start, finish, sol, s, ω_)
+					sol, s, ω_ = reoptSolution(prob, seq, start, finish, sol, ω_)
 					if ω_ > 0
 						addBreakItem!(prob, sol, ω_, seq[s])
 					end
@@ -113,34 +113,31 @@ function parametricMethod(prob::_MOMKP,
 				updatePositions!(seq, pos, start, finish)
 			end 
 
-			push!(upperBound, sol.z)
-
+			updateBoundSet!(upperBound, sol, seq[s]) 
 		else
 
 			(i,j) = transpositions[iter].pairs[1]
 			k = min(pos[i], pos[j])
 
-			if k == s-1 # Swap items s-1 and s
+			if k == s-1   # Swap items s-1 and s
 
 				sol, s, ω_ = swapWithItemInBag(prob, seq, sol, s, ω_)
-				push!(upperBound, sol.z)
 
 			elseif k == s # Swap items s and s+1
 
 				sol, s, ω_ = swapWithItemNotInBag(prob, seq, sol, s, ω_)
-				push!(upperBound, sol.z)
-
+				
 			end
 
 			# Update the sequence and positions
 			tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
 			seq[pos[i]] = i ; seq[pos[j]] = j
 
+			updateBoundSet!(upperBound, sol, seq[s])
 		end
 	end
 
-	println("\tNombre de cas d'égalité : ", nbCasEgalite)
+	println("\tNumber of cases of identical critical weights : ", numberCasesIdenticalWeights)
 
 	return upperBound
-
 end

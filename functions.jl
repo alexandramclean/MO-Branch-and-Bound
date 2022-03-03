@@ -21,16 +21,15 @@ function domine(x, y, opt::Optimisation=Max)
 end
 
 # ----- RATIOS --------------------------------------------------------------- #
-# Computes the ratios for both objective functions
-function ratios(prob::_MOMKP)
+# Computes the utilities (profit-to-weight ratios) for both objective functions
+function utilities(prob::_MOMKP)
 
 	n = size(prob.P)[2]
-	r = Vector{Tuple{Rational{Int}, Rational{Int}}}(undef, n)
 
-	r1 = [prob.P[1,i]//prob.W[1,i] for i in 1:n]
-	r2 = [prob.P[2,i]//prob.W[1,i] for i in 1:n]
+	u1 = [prob.P[1,i]//prob.W[1,i] for i in 1:n]
+	u2 = [prob.P[2,i]//prob.W[1,i] for i in 1:n]
 
-	return r1, r2
+	return u1, u2
 end
 
 # ----- SOLUTIONS ------------------------------------------------------------ #
@@ -89,7 +88,6 @@ function reoptSolution(prob::_MOMKP,
 					   start::Int,
 					   finish::Int, 
 					   sol::Solution,
-					   s::Int,
 					   ω_::Int)
 
 	# Les objets entre start et fin dans la séquence sont retirés
@@ -123,3 +121,52 @@ function reoptSolution(prob::_MOMKP,
 
 	return sol, pos, ω_
 end
+
+# Returns true if the solution is integer 
+function isInteger(sol::Solution, breakItem::Int)
+	return (sol.X[breakItem] == 0 || sol.X[breakItem] == 1)
+end
+
+# ----- PROBLEMS ------------------------------------------------------------- #
+# Groups together equivalent items 
+function groupEquivalentItems(prob::_MOMKP)
+
+    n      = size(prob.P)[2]
+    r1, r2 = ratios(prob) 
+    P1     = Int[] 
+    P2     = Int[] 
+    W      = Int[] 
+    done   = Int[] # List of items that are equivalent to another item that has 
+    # already been processed
+
+    for i in 1:n       
+        if !(i in done)
+
+            p1 = prob.P[1,i]
+            p2 = prob.P[2,i]
+            w  = prob.W[1,i] 
+
+            for j in i+1:n 
+
+                if r1[i] == r1[j] && r2[i] == r2[j] 
+                    # Items i and j are equivalent 
+                    p1 += prob.P[1,j] 
+                    p2 += prob.P[2,j] 
+                    w  += prob.W[1,j] 
+                    push!(done, j)
+                end 
+            end 
+
+            push!(P1, p1)
+            push!(P2, p2)
+            push!(W, w) 
+        end 
+    end 
+
+    P = Matrix(undef, 2, length(P1))
+    for i in 1:length(P1) 
+        P[1,i] = P1[i] ; P[2,i] = P2[i]  
+    end 
+
+    return _MOMKP(P, reshape(W, 1, length(W)), prob.ω)
+end 

@@ -5,12 +5,13 @@
 ################################################################################
 
 include("functions.jl")
+using TimerOutputs
 
-# ----- RATIOS AND CRITICAL WEIGHTS ------------------------------------------ #
+# ----- TRANSPOSITIONS AND CRITICAL WEIGHTS ---------------------------------- #
 # Computes the critical weights
 function criticalWeights(prob::_MOMKP,
-                         r1::Vector{Rational{Int}},
-                         r2::Vector{Rational{Int}})
+                         u1::Vector{Rational{Int}},
+                         u2::Vector{Rational{Int}})
 
     n       = size(prob.P)[2]
     weights = Rational{Int}[]
@@ -22,9 +23,9 @@ function criticalWeights(prob::_MOMKP,
     for i in 1:n
         for j in i+1:n
 
-            if !(r1[i] == r1[j] || r2[i] == r2[j]) 
+            if !(u1[i] == u1[j] || u2[i] == u2[j]) 
 
-                λ = (r2[j] - r2[i])//(r1[i]-r2[i]-r1[j]+r2[j])
+                λ = (u2[j] - u2[i])//(u1[i] - u2[i] - u1[j] + u2[j])
 
                 if λ > 0 && λ < 1
                     nbTransp += 1 
@@ -116,17 +117,29 @@ end
 # ----- INITIALISATION ------------------------------------------------------- #
 function initialisation(prob::_MOMKP)
 
-	# Ratios and critical weights
-	r1, r2 = ratios(prob)
-	weights, pairs = criticalWeights(prob, r1, r2)
-	
-	# Identical critical weights are grouped together 
-	transpositions = transpositionPreprocessing(weights, pairs)
-	
-	# Sort the ratios in lexicographically decreasing order according to (r1,r2) 
-	seq = sortperm(1000000*r1 + r2, rev=true) # Item sequence 
-	pos = sortperm(seq)          			  # Item positions
-	
+    #@timeit to "Initialisation" begin 
+
+        # Ratios and critical weights
+        #@timeit to "Ratios" begin 
+            u1, u2 = utilities(prob)
+        #end 
+        #@timeit to "Critical weights" begin
+            weights, pairs = criticalWeights(prob, u1, u2)
+        #end 
+
+        # Identical critical weights are grouped together 
+        #@timeit to "Transpositions" begin 
+            transpositions = transpositionPreprocessing(weights, pairs)
+        #end 
+
+        # Sort the ratios in lexicographically decreasing order according to (r1,r2) 
+        #@timeit to "Sequence" begin 
+            seq = sortperm(1000000*u1 + u2, rev=true) # Item sequence 
+        #end 
+        #@timeit to "Positions" begin
+            pos = sortperm(seq)          			  # Item positions
+        #end 
+	#end
 	return transpositions, seq, pos
 end
 
@@ -180,3 +193,21 @@ function setVariable(transpositions::Vector{Transposition},
 
     return newTranspositions, newSeq, newPos
 end
+
+# ----- BOUND SET ------------------------------------------------------------ #
+# Returns true if sol is identical to the most recent solution in UB 
+function identicalToPrevious(UB::DualBoundSet, sol::Solution)
+    return length(UB.points) > 0 && UB.points[end] == sol.z 
+end 
+
+# Updates the bound set by adding the solution if it is not already present and 
+# adding its index to the list of integer solutions if applicable
+function updateBoundSet!(upperBound::DualBoundSet, sol::Solution, breakItem::Int)
+    
+    if !identicalToPrevious(upperBound, sol)
+        push!(upperBound.points, sol.z) 
+        if isInteger(sol, breakItem) 
+            push!(upperBound.integerSols, Solution(sol.X[1:end], sol.z[1:end])) 
+        end 
+    end 
+end 
