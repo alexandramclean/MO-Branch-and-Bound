@@ -20,13 +20,15 @@ const to = TimerOutput()
 # Compares the parametric method and the dichotomic method for computing the 
 # LP relaxation of instance prob
 # If graphic=true, produces a figure showing both obtained upper bound sets 
-function compareLP_DM(name, prob, graphic=false)
+function compareParametric_Dichotomic(name, prob, graphic=false)
 
-	@timeit to "Compare parametric and dichotomic methods" begin 
+	@timeit to "\nParametric v. Dichotomic" begin 
 		println("Parametric method")
-		@timeit to "Initialisation" transpositions, seq, pos = initialisation(prob)
-		@timeit to "Parametric method" UBparam = parametricMethod(prob, transpositions, seq, pos)
-		
+		@timeit to "Parametric method" begin 
+			@timeit to "Initialisation" transpositions, seq, pos = initialisation(prob)
+			@timeit to "Relaxation" UBparam = parametricMethod(prob, transpositions, seq, pos)
+		end 
+
 		println("Dichotomic method")
 		@timeit to "Dichotomic method" UBdicho = dichotomicMethod(prob)
 	end 
@@ -39,7 +41,7 @@ function compareLP_DM(name, prob, graphic=false)
     	PyPlot.title("LP Relaxation | "*name)
 
 		# Show the points computed by the parametric method 
-		y_PN11 = [y.z[1] for y in UBparam] ; y_PN12 = [y.z[2] for y in UBparam]
+		y_PN11 = [y[1] for y in UBparam.points] ; y_PN12 = [y[2] for y in UBparam.points]
 		scatter(y_PN11, y_PN12, color="green", marker="+", label = "parametric")
 		plot(y_PN11, y_PN12, color="green", linewidth=0.75, marker="+",
 			markersize=1.0, linestyle=":")
@@ -62,12 +64,12 @@ function compareLP_DM(name, prob, graphic=false)
     end 
 end
 
-# Calls compareLP_DM on all instances in directory dir 
+# Calls compareParametric_Dichotomic on all instances in directory dir 
 function testInstances(dir::String, graphic=false) 
 
 	println("Exemple didactique")
 	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
-	compareLP_DM("didactic", didactic, graphic)
+	compareParametric_Dichotomic("didactic", didactic, graphic)
 	
 	files = readdir(dir) 
 	for fname in files 
@@ -78,7 +80,7 @@ function testInstances(dir::String, graphic=false)
 			prob = readInstanceMOMKPformatZL(false, dir*fname)
 		end
 	
-		compareLP_DM(fname, prob, graphic)
+		compareParametric_Dichotomic(fname, prob, graphic)
 	end	
 end 
 
@@ -86,7 +88,7 @@ end
 # Compare CPU times for the LP relaxation and the Martello and Toth upper bound
 function compareLP_MT(prob::_MOMKP)
 
-	@timeit to "Compare LP Relaxation and Martello and Toth" begin 
+	@timeit to "\nLP v. MT" begin 
 		# Initialisation
 		transpositions, seq, pos = initialisation(prob)
 
@@ -126,7 +128,7 @@ end
 # Compare CPU times for the initialisation and setVariable functions 
 function compareInit_SetVar(prob::_MOMKP)
 
-	@timeit to "Compare initialisation and setVariable" begin 
+	@timeit to "\nCompare init and setVar" begin 
 		@timeit to "Initialisation" transpositions, seq, pos = initialisation(prob)
 
 		var = rand(1:size(prob.P)[2])
@@ -159,10 +161,10 @@ end
 # Compares the parametric method and the simplex algorithm for computing the 
 # LP relaxation of instance prob
 # If graphic=true, produces a figure showing both obtained upper bound sets 
-function compareLP_SP(prob, name, graphic=false)
+function compareParametric_Simplex(prob, name, graphic=false)
 
 	#newProb = groupEquivalentItems(prob)
-	@timeit to "Compare parametric method and simplex algorithm" begin 
+	@timeit to "\nParametric v. Simplex" begin 
 		println("Parametric method")
 		@timeit to "Parametric method" begin 
 			@timeit to "Initialisation" transpositions, seq, pos = initialisation(prob)
@@ -184,7 +186,7 @@ function compareLP_SP(prob, name, graphic=false)
     	PyPlot.title("LP Relaxation | "*name)
 
 		# Show the upper bound set computed by the parametric method
-		y_PN11 = [y.z[1] for y in UBparam] ; y_PN12 = [y.z[2] for y in UBparam]
+		y_PN11 = [y[1] for y in UBparam.points] ; y_PN12 = [y[2] for y in UBparam.points]
 		scatter(y_PN11, y_PN12, color="green", marker="+", label = "parametric")
 		plot(y_PN11, y_PN12, color="green", linewidth=0.75, marker="+",
 			markersize=1.0, linestyle=":")
@@ -199,7 +201,7 @@ function compareLP_SP(prob, name, graphic=false)
     end 
 end
 
-# Calls compareLP_SP on all instances in directory dir 
+# Calls compareParametric_Simplex on all instances in directory dir 
 function testInstancesSimplex(dir::String, graphic=false)
 
 	println("Exemple didactique")
@@ -218,7 +220,7 @@ function testInstancesSimplex(dir::String, graphic=false)
 		else
 			prob = readInstanceMOMKPformatZL(false, dir*fname)
 		end
-		compareLP_SP(prob, fname, graphic)
+		compareParametric_Simplex(prob, fname, graphic)
 	end
 	
 end
