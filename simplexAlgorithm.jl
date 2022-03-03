@@ -55,11 +55,12 @@ end
 # Simplex algorithm 
 function simplex(prob::_MOMKP, seq::Vector{Int})
 
-    upperBound = Vector{Float64}[]
+    #upperBound = Vector{Float64}[]
+    upperBound = Solution[]
 
     # Lexicographically optimal solution for the first objective function 
     sol, s, _ = buildSolution(prob, seq) 
-    push!(upperBound, sol.z)
+    push!(upperBound, Solution(sol.X, sol.z))
 
     # The critical objet constitutes an efficient basic variable 
     c = seq[s] 
@@ -70,7 +71,6 @@ function simplex(prob::_MOMKP, seq::Vector{Int})
     # Stopping criterion : no candidate variables
     stop = (length(candidates) == 0)
 
-    # Main loop 
     while !stop 
 
         costRatios::Vector{Rational{Int}} = [costs[2,j]//costs[1,j] for j in candidates]
@@ -148,7 +148,7 @@ function simplex(prob::_MOMKP, seq::Vector{Int})
             end 
         end 
 
-        push!(upperBound, sol.z)
+        push!(upperBound, Solution(sol.X, sol.z))
         
         costs      = reducedCosts(prob, c)
         candidates = candidateVariables(costs, sol)
