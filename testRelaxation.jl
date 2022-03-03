@@ -1,14 +1,14 @@
 ################################################################################
 #         Stage M2 - Ensembles bornants pour un B&B multi-objectif             #
 #         MCLEAN Alexandra, encadré par Gandibleux X. et Przybylski A.         #
-#         Tests : Calcul paramétrique de la relaxation continue                #
+#         Tests et comparaison de différentes méthodes pour la relaxation      #
 ################################################################################
 
 include("lpRelaxation.jl")
 include("martelloAndToth.jl")
 include("dichotomicMethod.jl")
 include("simplexAlgorithm.jl")
-include("vOptMomkp.jl")
+#include("vOptMomkp.jl")
 include("parserMomkpPG.jl")
 include("parserMomkpZL.jl")
 include("displayGraphic.jl")
@@ -17,38 +17,40 @@ using TimerOutputs
 const to = TimerOutput()
 
 # ----- DICHOTOMIC METHOD ---------------------------------------------------- #
-# Produit un graphique affichant la relaxation continue calculée par méthode 
-# dichotomique et par méthode paramétrique
+# Compares the parametric method and the dichotomic method for computing the 
+# LP relaxation of instance prob
+# If graphic=true, produces a figure showing both obtained upper bound sets 
 function compareLP_DM(name, prob, graphic=false)
 
-	println("Méthode paramétrique")
-	println("\tInitialisation : ")
-	transpositions, seq, pos = initialisation(prob)
-	@timeit to "Relaxation continue" UBparam = parametricMethod(prob, transpositions, seq, pos)
-	
-	println("Méthode dichotomique")
-    UBdicho = dichotomicMethod(prob)
+	@timeit to "Compare parametric and dichotomic methods" begin 
+		println("Parametric method")
+		@timeit to "Initialisation" transpositions, seq, pos = initialisation(prob)
+		@timeit to "Parametric method" UBparam = parametricMethod(prob, transpositions, seq, pos)
+		
+		println("Dichotomic method")
+		@timeit to "Dichotomic method" UBdicho = dichotomicMethod(prob)
+	end 
 
 	if graphic 
    		# Setup
-    	figure("Test Relaxation Continue | "*name,figsize=(6.5,5))
+    	figure("Parametric method and dichotomic method | "*name,figsize=(6.5,5))
     	xlabel(L"z^1(x)")
     	ylabel(L"z^2(x)")
-    	PyPlot.title("Test Relaxation Continue | "*name)
+    	PyPlot.title("LP Relaxation | "*name)
 
-		# Affichage des points calculés par méthode paramétrique
-		y_PN11 = [y[1] for y in UBparam] ; y_PN12 = [y[2] for y in UBparam]
+		# Show the points computed by the parametric method 
+		y_PN11 = [y.z[1] for y in UBparam] ; y_PN12 = [y.z[2] for y in UBparam]
 		scatter(y_PN11, y_PN12, color="green", marker="+", label = "parametric")
 		plot(y_PN11, y_PN12, color="green", linewidth=0.75, marker="+",
 			markersize=1.0, linestyle=":")
 
-		# Affichage des points calculés par méthode dichotomique
+		# Show the points computed by the dichotomic method 
 		y_PN21 = [y[1] for y in UBdicho] ; y_PN22 = [y[2] for y in UBdicho]
 		scatter(y_PN21, y_PN22, color="red", marker="+", label = "dichotomic")
 		plot(y_PN21, y_PN22, color="red", linewidth=0.75, marker="+",
 			markersize=1.0, linestyle=":")
 
-		#= Affichage des solutions exactes pour le problème non relâché
+		#= Show the non-dominated points
 		if ref != Nothing
 			y_N1 = [y[1] for y in ref] ; y_N2 = [y[2] for y in ref]
 			scatter(y_N1, y_N2, color="black", marker="+", label = "vOpt")
@@ -60,8 +62,7 @@ function compareLP_DM(name, prob, graphic=false)
     end 
 end
 
-# Compare les méthodes paramétrique et dichotomique sur toutes les instances 
-# dans le répertoire passé en paramètre 
+# Calls compareLP_DM on all instances in directory dir 
 function testInstances(dir::String, graphic=false) 
 
 	println("Exemple didactique")
@@ -85,20 +86,22 @@ end
 # Compare CPU times for the LP relaxation and the Martello and Toth upper bound
 function compareLP_MT(prob::_MOMKP)
 
-	# Initialisation
-	transpositions, seq, pos = initialisation(prob)
+	@timeit to "Compare LP Relaxation and Martello and Toth" begin 
+		# Initialisation
+		transpositions, seq, pos = initialisation(prob)
 
-	println("LP Relaxation : ")
-	@timeit to "LP Relaxation" UBparam = parametricMethod(prob, transpositions, seq, pos)
+		println("LP Relaxation : ")
+		@timeit to "LP Relaxation" UBparam = parametricMethod(prob, transpositions, seq, pos)
 
-	# Initialisation
-	transpositions, seq, pos = initialisation(prob)
-	
-	println("Martello and Toth : ")
-    @timeit to "Martello and Toth" UB, constraints = martelloAndToth(prob, transpositions, seq, pos)
+		# Initialisation
+		transpositions, seq, pos = initialisation(prob)
+		
+		println("Martello and Toth : ")
+		@timeit to "Martello and Toth" UB, constraints = martelloAndToth(prob, transpositions, seq, pos)
+	end 
 end 
 
-# Compute LP relaxation and Martello and Toth on all instances in dir
+# Calls compareLP_MT on all instances in dir
 function testInstancesMT(dir::String)
 
 	println("Exemple didactique")
@@ -123,11 +126,13 @@ end
 # Compare CPU times for the initialisation and setVariable functions 
 function compareInit_SetVar(prob::_MOMKP)
 
-	@timeit to "Initialisation" transpositions, seq, pos = initialisation(prob)
+	@timeit to "Compare initialisation and setVariable" begin 
+		@timeit to "Initialisation" transpositions, seq, pos = initialisation(prob)
 
-	var = rand(1:size(prob.P)[2])
-	@timeit to "Set variable" newTranspositions, newSeq, newPos = setVariable(transpositions, seq, pos, var)
-end
+		var = rand(1:size(prob.P)[2])
+		@timeit to "Set variable" newTranspositions, newSeq, newPos = setVariable(transpositions, seq, pos, var)
+	end
+end 
 
 # Calls compareInit_SetVar on all files in directory dir 
 function testInstancesSetVar(dir::String)
@@ -157,17 +162,18 @@ end
 function compareLP_SP(prob, name, graphic=false)
 
 	#newProb = groupEquivalentItems(prob)
+	@timeit to "Compare parametric method and simplex algorithm" begin 
+		println("Parametric method")
+		@timeit to "Parametric method" begin 
+			@timeit to "Initialisation" transpositions, seq, pos = initialisation(prob)
+			@timeit to "Relaxation" UBparam = parametricMethod(prob, transpositions, seq, pos)
+		end 
 
-	println("Parametric method")
-	@timeit to "Parametric method" begin 
-		@timeit to "Initialisation" transpositions, seq, pos = initialisation(prob)
-		@timeit to "Relaxation" UBparam = parametricMethod(prob, transpositions, seq, pos)
-	end 
-
-	println("Simplex algorithm")
-	@timeit to "Simplex algorithm" begin 
-		@timeit to "Initialisaiton" seq = simplexInitialisation(prob)
-    	@timeit to "Relaxation" UBsimplex = simplex(prob, seq)
+		println("Simplex algorithm")
+		@timeit to "Simplex algorithm" begin 
+			@timeit to "Initialisaiton" seq = simplexInitialisation(prob)
+			@timeit to "Relaxation" UBsimplex = simplex(prob, seq)
+		end 
 	end 
 
 	if graphic 
@@ -178,13 +184,13 @@ function compareLP_SP(prob, name, graphic=false)
     	PyPlot.title("LP Relaxation | "*name)
 
 		# Show the upper bound set computed by the parametric method
-		y_PN11 = [y[1] for y in UBparam] ; y_PN12 = [y[2] for y in UBparam]
+		y_PN11 = [y.z[1] for y in UBparam] ; y_PN12 = [y.z[2] for y in UBparam]
 		scatter(y_PN11, y_PN12, color="green", marker="+", label = "parametric")
 		plot(y_PN11, y_PN12, color="green", linewidth=0.75, marker="+",
 			markersize=1.0, linestyle=":")
 
 		# Show the upper bound set computed by the simplex algorithm 
-		y_PN21 = [y[1] for y in UBsimplex] ; y_PN22 = [y[2] for y in UBsimplex]
+		y_PN21 = [y.z[1] for y in UBsimplex] ; y_PN22 = [y.z[2] for y in UBsimplex]
 		scatter(y_PN21, y_PN22, color="red", marker="+", label = "simplex")
 		plot(y_PN21, y_PN22, color="red", linewidth=0.75, marker="+",
 			markersize=1.0, linestyle=":")
