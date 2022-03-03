@@ -56,14 +56,14 @@ end
 # Returns the lexicographically optimal solutions
 function lexicographicSolutions(prob::_MOMKP) 
 	
-	r1, r2 = ratios(prob)
+	u1, u2 = utilities(prob)
 	
 	# Lexicographically optimal solution for (1,2) 
-	seq12 = sortperm(1000000*r1 + r2, rev=true) 
+	seq12 = sortperm(1000000*u1 + u2, rev=true) 
 	x12, _ = buildSolutionD(prob, seq12)
 	
 	# Lexicographically optimal solution for (2,1) 
-	seq21 = sortperm(r1 + 1000000*r2, rev=true) 
+	seq21 = sortperm(u1 + 1000000*u2, rev=true) 
 	x21, _ = buildSolutionD(prob, seq21) 
 	
 	return x12, x21

@@ -10,8 +10,8 @@ using TimerOutputs
 # ----- TRANSPOSITIONS AND CRITICAL WEIGHTS ---------------------------------- #
 # Computes the critical weights
 function criticalWeights(prob::_MOMKP,
-                         r1::Vector{Rational{Int}},
-                         r2::Vector{Rational{Int}})
+                         u1::Vector{Rational{Int}},
+                         u2::Vector{Rational{Int}})
 
     n       = size(prob.P)[2]
     weights = Rational{Int}[]
@@ -23,9 +23,9 @@ function criticalWeights(prob::_MOMKP,
     for i in 1:n
         for j in i+1:n
 
-            if !(r1[i] == r1[j] || r2[i] == r2[j]) 
+            if !(u1[i] == u1[j] || u2[i] == u2[j]) 
 
-                λ = (r2[j] - r2[i])//(r1[i]-r2[i]-r1[j]+r2[j])
+                λ = (u2[j] - u2[i])//(u1[i] - u2[i] - u1[j] + u2[j])
 
                 if λ > 0 && λ < 1
                     nbTransp += 1 
@@ -121,10 +121,10 @@ function initialisation(prob::_MOMKP)
 
         # Ratios and critical weights
         #@timeit to "Ratios" begin 
-            r1, r2 = ratios(prob)
+            u1, u2 = utilities(prob)
         #end 
         #@timeit to "Critical weights" begin
-            weights, pairs = criticalWeights(prob, r1, r2)
+            weights, pairs = criticalWeights(prob, u1, u2)
         #end 
 
         # Identical critical weights are grouped together 
@@ -134,7 +134,7 @@ function initialisation(prob::_MOMKP)
 
         # Sort the ratios in lexicographically decreasing order according to (r1,r2) 
         #@timeit to "Sequence" begin 
-            seq = sortperm(1000000*r1 + r2, rev=true) # Item sequence 
+            seq = sortperm(1000000*u1 + u2, rev=true) # Item sequence 
         #end 
         #@timeit to "Positions" begin
             pos = sortperm(seq)          			  # Item positions

@@ -21,15 +21,15 @@ function domine(x, y, opt::Optimisation=Max)
 end
 
 # ----- RATIOS --------------------------------------------------------------- #
-# Computes the ratios for both objective functions
-function ratios(prob::_MOMKP)
+# Computes the utilities (profit-to-weight ratios) for both objective functions
+function utilities(prob::_MOMKP)
 
 	n = size(prob.P)[2]
 
-	r1 = [prob.P[1,i]//prob.W[1,i] for i in 1:n]
-	r2 = [prob.P[2,i]//prob.W[1,i] for i in 1:n]
+	u1 = [prob.P[1,i]//prob.W[1,i] for i in 1:n]
+	u2 = [prob.P[2,i]//prob.W[1,i] for i in 1:n]
 
-	return r1, r2
+	return u1, u2
 end
 
 # ----- SOLUTIONS ------------------------------------------------------------ #

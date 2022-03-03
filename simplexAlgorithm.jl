@@ -47,8 +47,8 @@ end
 
 # Initialisaiton 
 function simplexInitialisation(prob::_MOMKP)
-    r1, r2    = ratios(prob)
-    seq       = sortperm(1000000*r1 + r2, rev=true) 
+    u1, u2    = utilities(prob)
+    seq       = sortperm(1000000*u1 + u2, rev=true) 
     return seq 
 end 
 
