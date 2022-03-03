@@ -40,9 +40,9 @@ end
 
 # Data structure representing an upper bound set 
 mutable struct DualBoundSet 
-    solutions::Vector{Solution}    
+    points::Vector{Vector{Float64}}    
     constraints::Vector{Constraint}
-    integerInd::Vector{Int} # Indicies of the solutions that are integer 
+    integerSols::Vector{Solution} # Integer solutions
 end 
 DualBoundSet() = DualBoundSet(Solution[], Constraint[], Int[]) 
 

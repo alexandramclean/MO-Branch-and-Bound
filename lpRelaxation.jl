@@ -77,8 +77,9 @@ function parametricMethod(prob::_MOMKP,
 
 	# Builds the initial solution
 	sol, s, ω_ = buildSolution(prob, seq)
-	upperBound = Solution[]
-	push!(upperBound, Solution(sol.X, sol.z))
+
+	upperBound = DualBoundSet()
+	updateBoundSet!(upperBound, sol, seq[s])
 
 	numberCasesIdenticalWeights = 0
 
@@ -112,7 +113,7 @@ function parametricMethod(prob::_MOMKP,
 				updatePositions!(seq, pos, start, finish)
 			end 
 
-			push!(upperBound, Solution(sol.X, sol.z))
+			updateBoundSet!(upperBound, sol, seq[s]) 
 		else
 
 			(i,j) = transpositions[iter].pairs[1]
@@ -121,17 +122,18 @@ function parametricMethod(prob::_MOMKP,
 			if k == s-1   # Swap items s-1 and s
 
 				sol, s, ω_ = swapWithItemInBag(prob, seq, sol, s, ω_)
-				push!(upperBound, Solution(sol.X, sol.z))
 
 			elseif k == s # Swap items s and s+1
 
 				sol, s, ω_ = swapWithItemNotInBag(prob, seq, sol, s, ω_)
-				push!(upperBound, Solution(sol.X, sol.z))
+				
 			end
 
 			# Update the sequence and positions
 			tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
 			seq[pos[i]] = i ; seq[pos[j]] = j
+
+			updateBoundSet!(upperBound, sol, seq[s])
 		end
 	end
 

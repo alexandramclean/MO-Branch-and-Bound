@@ -122,6 +122,11 @@ function reoptSolution(prob::_MOMKP,
 	return sol, pos, ω_
 end
 
+# Returns true if the solution is integer 
+function isInteger(sol::Solution, breakItem::Int)
+	return (sol.X[breakItem] == 0 || sol.X[breakItem] == 1)
+end
+
 # ----- PROBLEMS ------------------------------------------------------------- #
 # Groups together equivalent items 
 function groupEquivalentItems(prob::_MOMKP)
