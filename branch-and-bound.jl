@@ -29,9 +29,9 @@ function minUtility(u1::Vector{Rational{Int}},
 
     min_utility = [min(u1[j], u2[j]) for j in 1:length(u1)]
     if order == DECREASING
-        return sortperm(min_utility, rev=true)
+        return sortperm(min_utility, rev=true) # Best variable first
     else 
-        return sortperm(min_utility)
+        return sortperm(min_utility)           # Worst variable first
     end
 end 
 
@@ -42,10 +42,12 @@ function maxUtility(u1::Vector{Rational{Int}},
 
     max_utility = [max(u1[j], u2[j]) for j in 1:length(u1)]
     if order == DECREASING 
-        return sortperm(max_utility, rev=true)
+        return sortperm(max_utility, rev=true) # Best variable first
     else 
-        return sortperm(max_utility)
-end
+        return sortperm(max_utility)           # Worst variable first
+
+    end
+end 
 
 # Items selected in increasing or decreasing order of (u1+u2)/2 
 function avgUtility(u1::Vector{Rational{Int}}, 
@@ -54,9 +56,9 @@ function avgUtility(u1::Vector{Rational{Int}},
 
     avg_utility = [(u1[j] + u2[j])//2 for j in 1:length(u1)] 
     if order == DECREASING 
-        return sortperm(avg_utility, rev=true)
+        return sortperm(avg_utility, rev=true) # Best variable first
     else 
-        return sortperm(avg_utility)
+        return sortperm(avg_utility)           # Worst variable first
     end 
 end 
 
@@ -66,10 +68,10 @@ function sumRank(r1::Vector{Int},
                  order::Order) 
     
     sum_rank = [r1[j] + r2[j] for j in 1:length(r1)]
-    if order == DECREASING 
-        return sortperm(sum_rank, rev=true) 
+    if order == INCREASING 
+        return sortperm(sum_rank)           # Best variable first
     else 
-        return sortperm(sum_rank)
+        return sortperm(sum_rank, rev=true) # Worst variable first
     end 
 end 
 
@@ -79,11 +81,22 @@ function minRank(r1::Vector{Int},
                  order::Order)
 
     min_rank = [min(r1[j],r2[j]) for j in 1:length(r1)]
-    if order == DECREASING 
-        return sortperm(min_rank, rev=true)
+    if order == INCREASING 
+        return sortperm(min_rank)           # Best variable first
     else
-        return sortperm(min_rank)
+        return sortperm(min_rank, rev=true) # Worst variable first
     end 
 end 
 
 # Items selected in increasing or decreasing order of max(r1,r2)
+function maxRank(r1::Vector{Int},
+                 r2::Vector{Int},
+                 order::Order)
+
+    max_rank = [max(r1[j],r2[j]) for j in 1:length(r1)]
+    if order == INCREASING 
+        return sortperm(max_rank)           # Best variable first
+    else
+        return sortperm(max_rank, rev=true) # Worst variable first
+    end 
+end 
