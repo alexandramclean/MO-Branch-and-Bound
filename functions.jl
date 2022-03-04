@@ -8,8 +8,8 @@ include("dataStructures.jl")
 
 # ----- DOMINANCE ------------------------------------------------------------ #
 # Returns true if x dominates y
-function domine(x, y, opt::Optimisation=Max)
-    if opt == Min
+function domine(x, y, opt::Optimisation=MAX)
+    if opt == MIN
         return ((x[1] <= y[1] && x[2] < y[2])
             || (x[1] < y[1] && x[2] <= y[2])
             || (x[1] == y[1] && x[2] == y[2])) # No duplicates
@@ -24,12 +24,15 @@ end
 # Computes the utilities (profit-to-weight ratios) for both objective functions
 function utilities(prob::_MOMKP)
 
-	n = size(prob.P)[2]
+	p, n = size(prob.P)
 
-	u1 = [prob.P[1,i]//prob.W[1,i] for i in 1:n]
-	u2 = [prob.P[2,i]//prob.W[1,i] for i in 1:n]
-
-	return u1, u2
+	ratios = Matrix{Rational{Int}}(undef, p, n)
+	for k in 1:p 
+		for j in 1:n 
+			ratios[k,j] = prob.P[k,j]//prob.W[1,j]
+		end 
+	end 
+	return ratios
 end
 
 # ----- SOLUTIONS ------------------------------------------------------------ #

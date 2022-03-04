@@ -4,6 +4,9 @@
 #         Data structures                                                      #
 ################################################################################
 
+@enum Optimisation MAX MIN
+
+# ----- PROBLEMS ------------------------------------------------------------- #
 # Datastructure of a multi-objective multi-dimensionnal KP with 0/1 variables
 struct _MOMKP
     P  :: Matrix{Int} # profit of items for the objectives, k=1..p, j=1..n
@@ -11,6 +14,7 @@ struct _MOMKP
     ω  :: Vector{Int} # capacity of knapsacks, i=1..m
 end
 
+# ----- SOLUTIONS ------------------------------------------------------------ #
 # Data structure of a solution that can contain fractions of an object
 mutable struct Solution
     X::Vector{Rational{Int}} # Vector of binary variables 
@@ -24,6 +28,7 @@ mutable struct SolutionD
     z::Vector{Rational{Int}} # Valeurs pour les fonctions objectif
 end
 
+# ----- TRANSPOSITIONS ------------------------------------------------------- #
 # Stores a critical weight λ and the corresponding transposition(s)
 struct Transposition
 	λ::Rational{Int}			  # Critical weight 
@@ -31,6 +36,7 @@ struct Transposition
 end
 Transposition(λ) = Transposition(λ,[])
 
+# ----- BOUND SETS ----------------------------------------------------------- #
 # Data structure of a constraint generated whilst computing the upper bound set
 struct Constraint 
 	λ::Rational{Int}       # Critical weight
@@ -39,13 +45,19 @@ end
 # The associated constraint is λz1 + (1-λ)z2 <= λu1 + (1-λ)u2
 
 # Data structure representing an upper bound set 
-mutable struct DualBoundSet 
+struct DualBoundSet 
     points::Vector{Vector{Float64}}    
     constraints::Vector{Constraint}
     integerSols::Vector{Solution} # Integer solutions
 end 
 DualBoundSet() = DualBoundSet(Solution[], Constraint[], Int[]) 
 
-@enum Optimisation Max Min
+# ----- BRANCH-AND-BOUND ----------------------------------------------------- #
+@enum Status DOMINANCE OPTIMALITY INFEASIBILITY NOTPRUNED
 
-#@enum Status DOMINANCE OPTIMALITY INFEASIBILITY
+# Data structure representing a node in a branch-and-bound algorithm
+struct Node 
+    UB::DualBoundSet
+    pruned::Status 
+end 
+Node(UB::DualBoundSet) = Node(UB, NOTPRUNED)

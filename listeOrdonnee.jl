@@ -13,30 +13,30 @@ using Random
 function dernier_point_domine(yN,
                               y,
                               deb::Int64, fin::Int64,
-                              opt::Optimisation=Max) 
+                              opt::Optimisation=MAX) 
     if deb >= fin
         return deb
-    elseif opt == Min && domine(y, yN[fin], opt)
+    elseif opt == MIN && domine(y, yN[fin], opt)
         return fin
-    elseif opt == Max && domine(y, yN[deb], opt)
+    elseif opt == MAX && domine(y, yN[deb], opt)
         return deb
     end
     
     mil = div(deb + fin, 2)
     
     if domine(y, yN[mil], opt)
-        if ((opt == Min && !domine(y, yN[mil+1], opt))
-            || (opt == Max && !domine(y, yN[mil-1], opt)))
+        if ((opt == MIN && !domine(y, yN[mil+1], opt))
+            || (opt == MAX && !domine(y, yN[mil-1], opt)))
             # yN[mil] est le dernier point dominé
             return mil
-        elseif opt == Min
+        elseif opt == MIN
             return dernier_point_domine(yN, y, mil+1, fin, opt)
         else
             return dernier_point_domine(yN, y, deb, mil-1, opt)
         end
         
     # y ne domine pas yN[mil]
-    elseif opt == Min
+    elseif opt == MIN
         return dernier_point_domine(yN, y, deb, mil-1, opt)
     else
         return dernier_point_domine(yN, y, mil+1, fin, opt)
@@ -47,16 +47,16 @@ end
 # Si y domine des points de yN alors il domine sont successeur large minimum
 function verifier(yN,
                   y, ind::Int64,
-                  opt::Optimisation=Max) 
+                  opt::Optimisation=MAX) 
                   
-    if opt == Min && ind < length(yN) && domine(y, yN[ind+1], opt)
+    if opt == MIN && ind < length(yN) && domine(y, yN[ind+1], opt)
         ind_dernier_domine = dernier_point_domine(yN, y, ind+1, length(yN), opt)
         #println("Dernier dominé : ", ind_dernier_domine)
         for j in ind_dernier_domine:-1:ind+1
             deleteat!(yN, j)
         end
         
-    elseif opt == Max && ind > 1 && domine(y, yN[ind-1], opt)
+    elseif opt == MAX && ind > 1 && domine(y, yN[ind-1], opt)
         ind_premier_domine = dernier_point_domine(yN, y, 1, ind-1, opt)
         #println("Premier dominé : ", ind_premier_domine)
         for j in ind-1:-1:ind_premier_domine
@@ -69,7 +69,7 @@ end
 function ajouter_rec(yN,
                      y,
                      deb::Int64, fin::Int64,
-                     opt::Optimisation=Max)
+                     opt::Optimisation=MAX)
                      
     if deb >= fin # Cas d'arrêt : 1 seul élément dans la sous-liste
         if domine(yN[deb], y, opt)
@@ -95,7 +95,7 @@ function ajouter_rec(yN,
     end
 end
 
-function ajouter!(yN, y, opt::Optimisation=Max)
+function ajouter!(yN, y, opt::Optimisation=MAX)
     #! Affichage
     #println("Ajout de ", y)
 

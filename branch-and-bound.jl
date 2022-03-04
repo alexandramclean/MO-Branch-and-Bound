@@ -80,7 +80,8 @@ function minRank(r1::Vector{Int},
                  r2::Vector{Int},
                  order::Order)
 
-    min_rank = [min(r1[j],r2[j]) for j in 1:length(r1)]
+    n = length(r1)
+    min_rank = [min(r1[j],r2[j]) + (r1[j] + r2[j])//2*n for j in 1:n]
     if order == INCREASING 
         return sortperm(min_rank)           # Best variable first
     else
@@ -93,10 +94,13 @@ function maxRank(r1::Vector{Int},
                  r2::Vector{Int},
                  order::Order)
 
-    max_rank = [max(r1[j],r2[j]) for j in 1:length(r1)]
+    n = length(r1)
+    max_rank = [max(r1[j],r2[j]) + (r1[j] + r2[j])//2*n for j in 1:n]
     if order == INCREASING 
         return sortperm(max_rank)           # Best variable first
     else
         return sortperm(max_rank, rev=true) # Worst variable first
     end 
 end 
+
+# ----- BRANCH-AND-BOUND ----------------------------------------------------- #
