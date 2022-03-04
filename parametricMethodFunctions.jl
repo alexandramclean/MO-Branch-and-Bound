@@ -193,21 +193,3 @@ function setVariable(transpositions::Vector{Transposition},
 
     return newTranspositions, newSeq, newPos
 end
-
-# ----- BOUND SET ------------------------------------------------------------ #
-# Returns true if sol is identical to the most recent solution in UB 
-function identicalToPrevious(UB::DualBoundSet, sol::Solution)
-    return length(UB.points) > 0 && UB.points[end] == sol.z 
-end 
-
-# Updates the bound set by adding the solution if it is not already present and 
-# adding its index to the list of integer solutions if applicable
-function updateBoundSet!(upperBound::DualBoundSet, sol::Solution, breakItem::Int)
-    
-    if !identicalToPrevious(upperBound, sol)
-        push!(upperBound.points, sol.z) 
-        if isInteger(sol, breakItem) 
-            push!(upperBound.integerSols, Solution(sol.X[1:end], sol.z[1:end])) 
-        end 
-    end 
-end 

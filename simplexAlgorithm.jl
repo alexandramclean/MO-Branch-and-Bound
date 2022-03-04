@@ -55,15 +55,15 @@ end
 # Simplex algorithm 
 function simplex(prob::_MOMKP, seq::Vector{Int})
 
-    #upperBound = Vector{Float64}[]
-    upperBound = Solution[]
+    upperBound = DualBoundSet() 
 
     # Lexicographically optimal solution for the first objective function 
     sol, s, _ = buildSolution(prob, seq) 
-    push!(upperBound, Solution(sol.X, sol.z))
 
     # The critical objet constitutes an efficient basic variable 
     c = seq[s] 
+
+    updateBoundSet!(upperBound, sol, c)
     
     costs::Matrix{Rational{Int}} = reducedCosts(prob, c)
 
@@ -148,7 +148,7 @@ function simplex(prob::_MOMKP, seq::Vector{Int})
             end 
         end 
 
-        push!(upperBound, Solution(sol.X, sol.z))
+        updateBoundSet!(upperBound, sol, c)
         
         costs      = reducedCosts(prob, c)
         candidates = candidateVariables(costs, sol)

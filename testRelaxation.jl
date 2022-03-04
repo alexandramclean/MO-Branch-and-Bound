@@ -41,13 +41,15 @@ function compareParametric_Dichotomic(name, prob, graphic=false)
     	PyPlot.title("LP Relaxation | "*name)
 
 		# Show the points computed by the parametric method 
-		y_PN11 = [y[1] for y in UBparam.points] ; y_PN12 = [y[2] for y in UBparam.points]
+		y_PN11 = [y[1] for y in UBparam.points] 
+		y_PN12 = [y[2] for y in UBparam.points]
 		scatter(y_PN11, y_PN12, color="green", marker="+", label = "parametric")
 		plot(y_PN11, y_PN12, color="green", linewidth=0.75, marker="+",
 			markersize=1.0, linestyle=":")
 
 		# Show the points computed by the dichotomic method 
-		y_PN21 = [y[1] for y in UBdicho] ; y_PN22 = [y[2] for y in UBdicho]
+		y_PN21 = [y[1] for y in UBdicho] 
+		y_PN22 = [y[2] for y in UBdicho]
 		scatter(y_PN21, y_PN22, color="red", marker="+", label = "dichotomic")
 		plot(y_PN21, y_PN22, color="red", linewidth=0.75, marker="+",
 			markersize=1.0, linestyle=":")
@@ -69,7 +71,9 @@ function testInstances(dir::String, graphic=false)
 
 	println("Exemple didactique")
 	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
-	compareParametric_Dichotomic("didactic", didactic, graphic)
+	transpositions, seq, pos = initialisation(didactic)
+	_ = parametricMethod(didactic, transpositions, seq, pos)
+	_ = dichotomicMethod(didactic)
 	
 	files = readdir(dir) 
 	for fname in files 
@@ -108,7 +112,10 @@ function testInstancesMT(dir::String)
 
 	println("Exemple didactique")
 	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
-	compareLP_MT(didactic)
+	transpositions, seq, pos = initialisation(didactic)
+	_ = parametricMethod(didactic, transpositions, seq, pos) 
+	transpositions, seq, pos = initialisation(didactic)
+	_ = martelloAndToth(didactic, transpositions, seq, pos)
 	
 	files = readdir(dir)
 	for fname in files
@@ -186,13 +193,15 @@ function compareParametric_Simplex(prob, name, graphic=false)
     	PyPlot.title("LP Relaxation | "*name)
 
 		# Show the upper bound set computed by the parametric method
-		y_PN11 = [y[1] for y in UBparam.points] ; y_PN12 = [y[2] for y in UBparam.points]
+		y_PN11 = [y[1] for y in UBparam.points] 
+		y_PN12 = [y[2] for y in UBparam.points]
 		scatter(y_PN11, y_PN12, color="green", marker="+", label = "parametric")
 		plot(y_PN11, y_PN12, color="green", linewidth=0.75, marker="+",
 			markersize=1.0, linestyle=":")
 
 		# Show the upper bound set computed by the simplex algorithm 
-		y_PN21 = [y.z[1] for y in UBsimplex] ; y_PN22 = [y.z[2] for y in UBsimplex]
+		y_PN21 = [y[1] for y in UBsimplex.points] 
+		y_PN22 = [y[2] for y in UBsimplex.points]
 		scatter(y_PN21, y_PN22, color="red", marker="+", label = "simplex")
 		plot(y_PN21, y_PN22, color="red", linewidth=0.75, marker="+",
 			markersize=1.0, linestyle=":")
@@ -207,9 +216,9 @@ function testInstancesSimplex(dir::String, graphic=false)
 	println("Exemple didactique")
 	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
 	transpositions, seq, pos = initialisation(didactic)
-	UBparam = parametricMethod(didactic, transpositions, seq, pos)
+	_ = parametricMethod(didactic, transpositions, seq, pos)
 	seq = simplexInitialisation(didactic)
-	UBsimplex = simplex(didactic, seq)
+	_ = simplex(didactic, seq)
 	
 	files = readdir(dir)
 	for fname in files
