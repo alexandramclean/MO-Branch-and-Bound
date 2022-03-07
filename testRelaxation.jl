@@ -30,7 +30,10 @@ function compareParametric_Dichotomic(name, prob, graphic=false)
 		end 
 
 		println("Dichotomic method")
-		@timeit to "Dichotomic method" UBdicho = dichotomicMethod(prob)
+		@timeit to "Dichotomic method" begin 
+			@timeit to "Initialisation" r1, r2 = utilities(prob)
+			@timeit to "Relaxation" UBdicho = dichotomicMethod(prob, r1, r2)
+		end 
 	end 
 
 	if graphic 
@@ -73,7 +76,8 @@ function testInstances(dir::String, graphic=false)
 	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
 	transpositions, seq, pos = initialisation(didactic)
 	_ = parametricMethod(didactic, transpositions, seq, pos)
-	_ = dichotomicMethod(didactic)
+	r1, r2 = utilities(didactic)
+	_ = dichotomicMethod(didactic, r1, r2)
 	
 	files = readdir(dir) 
 	for fname in files 
@@ -113,9 +117,8 @@ function testInstancesMT(dir::String)
 	println("Exemple didactique")
 	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
 	transpositions, seq, pos = initialisation(didactic)
-	_ = parametricMethod(didactic, transpositions, seq, pos) 
-	transpositions, seq, pos = initialisation(didactic)
-	_ = martelloAndToth(didactic, transpositions, seq, pos)
+	_ = parametricMethod(didactic, transpositions, seq[1:end], pos[1:end]) 
+	_ = martelloAndToth(didactic, transpositions, seq[1:end], pos[1:end])
 	
 	files = readdir(dir)
 	for fname in files
@@ -148,7 +151,8 @@ function testInstancesSetVar(dir::String)
 
 	println("Exemple didactique")
 	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
-	compareInit_SetVar(didactic)
+	transpositions, seq, pos = initialisation(didactic) 
+	_ = setVariable(transpositions, seq, pos, rand(1:6))
 	
 	files = readdir(dir)
 	for fname in files
@@ -230,6 +234,52 @@ function testInstancesSimplex(dir::String, graphic=false)
 			prob = readInstanceMOMKPformatZL(false, dir*fname)
 		end
 		compareParametric_Simplex(prob, fname, graphic)
-	end
-	
+	end	
 end
+
+# ----- UBS COMPARISON ------------------------------------------------------- #
+function compareUBS(fname::String, nIter::Int)
+
+	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
+
+	# Parametric methods 
+	transpositions, seq, pos = initialisation(didactic)
+	_ = parametricMethod(didactic, transpositions, seq[1:end], pos[1:end])
+	_ = martelloAndToth(didactic, transpositions, seq[1:end], pos[1:end]) 
+
+	# Dichotomic method 
+	r1, r2 = utilities(didactic)
+	_ = dichotomicMethod(didactic, r1, r2)
+	
+	# Simplex algorithm 
+	seq = simplexInitialisation(didactic) 
+	_ = simplex(didactic, seq)
+
+	if fname[length(fname)-3:length(fname)] == ".DAT"
+		prob = readInstanceMOMKPformatPG(false, fname)
+	else
+		prob = readInstanceMOMKPformatZL(false, fname)
+	end
+
+	for iter in 1:nIter 
+
+		# Parametric methods 
+		@timeit to "Parametric methods" begin 
+			@timeit to "Initialisation" transpositions, seq, pos = initialisation(prob) 
+			@timeit to "LP Relaxation" _ = parametricMethod(prob, transpositions, seq[1:end], pos[1:end])
+			@timeit to "Martello and Toth" _ = martelloAndToth(prob, transpositions, seq[1:end], pos[1:end])
+		end 
+
+		# Dichotomic method 
+		@timeit to "Dichotomic method" begin 
+			@timeit to "Initialisation" r1, r2 = utilities(prob) 
+			@timeit to "Relaxation" _ = dichotomicMethod(prob, r1, r2)
+		end 
+
+		# Simplex algorithm 
+		@timeit to "Simplex" begin 
+			@timeit to "Initialisaiton" seq = simplexInitialisation(prob)
+			@timeit to "Relaxation" _ = simplex(prob, seq) 
+		end 
+	end 
+end 

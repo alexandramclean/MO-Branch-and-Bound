@@ -39,8 +39,8 @@ Transposition(λ) = Transposition(λ,[])
 # ----- BOUND SETS ----------------------------------------------------------- #
 # Data structure of a constraint generated whilst computing the upper bound set
 struct Constraint 
-	λ::Rational{Int}       # Critical weight
-	point::Vector{Float64} # Associated point (u1,u2)
+	λ::Union{Rational{Int},Float64} # Critical weight
+	point::Vector{Float64}          # Associated point (u1,u2)
 end
 # The associated constraint is λz1 + (1-λ)z2 <= λu1 + (1-λ)u2
 

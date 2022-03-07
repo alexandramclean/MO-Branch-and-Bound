@@ -79,7 +79,7 @@ function parametricMethod(prob::_MOMKP,
 	sol, s, ω_ = buildSolution(prob, seq)
 
 	upperBound = DualBoundSet()
-	updateBoundSet!(upperBound, sol, seq[s])
+	updateBoundSet!(upperBound, 1//1, sol, seq[s])
 
 	numberCasesIdenticalWeights = 0
 
@@ -113,7 +113,7 @@ function parametricMethod(prob::_MOMKP,
 				updatePositions!(seq, pos, start, finish)
 			end 
 
-			updateBoundSet!(upperBound, sol, seq[s]) 
+			updateBoundSet!(upperBound, transpositions[iter].λ, sol, seq[s]) 
 		else
 
 			(i,j) = transpositions[iter].pairs[1]
@@ -133,11 +133,11 @@ function parametricMethod(prob::_MOMKP,
 			tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
 			seq[pos[i]] = i ; seq[pos[j]] = j
 
-			updateBoundSet!(upperBound, sol, seq[s])
+			updateBoundSet!(upperBound, transpositions[iter].λ, sol, seq[s])
 		end
 	end
 
-	println("\tNumber of cases of identical critical weights : ", numberCasesIdenticalWeights)
+	#println("\tNumber of cases of identical critical weights : ", numberCasesIdenticalWeights)
 
 	return upperBound
 end

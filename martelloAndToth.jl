@@ -47,25 +47,17 @@ end
 
 # Determines which point is obtained for the Martello and Toth upper bound 
 # for λ in the interval [next, prev]
-function chooseBound!(upperBound::Vector{Vector{Float64}},
-					  constraints::Vector{Constraint},
+function chooseBound!(upperBound::DualBoundSet,
 					  prev::Rational{Int}, # Previous critical weight
 					  next::Rational{Int}, # Next critical weight
 					  U0::Vector{Float64},
 					  U1::Vector{Float64})
 
-	# Constraints to be added if the corresponding point was not already in the
-	# upper bound
-	len              = length(upperBound)
-	constraintsToAdd = Constraint[]
-
 	if domine(U0,U1)
-		ajouter!(upperBound, U0)
-		push!(constraintsToAdd, Constraint(prev, U0))
+		updateBoundSet!(upperBound, prev, U0)
 
 	elseif domine(U1,U0)
-		ajouter!(upperBound, U1)
-		push!(constraintsToAdd, Constraint(prev, U1))
+		updateBoundSet!(upperBound, prev, U1)
 
 	else # No dominance between U0 and U1
 
@@ -76,20 +68,16 @@ function chooseBound!(upperBound::Vector{Vector{Float64}},
 
 			if weightedSum(prev, U0) >= weightedSum(prev, U1)
 				# The weighted sum with U0 is bigger in [λeq, prev]
-				ajouter!(upperBound, U0)
-				push!(constraintsToAdd, Constraint(prev, U0))
+				updateBoundSet!(upperBound, prev, U0)
 
 				# The weighted sum with U1 is bigger in [next, λeq]
-				ajouter!(upperBound, U1)
-				push!(constraintsToAdd, Constraint(λeq, U1))
+				updateBoundSet!(upperBound, λeq, U1)
 			else
 				# The weighted sum with U1 is bigger in [λeq, prev]
-				ajouter!(upperBound, U1)
-				push!(constraintsToAdd, Constraint(prev, U1))
+				updateBoundSet!(upperBound, prev, U1)
 
 				# The weighted sum with U0 is bigger in [next, λeq]
-				ajouter!(upperBound, U0)
-				push!(constraintsToAdd, Constraint(λeq, U0))
+				updateBoundSet!(upperBound, λeq, U0)
 			end
 		else
 
@@ -100,14 +88,7 @@ function chooseBound!(upperBound::Vector{Vector{Float64}},
 				U = returnBiggest(U0, U1, prev)
 			end
 
-			ajouter!(upperBound, U)
-			push!(constraintsToAdd, Constraint(prev, U))
-		end
-	end
-
-	if length(upperBound) != len
-		for c in constraintsToAdd
-			push!(constraints, c)
+			updateBoundSet!(upperBound, prev, U)
 		end
 	end
 end
@@ -118,14 +99,13 @@ function martelloAndToth(prob::_MOMKP,
 						 seq::Vector{Int},
 						 pos::Vector{Int})
 
-	upperBound  = Vector{Float64}[]
-	constraints = Constraint[]
+	upperBound  = DualBoundSet()
 
 	# Builds the initial dantzig solution
 	sol, s, ω_ = dantzigSolution(prob, seq)
 
 	U0, U1 = uMT(prob, seq, sol, s, ω_)
-	chooseBound!(upperBound, constraints, 1//1, transpositions[1].λ, U0, U1)
+	chooseBound!(upperBound, 1//1, transpositions[1].λ, U0, U1)
 
 	numberCasesIdenticalWeights = 0
 
@@ -172,7 +152,7 @@ function martelloAndToth(prob::_MOMKP,
 				end
 			end
 
-			chooseBound!(upperBound, constraints, prev, next, U0, U1)
+			chooseBound!(upperBound, prev, next, U0, U1)
 		else
 
 			(i,j) = transpositions[iter].pairs[1]
@@ -186,7 +166,7 @@ function martelloAndToth(prob::_MOMKP,
 
 				# Only U1 is modified
 				U1 = u1(prob, seq, sol, s, ω_)
-				chooseBound!(upperBound, constraints, prev, next, U0, U1)
+				chooseBound!(upperBound, prev, next, U0, U1)
 
 			elseif k == s-1 # Swap items s-1 and s
 
@@ -205,7 +185,7 @@ function martelloAndToth(prob::_MOMKP,
 				end
 
 				U0, U1 = uMT(prob, seq, sol, s, ω_)
-				chooseBound!(upperBound, constraints, prev, next, U0, U1)
+				chooseBound!(upperBound, prev, next, U0, U1)
 
 			elseif k == s   # Swap items s and s+1
 
@@ -218,17 +198,17 @@ function martelloAndToth(prob::_MOMKP,
 				end
 
 				U0, U1 = uMT(prob, seq, sol, s, ω_)
-				chooseBound!(upperBound, constraints, prev, next, U0, U1)
+				chooseBound!(upperBound, prev, next, U0, U1)
 
 			elseif k == s+1 # Swap items s+1 and s+2
 
 				# Only U0 is modified
 				U0 = u0(prob, seq, sol, s, ω_)
-				chooseBound!(upperBound, constraints, prev, next, U0, U1)
+				chooseBound!(upperBound, prev, next, U0, U1)
 			end
 		end
 	end
 
-	println("\tNumber of cases of identical critical weights : ", numberCasesIdenticalWeights)
-	return upperBound, constraints
+	#println("\tNumber of cases of identical critical weights : ", numberCasesIdenticalWeights)
+	return upperBound
 end

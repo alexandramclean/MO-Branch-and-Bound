@@ -26,13 +26,17 @@ function utilities(prob::_MOMKP)
 
 	p, n = size(prob.P)
 
-	ratios = Matrix{Rational{Int}}(undef, p, n)
+	#=ratios = Matrix{Rational{Int}}(undef, p, n)
 	for k in 1:p 
 		for j in 1:n 
 			ratios[k,j] = prob.P[k,j]//prob.W[1,j]
 		end 
 	end 
-	return ratios
+	return ratios=#
+
+	r1 = [prob.P[1,j]//prob.W[1,j] for j in 1:n]
+	r2 = [prob.P[2,j]//prob.W[1,j] for j in 1:n]
+	return r1, r2
 end
 
 # ----- SOLUTIONS ------------------------------------------------------------ #
@@ -174,18 +178,27 @@ function groupEquivalentItems(prob::_MOMKP)
     return _MOMKP(P, reshape(W, 1, length(W)), prob.ω)
 end 
 
-# ----- BOUND SET ------------------------------------------------------------ #
+# ----- BOUND SETs ----------------------------------------------------------- #
 # Returns true if sol is identical to the most recent solution in UB 
 function identicalToPrevious(UB::DualBoundSet, sol::Solution)
     return length(UB.points) > 0 && UB.points[end] == sol.z 
 end 
 
-# Updates the bound set by adding the solution if it is not already present and 
-# adding its index to the list of integer solutions if applicable
-function updateBoundSet!(upperBound::DualBoundSet, sol::Solution, breakItem::Int)
+function identicalToPrevious(UB::DualBoundSet, y::Vector{Float64})
+    return length(UB.points) > 0 && UB.points[end] == y
+end 
+
+# Updates the bound set by adding the point and corresponding constraint if it 
+# is not already present and adding the solution to the list of integer 
+# solutions if applicable 
+function updateBoundSet!(upperBound::DualBoundSet, 
+						 λ::Rational{Int}, 
+						 sol::Solution, 
+						 breakItem::Int)
     
     if !identicalToPrevious(upperBound, sol)
         push!(upperBound.points, sol.z) 
+		push!(upperBound.constraints, Constraint(λ, sol.z))
         if isInteger(sol, breakItem) 
             push!(upperBound.integerSols, Solution(sol.X[1:end], sol.z[1:end])) 
         end 
@@ -193,7 +206,23 @@ function updateBoundSet!(upperBound::DualBoundSet, sol::Solution, breakItem::Int
 end 
 
 function updateBoundSet!(upperBound::DualBoundSet, 
-						 constraint::Constraint, 
-						 sol::Solution, breakItem::Int)
-	# TODO 
-end
+						 λ::Union{Rational{Int},Float64}, 
+						 y::Vector{Float64})
+
+	if !identicalToPrevious(upperBound, y)
+		push!(upperBound.points, y) 
+		push!(upperBound.constraints, Constraint(λ, y))
+	end 
+end 
+
+function updateBoundSet!(upperBound::DualBoundSet,  
+						 sol::Solution, 
+						 breakItem::Int)
+
+	if !identicalToPrevious(upperBound, sol)
+		push!(upperBound.points, sol.z) 
+		if isInteger(sol, breakItem) 
+			push!(upperBound.integerSols, Solution(sol.X[1:end], sol.z[1:end])) 
+		end 
+	end 
+end 
