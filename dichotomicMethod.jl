@@ -4,9 +4,7 @@
 #         Méthode dichotomique pour le calcul de la relaxation continue        #
 ################################################################################
 
-include("dataStructures.jl")
 include("functions.jl")
-include("listeOrdonnee.jl")
 
 # Builds a solution including the break item for a given sequence
 function buildSolutionD(prob::_MOMKP, seq::Vector{Int})
@@ -49,59 +47,64 @@ function solveWeightedSum(prob::_MOMKP,
 	r_λ = [obj[i]//prob.W[1,i] for i in 1:n]
 
 	seq = sortperm(r_λ, rev=true)
-	x, _ = buildSolutionD(prob, seq)
-	return x
+	x, s, _ = buildSolutionD(prob, seq)
+	return x, seq[s]
 end
 
 # Returns the lexicographically optimal solutions
-function lexicographicSolutions(prob::_MOMKP,
-								r1::Vector{Rational{Int}},
-								r2::Vector{Rational{Int}}) 
+function lexicographicSolutions!(prob::_MOMKP,
+								 UB::DualBoundSet,
+								 L::Vector{Solution},
+								 r1::Vector{Rational{Int}},
+								 r2::Vector{Rational{Int}}) 
 	
 	# Lexicographically optimal solution for (1,2) 
 	seq12 = sortperm(1000000*r1 + r2, rev=true) 
-	x12, _ = buildSolutionD(prob, seq12)
+	x12, s, _ = buildSolutionD(prob, seq12)
+	updateBoundSets!(UB, L, x12, seq12[s])
 	
 	# Lexicographically optimal solution for (2,1) 
 	seq21 = sortperm(r1 + 1000000*r2, rev=true) 
-	x21, _ = buildSolutionD(prob, seq21) 
-	
+	x21, s, _ = buildSolutionD(prob, seq21) 
+	updateBoundSets!(UB, L, x21, seq21[s])
+
 	return x12, x21
 end
 
-function solveRecursion!(prob::_MOMKP, Y_SN,
+function solveRecursion!(prob::_MOMKP,
+						 UB::DualBoundSet,
+						 L::Vector{Solution},
 						 x1::SolutionD, x2::SolutionD)
 	# Calcul de la direction λ
 	λ1 = x2.z[2] - x1.z[2]
 	λ2 = x1.z[1] - x2.z[1]
 
 	# Calcul de la solution
-	x = solveWeightedSum(prob, λ1, λ2)
-	ajouter!(Y_SN, x.z)
+	x, breakItem = solveWeightedSum(prob, λ1, λ2)
+	updateBoundSets!(UB, L, x, breakItem)
 
 	# Si le point n'est pas sur le segment z(x1)z(x2) on continue la recherche
 	if λ1*x.z[1] + λ2*x.z[2] > λ1*x1.z[1] + λ2*x1.z[2]
-		solveRecursion!(prob, Y_SN, x1, x)
-		solveRecursion!(prob, Y_SN, x, x2)
+		solveRecursion!(prob, UB, L, x1, x)
+		solveRecursion!(prob, UB, L, x, x2)
 	end
 end
 
 function dichotomicMethod(prob::_MOMKP,
+						  L::Vector{Solution},
 						  r1::Vector{Rational{Int}},
 						  r2::Vector{Rational{Int}})
 
 	n = size(prob.P)[2]
 
-	# Calcul des solutions lexicographiquement optimales
-	x12, x21 = lexicographicSolutions(prob, r1, r2) 
+	# Upper bound set 
+	UB = DualBoundSet()
 
-	# Ensemble de points
-	Y_SN = Vector{Rational{Int}}[]
-	ajouter!(Y_SN, x12.z)
-	ajouter!(Y_SN, x21.z)
+	# Calcul des solutions lexicographiquement optimales
+	x12, x21 = lexicographicSolutions!(prob, UB, L, r1, r2) 	
 
 	# Appel récursif
-	solveRecursion!(prob, Y_SN, x12, x21)
+	solveRecursion!(prob, UB, L, x12, x21)
 
-	return Y_SN
+	return UB
 end
