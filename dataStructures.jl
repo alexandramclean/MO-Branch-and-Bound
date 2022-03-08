@@ -48,9 +48,8 @@ end
 struct DualBoundSet 
     points::Vector{Vector{Float64}}    
     constraints::Vector{Constraint}
-    integerSols::Vector{Solution} # Integer solutions
 end 
-DualBoundSet() = DualBoundSet(Solution[], Constraint[], Int[]) 
+DualBoundSet() = DualBoundSet(Vector{Float64}[], Constraint[]) 
 
 # ----- BRANCH-AND-BOUND ----------------------------------------------------- #
 @enum Status DOMINANCE OPTIMALITY INFEASIBILITY NOTPRUNED
@@ -58,6 +57,7 @@ DualBoundSet() = DualBoundSet(Solution[], Constraint[], Int[])
 # Data structure representing a node in a branch-and-bound algorithm
 struct Node 
     UB::DualBoundSet
+    parent::Union{Node,Nothing}
     pruned::Status 
 end 
-Node(UB::DualBoundSet) = Node(UB, NOTPRUNED)
+Node(UB::DualBoundSet) = Node(UB, Nothing, NOTPRUNED)
