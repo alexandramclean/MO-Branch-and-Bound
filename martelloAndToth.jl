@@ -5,7 +5,6 @@
 ################################################################################
 
 include("parametricMethodFunctions.jl")
-include("listeOrdonnee.jl")
 
 # Martello and Toth upper bound 
 function u0(prob::_MOMKP, seq::Vector{Int}, sol::Solution, s::Int, ω_::Int)

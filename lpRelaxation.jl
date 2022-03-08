@@ -71,6 +71,7 @@ end
 
 # Computes the LP relaxation using the parametric method 
 function parametricMethod(prob::_MOMKP,
+						  L::Vector{Solution},
 						  transpositions::Vector{Transposition},
 						  seq::Vector{Int},
 						  pos::Vector{Int})
@@ -79,7 +80,7 @@ function parametricMethod(prob::_MOMKP,
 	sol, s, ω_ = buildSolution(prob, seq)
 
 	upperBound = DualBoundSet()
-	updateBoundSet!(upperBound, 1//1, sol, seq[s])
+	updateBoundSets!(upperBound, L, 1//1, sol, seq[s])
 
 	numberCasesIdenticalWeights = 0
 
@@ -113,7 +114,7 @@ function parametricMethod(prob::_MOMKP,
 				updatePositions!(seq, pos, start, finish)
 			end 
 
-			updateBoundSet!(upperBound, transpositions[iter].λ, sol, seq[s]) 
+			updateBoundSets!(upperBound, L, transpositions[iter].λ, sol, seq[s]) 
 		else
 
 			(i,j) = transpositions[iter].pairs[1]
@@ -133,7 +134,7 @@ function parametricMethod(prob::_MOMKP,
 			tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
 			seq[pos[i]] = i ; seq[pos[j]] = j
 
-			updateBoundSet!(upperBound, transpositions[iter].λ, sol, seq[s])
+			updateBoundSets!(upperBound, L, transpositions[iter].λ, sol, seq[s])
 		end
 	end
 

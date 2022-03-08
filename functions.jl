@@ -5,18 +5,31 @@
 ################################################################################
 
 include("dataStructures.jl")
+include("orderedList.jl")
 
 # ----- DOMINANCE ------------------------------------------------------------ #
 # Returns true if x dominates y
 function domine(x, y, opt::Optimisation=MAX)
     if opt == MIN
-        return ((x[1] <= y[1] && x[2] < y[2])
-            || (x[1] < y[1] && x[2] <= y[2])
-            || (x[1] == y[1] && x[2] == y[2])) # No duplicates
+        return ((x[1] <= y[1] && x[2] <  y[2])
+             || (x[1] <  y[1] && x[2] <= y[2])
+             || (x[1] == y[1] && x[2] == y[2])) # No duplicates
     else
-        return ((x[1] >= y[1] && x[2] > y[2])
-            || (x[1] > y[1] && x[2] >= y[2])
-            || (x[1] == y[1] && x[2] == y[2])) # No duplicates
+        return ((x[1] >= y[1] && x[2] >  y[2])
+             || (x[1] > y[1]  && x[2] >= y[2])
+             || (x[1] == y[1] && x[2] == y[2])) # No duplicates
+    end
+end
+
+function domine(x::Solution, y::Solution, opt::Optimisation=MAX)
+    if opt == MIN
+        return ((x.z[1] <= y.z[1] && x.z[2] <  y.z[2])
+             || (x.z[1] <  y.z[1] && x.z[2] <= y.z[2])
+             || (x.z[1] == y.z[1] && x.z[2] == y.z[2])) # No duplicates
+    else
+        return ((x.z[1] >= y.z[1] && x.z[2] >  y.z[2])
+             || (x.z[1] >  y.z[1] && x.z[2] >= y.z[2])
+             || (x.z[1] == y.z[1] && x.z[2] == y.z[2])) # No duplicates
     end
 end
 
@@ -178,6 +191,8 @@ function groupEquivalentItems(prob::_MOMKP)
     return _MOMKP(P, reshape(W, 1, length(W)), prob.ω)
 end 
 
+# TODO : tightness ratio 
+
 # ----- BOUND SETs ----------------------------------------------------------- #
 # Returns true if sol is identical to the most recent solution in UB 
 function identicalToPrevious(UB::DualBoundSet, sol::Solution)
@@ -191,38 +206,40 @@ end
 # Updates the bound set by adding the point and corresponding constraint if it 
 # is not already present and adding the solution to the list of integer 
 # solutions if applicable 
-function updateBoundSet!(upperBound::DualBoundSet, 
-						 λ::Rational{Int}, 
-						 sol::Solution, 
-						 breakItem::Int)
+function updateBoundSets!(UB::DualBoundSet, 
+						  L::Vector{Solution}, 
+						  λ::Rational{Int}, 
+						  sol::Solution, 
+						  breakItem::Int)
     
-    if !identicalToPrevious(upperBound, sol)
-        push!(upperBound.points, sol.z) 
-		push!(upperBound.constraints, Constraint(λ, sol.z))
+    if !identicalToPrevious(UB, sol)
+        push!(UB.points, sol.z) 
+		push!(UB.constraints, Constraint(λ, sol.z))
         if isInteger(sol, breakItem) 
-            push!(upperBound.integerSols, Solution(sol.X[1:end], sol.z[1:end])) 
+            ajouter!(L, Solution(sol.X[1:end], sol.z[1:end])) 
         end 
     end 
 end 
 
-function updateBoundSet!(upperBound::DualBoundSet, 
+function updateBoundSet!(UB::DualBoundSet, 
 						 λ::Union{Rational{Int},Float64}, 
 						 y::Vector{Float64})
 
-	if !identicalToPrevious(upperBound, y)
-		push!(upperBound.points, y) 
-		push!(upperBound.constraints, Constraint(λ, y))
+	if !identicalToPrevious(UB, y)
+		push!(UB.points, y) 
+		push!(UB.constraints, Constraint(λ, y))
 	end 
 end 
 
-function updateBoundSet!(upperBound::DualBoundSet,  
-						 sol::Solution, 
-						 breakItem::Int)
+function updateBoundSets!(UB::DualBoundSet,  
+						  L::Vector{Solution},
+						  sol::Solution, 
+						  breakItem::Int)
 
-	if !identicalToPrevious(upperBound, sol)
-		push!(upperBound.points, sol.z) 
+	if !identicalToPrevious(UB, sol)
+		push!(UB.points, sol.z) 
 		if isInteger(sol, breakItem) 
-			push!(upperBound.integerSols, Solution(sol.X[1:end], sol.z[1:end])) 
+			ajouter!(L, Solution(sol.X[1:end], sol.z[1:end])) 
 		end 
 	end 
 end 

@@ -47,13 +47,13 @@ end
 
 # Initialisaiton 
 function simplexInitialisation(prob::_MOMKP)
-    u1, u2    = utilities(prob)
-    seq       = sortperm(1000000*u1 + u2, rev=true) 
+    r1, r2    = utilities(prob)
+    seq       = sortperm(1000000*r1 + r2, rev=true) 
     return seq 
 end 
 
 # Simplex algorithm 
-function simplex(prob::_MOMKP, seq::Vector{Int})
+function simplex(prob::_MOMKP, L::Vector{Solution}, seq::Vector{Int})
 
     upperBound = DualBoundSet() 
 
@@ -63,7 +63,7 @@ function simplex(prob::_MOMKP, seq::Vector{Int})
     # The critical objet constitutes an efficient basic variable 
     c = seq[s] 
 
-    updateBoundSet!(upperBound, sol, c)
+    updateBoundSets!(upperBound, L, sol, c)
     
     costs::Matrix{Rational{Int}} = reducedCosts(prob, c)
 
@@ -148,7 +148,7 @@ function simplex(prob::_MOMKP, seq::Vector{Int})
             end 
         end 
 
-        updateBoundSet!(upperBound, sol, c)
+        updateBoundSets!(upperBound, L, sol, c)
         
         costs      = reducedCosts(prob, c)
         candidates = candidateVariables(costs, sol)
