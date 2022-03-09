@@ -6,119 +6,141 @@
 
 using Random
 
-## VERIFIER
-# Recherche de l'indice du dernier point dominé par y
-function dernier_point_domine(yN::Vector{Solution},
-                              y::Solution,
-                              deb::Int64, fin::Int64,
-                              opt::Optimisation=MAX) 
-    if deb >= fin
-        return deb
-    elseif opt == MIN && domine(y, yN[fin], opt)
-        return fin
-    elseif opt == MAX && domine(y, yN[deb], opt)
-        return deb
+# ----- AUXILIARY FUNCTIONS -------------------------------------------------- #
+# Precondition : x and y are of the same type 
+# Returns true if x is strictly smaller than y on dimension dim 
+function isStrictlySmaller(x::Union{Solution, Vector{T}},
+                           y::Union{Solution, Vector{T}},
+                           dim::Int) where T<:Real
+    if typeof(x) == Solution{Float64} || typeof(x) == Solution{Rational{Int}} 
+        return x.z[dim] < y.z[dim]
+    else 
+        return x[dim] < y[dim] 
+    end 
+end 
+
+# ----- VERIFY --------------------------------------------------------------- #
+# Searches for the index of the last point dominated by y 
+function lastDominatedPoint(yN::Union{Vector{Solution}, Vector{Vector{T}}},
+                            y::Union{Solution, Vector{T}},
+                            start::Int64, 
+                            finish::Int64,
+                            opt::Optimisation=MAX) where T<:Real
+    if start >= finish
+        return start
+    elseif opt == MIN && dominates(y, yN[finish], opt)
+        return finish
+    elseif opt == MAX && dominates(y, yN[start], opt)
+        return start
     end
     
-    mil = div(deb + fin, 2)
+    mid = div(start + finish, 2)
     
-    if domine(y, yN[mil], opt)
-        if ((opt == MIN && !domine(y, yN[mil+1], opt))
-            || (opt == MAX && !domine(y, yN[mil-1], opt)))
-            # yN[mil] est le dernier point dominé
-            return mil
+    if dominates(y, yN[mid], opt)
+        if ((opt == MIN && !dominates(y, yN[mid+1], opt))
+            || (opt == MAX && !dominates(y, yN[mid-1], opt)))
+            # yN[mid] is the last dominated point 
+            return mid
         elseif opt == MIN
-            return dernier_point_domine(yN, y, mil+1, fin, opt)
+            return lastDominatedPoint(yN, y, mid+1, finish, opt)
         else
-            return dernier_point_domine(yN, y, deb, mil-1, opt)
+            return lastDominatedPoint(yN, y, start, mid-1, opt)
         end
         
-    # y ne domine pas yN[mil]
+    # y does not dominate yN[mid]
     elseif opt == MIN
-        return dernier_point_domine(yN, y, deb, mil-1, opt)
+        return lastDominatedPoint(yN, y, start, mid-1, opt)
     else
-        return dernier_point_domine(yN, y, mil+1, fin, opt)
+        return lastDominatedPoint(yN, y, mid+1, finish, opt)
     end
 end
 
+# Verifies that y's successors (>ind) are not dominated by y 
 # Vérification que les successeurs de y (>ind) ne sont pas dominés par y
 # Si y domine des points de yN alors il domine sont successeur large minimum
-function verifier(yN::Vector{Solution},
-                  y::Solution, 
-                  ind::Int64,
-                  opt::Optimisation=MAX) 
+function verify(yN::Union{Vector{Solution}, Vector{Vector{T}}},
+                y::Union{Solution, Vector{T}}, 
+                ind::Int64,
+                opt::Optimisation=MAX) where T<:Real
                   
-    if opt == MIN && ind < length(yN) && domine(y, yN[ind+1], opt)
-        ind_dernier_domine = dernier_point_domine(yN, y, ind+1, length(yN), opt)
-        #println("Dernier dominé : ", ind_dernier_domine)
-        for j in ind_dernier_domine:-1:ind+1
+    if opt == MIN && ind < length(yN) && dominates(y, yN[ind+1], opt)
+        indLastDominated = lastDominatedPoint(yN, y, ind+1, length(yN), opt)
+        #println("Last dominated point : ", indLastDominated)
+        for j in indLastDominated:-1:ind+1
             deleteat!(yN, j)
         end
         
-    elseif opt == MAX && ind > 1 && domine(y, yN[ind-1], opt)
-        ind_premier_domine = dernier_point_domine(yN, y, 1, ind-1, opt)
-        #println("Premier dominé : ", ind_premier_domine)
-        for j in ind-1:-1:ind_premier_domine
+    elseif opt == MAX && ind > 1 && dominates(y, yN[ind-1], opt)
+        indFirstDominated = lastDominatedPoint(yN, y, 1, ind-1, opt)
+        #println("First dominated point : ", indFirstDominated)
+        for j in ind-1:-1:indFirstDominated
             deleteat!(yN, j)
         end
     end
 end
 
-## AJOUTER
-function ajouter_rec(yN::Vector{Solution},
-                     y::Solution,
-                     deb::Int64, fin::Int64,
-                     opt::Optimisation=MAX)
+# ----- ADD ------------------------------------------------------------------ #
+function addRec(yN::Union{Vector{Solution}, Vector{Vector{T}}},
+                y::Union{Solution, Vector{T}},
+                start::Int64, 
+                finish::Int64,
+                opt::Optimisation=MAX) where T<:Real
                      
-    if deb >= fin # Cas d'arrêt : 1 seul élément dans la sous-liste
-        if domine(yN[deb], y, opt)
+    # Stopping criterion : only 1 element left in the list            
+    if start >= finish 
+        if dominates(yN[start], y, opt)
             return 0
-        elseif yN[deb].z[1] < y.z[1]
-            return deb + 1
+        elseif isStrictlySmaller(yN[start], y, 1)
+            return start + 1
         else
-            return deb
+            return start
         end
     end
     
-    mil = div(deb+fin,2)
+    mid = div(start+finish,2)
     
-    # Si y est dominé par un point dans la liste on ne l'insère pas
-    if domine(yN[mil], y, opt) || domine(yN[deb], y, opt) || domine(yN[fin], y, opt)
+    # If y is dominated by a point in the list it is not inserted
+    if (dominates(yN[mid], y, opt) 
+        || dominates(yN[start], y, opt) 
+        || dominates(yN[finish], y, opt))
         return 0
-    elseif yN[mil].z[1] > y.z[1] 
+
+    elseif isStrictlySmaller(y, yN[mid], 1)
+        # The case where y and yN[mid] have equal values for both objective 
+        # functions is included in the dominance test 
         # Le cas d'égalité sur les deux fonctions objectif a déjà été traité
         # dans le test de dominance
-        return ajouter_rec(yN, y, deb, mil-1, opt)
+        return addRec(yN, y, start, mid-1, opt)
     else
-        return ajouter_rec(yN, y, mil+1, fin, opt)
+        return addRec(yN, y, mid+1, finish, opt)
     end
 end
 
-function ajouter!(yN::Vector{Solution}, 
-                  y::Solution, 
-                  opt::Optimisation=MAX)
+function add!(yN::Union{Vector{Solution}, Vector{Vector{T}}}, 
+              y::Union{Solution,Vector{T}}, 
+              opt::Optimisation=MAX) where T<:Real
     #! Affichage
-    #println("Ajout de ", y)
+    #println("Adding ", y)
 
-    # Recherche de la position de y
+    # Search for the position of y 
     if length(yN) == 0
         insert!(yN, 1, y)
         #afficher(yN)
     else
-        ind = ajouter_rec(yN, y, 1, length(yN), opt)
-        if ind > 0 # Insertion
+        ind = addRec(yN, y, 1, length(yN), opt)
+        if ind > 0 
             insert!(yN, ind, y)
             #afficher(yN)
 
-            # Elimination des points dominés
-            verifier(yN, y, ind, opt)
-            #println("Vérification : ")
+            # Elimination of the dominated points
+            verify(yN, y, ind, opt)
+            #println("Verification : ")
             #afficher(yN)
         end
     end
 end
 
-## AFFICHER
+# ----- AFFICHER ------------------------------------------------------------- #
 function afficher(yN)
     print("|  ")
     for i in 1:length(yN)
