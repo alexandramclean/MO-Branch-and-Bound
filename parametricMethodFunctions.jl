@@ -99,9 +99,9 @@ end
 
 # Updates the positions after reversing the subsequence between start and finish
 function updatePositions!(seq::Vector{Int}, 
-                         pos::Vector{Int}, 
-                         start::Int, 
-                         finish::Int) 
+                          pos::Vector{Int}, 
+                          start::Int, 
+                          finish::Int) 
 
     if finish - start >= 1
         # Swaps the positions of the items at the edge of the subsequence 
@@ -141,7 +141,7 @@ function initialisation(prob::_MOMKP)
             pos = sortperm(seq)          			  # Item positions
         #end 
 	#end
-	return Initialisation(transpositions, seq, pos)
+	return Initialisation(r1, r2, transpositions, seq, pos)
 end
 
 # ----- SETTING VARIABLES ---------------------------------------------------- #

@@ -10,16 +10,16 @@ include("functions.jl")
 
 # ----- BRANCHING STRATEGIES ------------------------------------------------- #
 # Returns the ranks of items ordered by decreasing order of utility  
-function rank(u1::Vector{Rational{Int}}, # Utilities for objective function 1
-              u2::Vector{Rational{Int}}) # Utilities for objective function 2 
+function ranks(r1::Vector{Rational{Int}}, # Utilities for objective function 1
+               r2::Vector{Rational{Int}}) # Utilities for objective function 2 
 
     # Ranks for the first objective function 
-    r1 = sortperm(sortperm(u1, rev=true))
+    rank1 = sortperm(sortperm(r1, rev=true))
 
     # Ranks for the second objective function 
-    r2 = sortperm(sortperm(u2, rev=true))
+    rank2 = sortperm(sortperm(r2, rev=true))
 
-    return r1, r2 
+    return rank1, rank2 
 end 
 
 # Items selected in increasing or decreasing order of min(u1,u2)
@@ -114,7 +114,7 @@ incumbentSet1 = [[10.,4.], [9.,6.], [6.,8.], [3.,9.]]
 incumbentSet2 = [[10.,3.], [8.,5.], [4.,9.]]
 
 # Computes the local nadir points 
-function localNadirPoints(incumbentSet::Vector{Vector{Float64}})
+function localNadirPoints(incumbentSet::Vector{Solution})
 
     nadirs = Vector{Vector{Float64}}(undef, length(incumbentSet)-1)
     for i in 1:length(incumbentSet)-1 
@@ -126,7 +126,8 @@ function localNadirPoints(incumbentSet::Vector{Vector{Float64}})
 end 
 
 # Calcule les nadirs locaux décalés (hypothèse d'intégrité)
-function shiftedLocalNadirPoints(nadirs::Vector)
+function shiftedLocalNadirPoints(nadirs::Vector{Vector{Float64}})
+
     shiftedNadirs = Vector{Vector{Float64}}(undef, length(nadirs))
     for i in 1:length(nadirs)
         shiftedNadirs[i] = nadirs[i] + [1.,1.]
@@ -150,15 +151,16 @@ function verifiesConstraints(constraints::Vector{Constraint},
     return verif 
 end 
 
-# Returns true if the upper bound set is dominated by the lower bound set 
-function isDominated(UB::DualBoundSet, L::Vector{Vector{Float64}})
+# Returns true if the upper bound set for a particular node is dominated by the 
+# lower bound set 
+function isDominated(UB::DualBoundSet, L::Vector{Solution})
 
     is_dominated  = true 
     shiftedNadirs = shiftedLocalNadirPoints(localNadirPoints(L))
     i = 1 
 
     while is_dominated && i <= length(shiftedNadirs)
-        is_dominated = is_dominated && verifiesConstraints(UB.constraints, shiftedNadirs[i])
+        is_dominated = is_dominated && !verifiesConstraints(UB.constraints, shiftedNadirs[i])
         i += 1 
     end 
     return is_dominated

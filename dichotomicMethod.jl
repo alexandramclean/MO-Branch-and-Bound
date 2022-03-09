@@ -11,23 +11,22 @@ function buildSolutionDicho(prob::_MOMKP, seq::Vector{Int})
 
 	n   = size(prob.P)[2]
 	ω_  = prob.ω[1]
-	sol = Solution{Rational{Int}}(zeros(Rational{Int}, n), [0//1, 0//1])
+	sol = Solution{Rational{Int}}(prob)
 	i   = 1
 
-	while i <= n && prob.W[1,seq[i]] <= ω_
+	while i <= n && prob.W[1,seq[i]] <= sol.ω_
 		item = seq[i]
 		# L'objet est inséré
 		addItem!(prob, sol, item)
-		ω_ -= prob.W[1,item]
 		i += 1
 	end
 
 	if ω_ > 0
 		# Une fraction de l'objet s est insérée
-		addBreakItem!(prob, sol, ω_, seq[i])
+		addBreakItem!(prob, sol, seq[i])
 	end
 
-	return sol, i, ω_
+	return sol, i
 end
 
 # Retourne une fonction objectif pondérée définie par les paramètres λ1 et λ2
@@ -46,8 +45,8 @@ function solveWeightedSum(prob::_MOMKP,
 	obj = weightedObjective(prob, λ1, λ2)
 	r_λ = [obj[i]//prob.W[1,i] for i in 1:n]
 
-	seq = sortperm(r_λ, rev=true)
-	x, s, _ = buildSolutionDicho(prob, seq)
+	seq  = sortperm(r_λ, rev=true)
+	x, s = buildSolutionDicho(prob, seq)
 	return x, seq[s]
 end
 
@@ -59,13 +58,13 @@ function lexicographicSolutions!(prob::_MOMKP,
 								 r2::Vector{Rational{Int}}) 
 	
 	# Lexicographically optimal solution for (1,2) 
-	seq12 = sortperm(1000000*r1 + r2, rev=true) 
-	x12, s, _ = buildSolutionDicho(prob, seq12)
+	seq12  = sortperm(1000000*r1 + r2, rev=true) 
+	x12, s = buildSolutionDicho(prob, seq12)
 	updateBoundSets!(UB, L, x12, seq12[s])
 	
 	# Lexicographically optimal solution for (2,1) 
-	seq21 = sortperm(r1 + 1000000*r2, rev=true) 
-	x21, s, _ = buildSolutionDicho(prob, seq21) 
+	seq21  = sortperm(r1 + 1000000*r2, rev=true) 
+	x21, s = buildSolutionDicho(prob, seq21) 
 	updateBoundSets!(UB, L, x21, seq21[s])
 
 	return x12, x21

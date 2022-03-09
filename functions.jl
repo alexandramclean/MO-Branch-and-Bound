@@ -56,50 +56,50 @@ end
 # Add an item to a solution
 function addItem!(prob::_MOMKP, sol::Solution, item::Int)
 	sol.X[item] = 1
-	sol.z += prob.P[:,item]
+	sol.z      += prob.P[:,item]
+	sol.ω_     -= prob.W[1,item]
 end
 
 # Add a break item to a solution
 function addBreakItem!(prob::_MOMKP,
 					   sol::Solution,
-					   ω_::Int,
 					   item::Int)
 
-	sol.X[item] = ω_//prob.W[1,item]
+	sol.X[item] = sol.ω_//prob.W[1,item]
 	sol.z += sol.X[item] * prob.P[:,item]
 end
 
 # Computes the dantzig solution for a given sequence
-function dantzigSolution(prob::_MOMKP, sequence::Vector{Int})
+function dantzigSolution(prob::_MOMKP, sequence::Vector{Int}, solInit::Solution)
 
 	n   = size(prob.P)[2]
 	ω_  = prob.ω[1]
-	sol = Solution{Float64}(n)
+	sol = Solution{Float64}(solInit.X[1:end], solInit.z[1:end], solInit.ω_)
 	i   = 1
 
-	while i <= n && prob.W[1,sequence[i]] <= ω_
+	while i <= n && prob.W[1,sequence[i]] <= sol.ω_
 		item = sequence[i]
 		# L'objet est inséré
 		addItem!(prob, sol, item)
-		ω_ -= prob.W[1,item]
+		sol.ω_ -= prob.W[1,item]
 		i += 1
 	end
 
-	return sol, i, ω_
+	return sol, i
 end
 
 # Builds a solution including the break item
-function buildSolution(prob::_MOMKP, seq::Vector{Int})
+function buildSolution(prob::_MOMKP, seq::Vector{Int}, solInit::Solution)
 
-	n          = size(prob.P)[2]
-	sol, s, ω_ = dantzigSolution(prob, seq)
+	n      = size(prob.P)[2]
+	sol, s = dantzigSolution(prob, seq, solInit)
 
-	if ω_ > 0
+	if sol.ω_ > 0
 		# Une fraction de l'objet s est insérée
-		addBreakItem!(prob, sol, ω_, seq[s])
+		addBreakItem!(prob, sol, seq[s])
 	end
 
-	return sol, s, ω_
+	return sol, s
 end
 
 # Re-build part of a solution after a sequence reversal
@@ -107,8 +107,7 @@ function reoptSolution(prob::_MOMKP,
 					   seq::Vector{Int},
 					   start::Int,
 					   finish::Int, 
-					   sol::Solution,
-					   ω_::Int)
+					   sol::Solution)
 
 	# Les objets entre start et fin dans la séquence sont retirés
 	for pos in start:finish
@@ -123,23 +122,23 @@ function reoptSolution(prob::_MOMKP,
 		elseif sol.X[item] == 1 
 			# Un objet inséré dans le sac est retiré
 			sol.z      -= prob.P[:,item]
-			ω_         += prob.W[1,item]
+			sol.ω_     += prob.W[1,item]
 			sol.X[item] = 0
 		end 
 	end
 
 	# Les objets sont insérés en partant de start dans la nouvelle séquence
 	pos = start
-	while prob.W[1,seq[pos]] <= ω_
+	while prob.W[1,seq[pos]] <= sol.ω_
 
 		# L'objet est inséré en entier
 		addItem!(prob, sol, seq[pos])
-		ω_ -= prob.W[1,seq[pos]]
+		sol.ω_ -= prob.W[1,seq[pos]]
 
 		pos += 1
 	end
-
-	return sol, pos, ω_
+	
+	return sol, pos
 end
 
 # Returns true if the solution is integer 
@@ -218,7 +217,7 @@ function updateBoundSets!(UB::DualBoundSet{Float64},
         push!(UB.points, sol.z) 
 		push!(UB.constraints, Constraint(λ, sol.z))
         if isInteger(sol, breakItem) 
-            add!(L, Solution(sol.X[1:end], sol.z[1:end])) 
+            add!(L, Solution(sol.X[1:end], sol.z[1:end], sol.ω_)) 
         end 
     end 
 end 
@@ -243,7 +242,7 @@ function updateBoundSets!(UB::DualBoundSet{Rational{Int}},
 	if !identicalToPrevious(UB, sol)
 		add!(UB.points, sol.z) 
 		if isInteger(sol, breakItem) 
-			add!(L, Solution(sol.X[1:end], sol.z[1:end])) 
+			add!(L, Solution(sol.X[1:end], sol.z[1:end], sol.ω_)) 
 		end 
 	end 
 end
@@ -257,7 +256,7 @@ function updateBoundSets!(UB::DualBoundSet{Float64},
 	if !identicalToPrevious(UB, sol)
 		push!(UB.points, sol.z) 
 		if isInteger(sol, breakItem) 
-			add!(L, Solution(sol.X[1:end], sol.z[1:end])) 
+			add!(L, Solution(sol.X[1:end], sol.z[1:end], sol.ω_)) 
 		end 
 	end 
 end

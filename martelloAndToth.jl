@@ -94,7 +94,8 @@ end
 
 # Computes the Martello and Toth upper bound using the parametric method 
 function martelloAndToth(prob::_MOMKP,
-						 init::Initialisation)
+						 init::Initialisation,
+						 solInit::Solution)
 
 	# Creates copies of the sequence and positions as they will be modified 
 	seq = init.seq[1:end] 
@@ -103,7 +104,7 @@ function martelloAndToth(prob::_MOMKP,
 	UB  = DualBoundSet{Float64}()
 
 	# Builds the initial dantzig solution
-	sol, s, ω_ = dantzigSolution(prob, seq)
+	sol, s, ω_ = dantzigSolution(prob, seq, solInit)
 
 	U0, U1 = uMT(prob, seq, sol, s, ω_)
 	chooseBound!(UB, 1//1, init.transpositions[1].λ, U0, U1)

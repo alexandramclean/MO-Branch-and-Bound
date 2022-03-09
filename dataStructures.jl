@@ -19,11 +19,15 @@ end
 mutable struct Solution{T} 
     X::Vector{Rational{Int}} # Vector of binary variables 
     z::Vector{T}             # Values for the objective functions 
+    ω_::Int                  # Residual capacity 
 end
 
 # Constructors 
-Solution{Float64}(n::Int) = Solution(zeros(Rational{Int},n), [0.,0.])
-Solution{Rational{Int}}(n::Int) = Solution(zeros(Rational{Int},n), [0//1,0//1])
+Solution{Float64}(prob::_MOMKP) = Solution(zeros(Rational{Int}, size(prob.P)[2]), 
+                                    [0.,0.], prob.ω[1])
+Solution{Rational{Int}}(prob::_MOMKP) = Solution(
+                                    zeros(Rational{Int}, size(prob.P)[2]), 
+                                    [0//1,0//1], prob.ω[1])
 
 # ----- TRANSPOSITIONS ------------------------------------------------------- #
 # Stores a critical weight λ and the corresponding transposition(s)
@@ -36,11 +40,14 @@ end
 Transposition(λ) = Transposition(λ,[])
 
 # Stores the transpositions and initial sequence and positions 
-struct Initialisation 
-    transpositions::Vector{Transposition}
-    seq::Vector{Int} # Initial sequence 
-    pos::Vector{Int} # Positions of the variables in the sequence
+struct Initialisation
+    r1::Vector{Rational{Int}}             # Utilities for z1 
+    r2::Vector{Rational{Int}}             # Utilities for z2
+    transpositions::Vector{Transposition} # Critical weights and transpositions
+    seq::Vector{Int}                      # Initial sequence 
+    pos::Vector{Int}                      # Positions in the sequence
 end 
+Initialisation(transpositions, seq, pos) = Initialisation([], [], transpositions, seq, pos)
 
 # ----- BOUND SETS ----------------------------------------------------------- #
 # Data structure of a constraint generated whilst computing the upper bound set
@@ -68,6 +75,7 @@ struct Node
     UB::DualBoundSet            # Upper bound set for the node
     parent::Union{Node,Nothing} # Parent node 
     setVar::Tuple{Int,Int}      # Variable to set and value (var,val)
+    solInit::Solution           # Initial solution with set variables
     init::Initialisation        # Transpositions and initial sequence
     pruned::Status              # Indicates whether the node has been pruned 
                                 # and for what reason
