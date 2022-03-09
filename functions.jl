@@ -206,6 +206,8 @@ end
 # Updates the bound set by adding the point and corresponding constraint if it 
 # is not already present and adding the solution to the list of integer 
 # solutions if applicable 
+
+# Parametric method for LP relaxation 
 function updateBoundSets!(UB::DualBoundSet{Float64}, 
 						  L::Vector{Solution}, 
 						  λ::Rational{Int}, 
@@ -221,6 +223,7 @@ function updateBoundSets!(UB::DualBoundSet{Float64},
     end 
 end 
 
+# Parametric method for Martello and Toth
 function updateBoundSet!(UB::DualBoundSet{Float64}, 
 						 λ::Union{Rational{Int},Float64}, 
 						 y::Vector{Float64})
@@ -231,6 +234,7 @@ function updateBoundSet!(UB::DualBoundSet{Float64},
 	end 
 end 
 
+# Dichotomic method 
 function updateBoundSets!(UB::DualBoundSet{Rational{Int}},  
 						  L::Vector{Solution},
 						  sol::Solution, 
@@ -242,4 +246,18 @@ function updateBoundSets!(UB::DualBoundSet{Rational{Int}},
 			add!(L, Solution(sol.X[1:end], sol.z[1:end])) 
 		end 
 	end 
-end 
+end
+
+# Simplex algorithm 
+function updateBoundSets!(UB::DualBoundSet{Float64},  
+						  L::Vector{Solution},
+						  sol::Solution, 
+						  breakItem::Int)
+
+	if !identicalToPrevious(UB, sol)
+		push!(UB.points, sol.z) 
+		if isInteger(sol, breakItem) 
+			add!(L, Solution(sol.X[1:end], sol.z[1:end])) 
+		end 
+	end 
+end

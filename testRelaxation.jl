@@ -25,9 +25,9 @@ function compareParametric_Dichotomic(name, prob, graphic=false)
 	@timeit to "\nParametric v. Dichotomic" begin 
 		println("Parametric method")
 		@timeit to "Parametric method" begin 
-			@timeit to "Initialisation" transpositions, seq, pos = initialisation(prob)
+			@timeit to "Initialisation" init = initialisation(prob)
 			Lparam = Solution[] 
-			@timeit to "Relaxation" UBparam = parametricMethod(prob, Lparam, transpositions, seq, pos)
+			@timeit to "Relaxation" UBparam = parametricMethod(prob, Lparam, init)
 		end 
 
 		println("Dichotomic method")
@@ -76,8 +76,8 @@ function testInstances(dir::String, graphic=false)
 
 	println("Exemple didactique")
 	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
-	transpositions, seq, pos = initialisation(didactic)
-	_ = parametricMethod(didactic, Solution[], transpositions, seq, pos)
+	init = initialisation(didactic)
+	_ = parametricMethod(didactic, Solution[], init)
 	r1, r2 = utilities(didactic)
 	_ = dichotomicMethod(didactic, Solution[], r1, r2)
 	
@@ -100,16 +100,16 @@ function compareLP_MT(prob::_MOMKP)
 
 	@timeit to "\nLP v. MT" begin 
 		# Initialisation
-		transpositions, seq, pos = initialisation(prob)
+		init = initialisation(prob)
 
 		println("LP Relaxation : ")
-		@timeit to "LP Relaxation" UBparam = parametricMethod(prob, Solution[], transpositions, seq, pos)
+		@timeit to "LP Relaxation" UBparam = parametricMethod(prob, Solution[], init)
 
 		# Initialisation
-		transpositions, seq, pos = initialisation(prob)
+		init = initialisation(prob)
 		
 		println("Martello and Toth : ")
-		@timeit to "Martello and Toth" UB, constraints = martelloAndToth(prob, transpositions, seq, pos)
+		@timeit to "Martello and Toth" UB, constraints = martelloAndToth(prob, init)
 	end 
 end 
 
@@ -118,9 +118,9 @@ function testInstancesMT(dir::String)
 
 	println("Exemple didactique")
 	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
-	transpositions, seq, pos = initialisation(didactic)
-	_ = parametricMethod(didactic, Solution[], transpositions, seq[1:end], pos[1:end]) 
-	_ = martelloAndToth(didactic, transpositions, seq[1:end], pos[1:end])
+	init = initialisation(didactic)
+	_ = parametricMethod(didactic, Solution[], init) 
+	_ = martelloAndToth(didactic, init)
 	
 	files = readdir(dir)
 	for fname in files
@@ -141,10 +141,10 @@ end
 function compareInit_SetVar(prob::_MOMKP)
 
 	@timeit to "\nCompare init and setVar" begin 
-		@timeit to "Initialisation" transpositions, seq, pos = initialisation(prob)
+		@timeit to "Initialisation" init = initialisation(prob)
 
 		var = rand(1:size(prob.P)[2])
-		@timeit to "Set variable" newTranspositions, newSeq, newPos = setVariable(transpositions, seq, pos, var)
+		@timeit to "Set variable" newInit = setVariable(init, var)
 	end
 end 
 
@@ -153,8 +153,8 @@ function testInstancesSetVar(dir::String)
 
 	println("Exemple didactique")
 	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
-	transpositions, seq, pos = initialisation(didactic) 
-	_ = setVariable(transpositions, seq, pos, rand(1:6))
+	init = initialisation(didactic) 
+	_ = setVariable(init, rand(1:6))
 	
 	files = readdir(dir)
 	for fname in files
@@ -180,8 +180,8 @@ function compareParametric_Simplex(prob, name, graphic=false)
 	@timeit to "\nParametric v. Simplex" begin 
 		println("Parametric method")
 		@timeit to "Parametric method" begin 
-			@timeit to "Initialisation" transpositions, seq, pos = initialisation(prob)
-			@timeit to "Relaxation" UBparam = parametricMethod(prob, Solution[], transpositions, seq, pos)
+			@timeit to "Initialisation" init = initialisation(prob)
+			@timeit to "Relaxation" UBparam = parametricMethod(prob, Solution[], init)
 		end 
 
 		println("Simplex algorithm")
@@ -221,10 +221,10 @@ function testInstancesSimplex(dir::String, graphic=false)
 
 	println("Exemple didactique")
 	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
-	transpositions, seq, pos = initialisation(didactic)
-	_ = parametricMethod(didactic, Solution[], transpositions, seq, pos)
+	init = initialisation(didactic)
+	_ = parametricMethod(didactic, Solution[], init)
 	seq = simplexInitialisation(didactic)
-	_ = simplex(didactic, Solution[], seq)
+	_ = simplex(didactic, Solution[], init.seq)
 	
 	files = readdir(dir)
 	for fname in files
@@ -245,9 +245,9 @@ function compareUBS(fname::String, nIter::Int)
 	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
 
 	# Parametric methods 
-	transpositions, seq, pos = initialisation(didactic)
-	_ = parametricMethod(didactic, Solution[], transpositions, seq[1:end], pos[1:end])
-	_ = martelloAndToth(didactic, transpositions, seq[1:end], pos[1:end]) 
+	init = initialisation(didactic)
+	_ = parametricMethod(didactic, Solution[], init)
+	_ = martelloAndToth(didactic, init) 
 
 	# Dichotomic method 
 	r1, r2 = utilities(didactic)
@@ -267,9 +267,9 @@ function compareUBS(fname::String, nIter::Int)
 
 		# Parametric methods 
 		@timeit to "Parametric methods" begin 
-			@timeit to "Initialisation" transpositions, seq, pos = initialisation(prob) 
-			@timeit to "LP Relaxation" _ = parametricMethod(prob, Solution[], transpositions, seq[1:end], pos[1:end])
-			@timeit to "Martello and Toth" _ = martelloAndToth(prob, transpositions, seq[1:end], pos[1:end])
+			@timeit to "Initialisation" init = initialisation(prob) 
+			@timeit to "LP Relaxation" _ = parametricMethod(prob, Solution[], init)
+			@timeit to "Martello and Toth" _ = martelloAndToth(prob, init)
 		end 
 
 		# Dichotomic method 

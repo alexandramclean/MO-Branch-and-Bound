@@ -115,6 +115,7 @@ function updatePositions!(seq::Vector{Int},
 end
 
 # ----- INITIALISATION ------------------------------------------------------- #
+# Computes the utilities, transpositions, initial sequence and positions 
 function initialisation(prob::_MOMKP)
 
     #@timeit to "Initialisation" begin 
@@ -140,22 +141,20 @@ function initialisation(prob::_MOMKP)
             pos = sortperm(seq)          			  # Item positions
         #end 
 	#end
-	return transpositions, seq, pos
+	return Initialisation(transpositions, seq, pos)
 end
 
 # ----- SETTING VARIABLES ---------------------------------------------------- #
 # Remove a variable from the sequence and transpositions
-function setVariable(transpositions::Vector{Transposition},
-                     seq::Vector{Int},
-                     pos::Vector{Int},
+function setVariable(init::Initialisation,
                      var::Int)
        
     newTranspositions = Transposition[]
-    newSeq            = Vector{Int}(undef,length(seq)-1)
-    newPos            = copy(pos)
+    newSeq            = Vector{Int}(undef,length(init.seq)-1)
+    newPos            = copy(init.pos)
 
     # The variable is removed from the set of transpositions
-    for t in transpositions
+    for t in init.transpositions
 
         if length(t.pairs) > 1	
 
@@ -179,17 +178,17 @@ function setVariable(transpositions::Vector{Transposition},
 
     # The variable is removed from the sequence
     inser = 1
-    for i in 1:length(seq)
-        if seq[i] != var
-            newSeq[inser] = seq[i] 
+    for i in 1:length(init.seq)
+        if init.seq[i] != var
+            newSeq[inser] = init.seq[i] 
             inser += 1 
         end
     end
 
     # The positions of items after var in the sequence are diminished by 1
-    for p in pos[var]+1:length(pos)
-        newPos[seq[p]] = pos[seq[p]] - 1
+    for p in init.pos[var]+1:length(init.pos)
+        newPos[seq[p]] = init.pos[seq[p]] - 1
     end
 
-    return newTranspositions, newSeq, newPos
+    return Initialisation(newTranspositions, newSeq, newPos)
 end

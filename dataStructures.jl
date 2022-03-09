@@ -20,6 +20,8 @@ mutable struct Solution{T}
     X::Vector{Rational{Int}} # Vector of binary variables 
     z::Vector{T}             # Values for the objective functions 
 end
+
+# Constructors 
 Solution{Float64}(n::Int) = Solution(zeros(Rational{Int},n), [0.,0.])
 Solution{Rational{Int}}(n::Int) = Solution(zeros(Rational{Int},n), [0//1,0//1])
 
@@ -29,7 +31,16 @@ struct Transposition
 	λ::Rational{Int}			  # Critical weight 
 	pairs::Vector{Tuple{Int,Int}} # List of pairs of items to swap 
 end
+
+# Constructors 
 Transposition(λ) = Transposition(λ,[])
+
+# Stores the transpositions and initial sequence and positions 
+struct Initialisation 
+    transpositions::Vector{Transposition}
+    seq::Vector{Int} # Initial sequence 
+    pos::Vector{Int} # Positions of the variables in the sequence
+end 
 
 # ----- BOUND SETS ----------------------------------------------------------- #
 # Data structure of a constraint generated whilst computing the upper bound set
@@ -44,6 +55,8 @@ struct DualBoundSet{T}
     points::Vector{Vector{T}}    
     constraints::Vector{Constraint}
 end
+
+# Constructors 
 DualBoundSet{Float64}() = DualBoundSet(Vector{Float64}[], Constraint[]) 
 DualBoundSet{Rational{Int}}() = DualBoundSet(Vector{Rational{Int}}[], Constraint[])
 
@@ -52,8 +65,13 @@ DualBoundSet{Rational{Int}}() = DualBoundSet(Vector{Rational{Int}}[], Constraint
 
 # Data structure representing a node in a branch-and-bound algorithm
 struct Node 
-    UB::DualBoundSet
-    parent::Union{Node,Nothing}
-    pruned::Status 
-end 
-Node(UB::DualBoundSet) = Node(UB, Nothing, NOTPRUNED)
+    UB::DualBoundSet            # Upper bound set for the node
+    parent::Union{Node,Nothing} # Parent node 
+    setVar::Tuple{Int,Int}      # Variable to set and value (var,val)
+    init::Initialisation        # Transpositions and initial sequence
+    pruned::Status              # Indicates whether the node has been pruned 
+                                # and for what reason
+end
+
+# Constructors 
+Node(UB, init) = Node(UB, Nothing, (0,0), init, NOTPRUNED)

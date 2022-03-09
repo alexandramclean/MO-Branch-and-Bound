@@ -103,13 +103,13 @@ function maxRank(r1::Vector{Int},
     end 
 end 
 
-# ----- NADIRS LOCAUX ET TEST DE DOMINANCE ----------------------------------- # 
+# ----- LOCAL NADIR POINTS AND DOMINANCE TESTS ------------------------------- # 
 # Exemple
 upperBound = DualBoundSet([[1.,8.], [4.,7.], [7.,4.], [9.,1.]], 
                            [Constraint(1//1, [9.,1.]), 
                            Constraint(7//15, [4.,7.]), 
                            Constraint(3//5, [7.,4.]),
-                           Constraint(0//1, [1.,8.])], [])
+                           Constraint(0//1, [1.,8.])])
 incumbentSet1 = [[10.,4.], [9.,6.], [6.,8.], [3.,9.]] 
 incumbentSet2 = [[10.,3.], [8.,5.], [4.,9.]]
 
@@ -140,6 +140,7 @@ function verifiesConstraints(constraints::Vector{Constraint},
             
     verif = true 
     i = 1 
+
     while verif && i <= length(constraints)
         λ     = constraints[i].λ 
         point = constraints[i].point
@@ -152,11 +153,10 @@ end
 # Returns true if the upper bound set is dominated by the lower bound set 
 function isDominated(UB::DualBoundSet, L::Vector{Vector{Float64}})
 
-    is_dominated = true 
-
+    is_dominated  = true 
     shiftedNadirs = shiftedLocalNadirPoints(localNadirPoints(L))
-
     i = 1 
+
     while is_dominated && i <= length(shiftedNadirs)
         is_dominated = is_dominated && verifiesConstraints(UB.constraints, shiftedNadirs[i])
         i += 1 

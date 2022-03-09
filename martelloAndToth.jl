@@ -46,17 +46,17 @@ end
 
 # Determines which point is obtained for the Martello and Toth upper bound 
 # for λ in the interval [next, prev]
-function chooseBound!(upperBound::DualBoundSet,
+function chooseBound!(UB::DualBoundSet,
 					  prev::Rational{Int}, # Previous critical weight
 					  next::Rational{Int}, # Next critical weight
 					  U0::Vector{Float64},
 					  U1::Vector{Float64})
 
 	if dominates(U0,U1)
-		updateBoundSet!(upperBound, prev, U0)
+		updateBoundSet!(UB, prev, U0)
 
 	elseif dominates(U1,U0)
-		updateBoundSet!(upperBound, prev, U1)
+		updateBoundSet!(UB, prev, U1)
 
 	else # No dominance between U0 and U1
 
@@ -67,16 +67,16 @@ function chooseBound!(upperBound::DualBoundSet,
 
 			if weightedSum(prev, U0) >= weightedSum(prev, U1)
 				# The weighted sum with U0 is bigger in [λeq, prev]
-				updateBoundSet!(upperBound, prev, U0)
+				updateBoundSet!(UB, prev, U0)
 
 				# The weighted sum with U1 is bigger in [next, λeq]
-				updateBoundSet!(upperBound, λeq, U1)
+				updateBoundSet!(UB, λeq, U1)
 			else
 				# The weighted sum with U1 is bigger in [λeq, prev]
-				updateBoundSet!(upperBound, prev, U1)
+				updateBoundSet!(UB, prev, U1)
 
 				# The weighted sum with U0 is bigger in [next, λeq]
-				updateBoundSet!(upperBound, λeq, U0)
+				updateBoundSet!(UB, λeq, U0)
 			end
 		else
 
@@ -87,45 +87,47 @@ function chooseBound!(upperBound::DualBoundSet,
 				U = returnBiggest(U0, U1, prev)
 			end
 
-			updateBoundSet!(upperBound, prev, U)
+			updateBoundSet!(UB, prev, U)
 		end
 	end
 end
 
 # Computes the Martello and Toth upper bound using the parametric method 
 function martelloAndToth(prob::_MOMKP,
-						 transpositions::Vector{Transposition},
-						 seq::Vector{Int},
-						 pos::Vector{Int})
+						 init::Initialisation)
 
-	upperBound  = DualBoundSet{Float64}()
+	# Creates copies of the sequence and positions as they will be modified 
+	seq = init.seq[1:end] 
+	pos = init.pos[1:end] 
+
+	UB  = DualBoundSet{Float64}()
 
 	# Builds the initial dantzig solution
 	sol, s, ω_ = dantzigSolution(prob, seq)
 
 	U0, U1 = uMT(prob, seq, sol, s, ω_)
-	chooseBound!(upperBound, 1//1, transpositions[1].λ, U0, U1)
+	chooseBound!(UB, 1//1, init.transpositions[1].λ, U0, U1)
 
 	numberCasesIdenticalWeights = 0
 
-	for iter in 1:length(transpositions)
+	for iter in 1:length(init.transpositions)
 
 		# Previous and next critical weights
-		prev = transpositions[iter].λ
-		if iter == length(transpositions)
+		prev = init.transpositions[iter].λ
+		if iter == length(init.transpositions)
 			next = 0//1
 		else
-			next = transpositions[iter+1].λ
+			next = init.transpositions[iter+1].λ
 		end
 
 		# Multiple identical critical weights
-		if length(transpositions[iter].pairs) > 1
+		if length(init.transpositions[iter].pairs) > 1
 
 			numberCasesIdenticalWeights += 1
 
 			# Positions corresponding to each transposition
 			positions = [(min(pos[i], pos[j]), max(pos[i], pos[j]))
-						for (i,j) in transpositions[iter].pairs]
+						for (i,j) in init.transpositions[iter].pairs]
 			sort!(positions)
 
 			# Identification of the modified subsequences
@@ -151,10 +153,10 @@ function martelloAndToth(prob::_MOMKP,
 				end
 			end
 
-			chooseBound!(upperBound, prev, next, U0, U1)
+			chooseBound!(UB, prev, next, U0, U1)
 		else
 
-			(i,j) = transpositions[iter].pairs[1]
+			(i,j) = init.transpositions[iter].pairs[1]
 			k = min(pos[i], pos[j])
 
 			# Update the sequence and positions
@@ -165,7 +167,7 @@ function martelloAndToth(prob::_MOMKP,
 
 				# Only U1 is modified
 				U1 = u1(prob, seq, sol, s, ω_)
-				chooseBound!(upperBound, prev, next, U0, U1)
+				chooseBound!(UB, prev, next, U0, U1)
 
 			elseif k == s-1 # Swap items s-1 and s
 
@@ -184,7 +186,7 @@ function martelloAndToth(prob::_MOMKP,
 				end
 
 				U0, U1 = uMT(prob, seq, sol, s, ω_)
-				chooseBound!(upperBound, prev, next, U0, U1)
+				chooseBound!(UB, prev, next, U0, U1)
 
 			elseif k == s   # Swap items s and s+1
 
@@ -197,17 +199,17 @@ function martelloAndToth(prob::_MOMKP,
 				end
 
 				U0, U1 = uMT(prob, seq, sol, s, ω_)
-				chooseBound!(upperBound, prev, next, U0, U1)
+				chooseBound!(UB, prev, next, U0, U1)
 
 			elseif k == s+1 # Swap items s+1 and s+2
 
 				# Only U0 is modified
 				U0 = u0(prob, seq, sol, s, ω_)
-				chooseBound!(upperBound, prev, next, U0, U1)
+				chooseBound!(UB, prev, next, U0, U1)
 			end
 		end
 	end
 
 	#println("\tNumber of cases of identical critical weights : ", numberCasesIdenticalWeights)
-	return upperBound
+	return UB
 end

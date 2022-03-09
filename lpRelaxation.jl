@@ -72,28 +72,30 @@ end
 # Computes the LP relaxation using the parametric method 
 function parametricMethod(prob::_MOMKP,
 						  L::Vector{Solution},
-						  transpositions::Vector{Transposition},
-						  seq::Vector{Int},
-						  pos::Vector{Int})
+						  init::Initialisation)
 
+	# Creates copies of the sequence and positions as they will be modified 
+	seq = init.seq[1:end] 
+	pos = init.pos[1:end] 
+	
 	# Builds the initial solution
 	sol, s, ω_ = buildSolution(prob, seq)
 
-	upperBound = DualBoundSet{Float64}()
-	updateBoundSets!(upperBound, L, 1//1, sol, seq[s])
+	UB = DualBoundSet{Float64}()
+	updateBoundSets!(UB, L, 1//1, sol, seq[s])
 
 	numberCasesIdenticalWeights = 0
 
-	for iter in 1:length(transpositions)
+	for iter in 1:length(init.transpositions)
 
 		# Multiple identical critical weights
-		if length(transpositions[iter].pairs) > 1
+		if length(init.transpositions[iter].pairs) > 1
 
 			numberCasesIdenticalWeights += 1
 
 			# Positions corresponding to each transposition
 			positions = [(min(pos[i], pos[j]), max(pos[i], pos[j])) 
-						for (i,j) in transpositions[iter].pairs]
+						for (i,j) in init.transpositions[iter].pairs]
 			sort!(positions)
 			
 			# Identification of the modified subsequences
@@ -114,10 +116,10 @@ function parametricMethod(prob::_MOMKP,
 				updatePositions!(seq, pos, start, finish)
 			end 
 
-			updateBoundSets!(upperBound, L, transpositions[iter].λ, sol, seq[s]) 
+			updateBoundSets!(UB, L, init.transpositions[iter].λ, sol, seq[s]) 
 		else
 
-			(i,j) = transpositions[iter].pairs[1]
+			(i,j) = init.transpositions[iter].pairs[1]
 			k = min(pos[i], pos[j])
 
 			if k == s-1   # Swap items s-1 and s
@@ -134,11 +136,10 @@ function parametricMethod(prob::_MOMKP,
 			tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
 			seq[pos[i]] = i ; seq[pos[j]] = j
 
-			updateBoundSets!(upperBound, L, transpositions[iter].λ, sol, seq[s])
+			updateBoundSets!(UB, L, init.transpositions[iter].λ, sol, seq[s])
 		end
 	end
 
 	#println("\tNumber of cases of identical critical weights : ", numberCasesIdenticalWeights)
-
-	return upperBound
+	return UB
 end
