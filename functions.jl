@@ -9,7 +9,7 @@ include("orderedList.jl")
 
 # ----- DOMINANCE ------------------------------------------------------------ #
 # Returns true if x dominates y
-function domine(x, y, opt::Optimisation=MAX)
+function dominates(x, y, opt::Optimisation=MAX)
     if opt == MIN
         return ((x[1] <= y[1] && x[2] <  y[2])
              || (x[1] <  y[1] && x[2] <= y[2])
@@ -21,7 +21,7 @@ function domine(x, y, opt::Optimisation=MAX)
     end
 end
 
-function domine(x::Solution, y::Solution, opt::Optimisation=MAX)
+function dominates(x::Solution, y::Solution, opt::Optimisation=MAX)
     if opt == MIN
         return ((x.z[1] <= y.z[1] && x.z[2] <  y.z[2])
              || (x.z[1] <  y.z[1] && x.z[2] <= y.z[2])
@@ -54,14 +54,14 @@ end
 
 # ----- SOLUTIONS ------------------------------------------------------------ #
 # Add an item to a solution
-function addItem!(prob::_MOMKP, sol::Union{Solution,SolutionD}, item::Int)
+function addItem!(prob::_MOMKP, sol::Solution, item::Int)
 	sol.X[item] = 1
 	sol.z += prob.P[:,item]
 end
 
 # Add a break item to a solution
 function addBreakItem!(prob::_MOMKP,
-					   sol::Union{Solution,SolutionD},
+					   sol::Solution,
 					   ω_::Int,
 					   item::Int)
 
@@ -74,7 +74,7 @@ function dantzigSolution(prob::_MOMKP, sequence::Vector{Int})
 
 	n   = size(prob.P)[2]
 	ω_  = prob.ω[1]
-	sol = Solution(n)
+	sol = Solution{Float64}(n)
 	i   = 1
 
 	while i <= n && prob.W[1,sequence[i]] <= ω_
@@ -206,7 +206,7 @@ end
 # Updates the bound set by adding the point and corresponding constraint if it 
 # is not already present and adding the solution to the list of integer 
 # solutions if applicable 
-function updateBoundSets!(UB::DualBoundSet, 
+function updateBoundSets!(UB::DualBoundSet{Float64}, 
 						  L::Vector{Solution}, 
 						  λ::Rational{Int}, 
 						  sol::Solution, 
@@ -216,30 +216,30 @@ function updateBoundSets!(UB::DualBoundSet,
         push!(UB.points, sol.z) 
 		push!(UB.constraints, Constraint(λ, sol.z))
         if isInteger(sol, breakItem) 
-            ajouter!(L, Solution(sol.X[1:end], sol.z[1:end])) 
+            add!(L, Solution(sol.X[1:end], sol.z[1:end])) 
         end 
     end 
 end 
 
-function updateBoundSet!(UB::DualBoundSet, 
+function updateBoundSet!(UB::DualBoundSet{Float64}, 
 						 λ::Union{Rational{Int},Float64}, 
 						 y::Vector{Float64})
 
 	if !identicalToPrevious(UB, y)
-		push!(UB.points, y) 
+		add!(UB.points, y) 
 		push!(UB.constraints, Constraint(λ, y))
 	end 
 end 
 
-function updateBoundSets!(UB::DualBoundSet,  
+function updateBoundSets!(UB::DualBoundSet{Rational{Int}},  
 						  L::Vector{Solution},
 						  sol::Solution, 
 						  breakItem::Int)
 
 	if !identicalToPrevious(UB, sol)
-		push!(UB.points, sol.z) 
+		add!(UB.points, sol.z) 
 		if isInteger(sol, breakItem) 
-			ajouter!(L, Solution(sol.X[1:end], sol.z[1:end])) 
+			add!(L, Solution(sol.X[1:end], sol.z[1:end])) 
 		end 
 	end 
 end 

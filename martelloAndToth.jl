@@ -52,10 +52,10 @@ function chooseBound!(upperBound::DualBoundSet,
 					  U0::Vector{Float64},
 					  U1::Vector{Float64})
 
-	if domine(U0,U1)
+	if dominates(U0,U1)
 		updateBoundSet!(upperBound, prev, U0)
 
-	elseif domine(U1,U0)
+	elseif dominates(U1,U0)
 		updateBoundSet!(upperBound, prev, U1)
 
 	else # No dominance between U0 and U1
@@ -98,7 +98,7 @@ function martelloAndToth(prob::_MOMKP,
 						 seq::Vector{Int},
 						 pos::Vector{Int})
 
-	upperBound  = DualBoundSet()
+	upperBound  = DualBoundSet{Float64}()
 
 	# Builds the initial dantzig solution
 	sol, s, ω_ = dantzigSolution(prob, seq)

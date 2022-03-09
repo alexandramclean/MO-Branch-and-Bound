@@ -79,7 +79,7 @@ function parametricMethod(prob::_MOMKP,
 	# Builds the initial solution
 	sol, s, ω_ = buildSolution(prob, seq)
 
-	upperBound = DualBoundSet()
+	upperBound = DualBoundSet{Float64}()
 	updateBoundSets!(upperBound, L, 1//1, sol, seq[s])
 
 	numberCasesIdenticalWeights = 0

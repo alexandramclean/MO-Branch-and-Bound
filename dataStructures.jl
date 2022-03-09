@@ -16,17 +16,12 @@ end
 
 # ----- SOLUTIONS ------------------------------------------------------------ #
 # Data structure of a solution that can contain fractions of an object
-mutable struct Solution
+mutable struct Solution{T} 
     X::Vector{Rational{Int}} # Vector of binary variables 
-    z::Vector{Float64}       # Values for the objective functions 
+    z::Vector{T}             # Values for the objective functions 
 end
-Solution(n) = Solution(zeros(Rational{Int},n), [0,0])
-
-# Solution data structure for the dichotomic method (rational values)
-mutable struct SolutionD
-    X::Vector{Rational{Int}} # Liste des éléments insérés dans le sac
-    z::Vector{Rational{Int}} # Valeurs pour les fonctions objectif
-end
+Solution{Float64}(n::Int) = Solution(zeros(Rational{Int},n), [0.,0.])
+Solution{Rational{Int}}(n::Int) = Solution(zeros(Rational{Int},n), [0//1,0//1])
 
 # ----- TRANSPOSITIONS ------------------------------------------------------- #
 # Stores a critical weight λ and the corresponding transposition(s)
@@ -45,11 +40,12 @@ end
 # The associated constraint is λz1 + (1-λ)z2 <= λu1 + (1-λ)u2
 
 # Data structure representing an upper bound set 
-struct DualBoundSet 
-    points::Vector{Vector{Float64}}    
+struct DualBoundSet{T} 
+    points::Vector{Vector{T}}    
     constraints::Vector{Constraint}
-end 
-DualBoundSet() = DualBoundSet(Vector{Float64}[], Constraint[]) 
+end
+DualBoundSet{Float64}() = DualBoundSet(Vector{Float64}[], Constraint[]) 
+DualBoundSet{Rational{Int}}() = DualBoundSet(Vector{Rational{Int}}[], Constraint[])
 
 # ----- BRANCH-AND-BOUND ----------------------------------------------------- #
 @enum Status DOMINANCE OPTIMALITY INFEASIBILITY NOTPRUNED

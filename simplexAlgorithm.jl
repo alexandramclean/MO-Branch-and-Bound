@@ -55,7 +55,7 @@ end
 # Simplex algorithm 
 function simplex(prob::_MOMKP, L::Vector{Solution}, seq::Vector{Int})
 
-    upperBound = DualBoundSet() 
+    upperBound = DualBoundSet{Float64}() 
 
     # Lexicographically optimal solution for the first objective function 
     sol, s, _ = buildSolution(prob, seq) 
