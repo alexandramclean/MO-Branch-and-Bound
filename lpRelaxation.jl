@@ -79,7 +79,11 @@ function parametricMethod(prob::_MOMKP,
 	sol, s = buildSolution(prob, seq, solInit)
 
 	UB = DualBoundSet{Float64}()
-	updateBoundSets!(UB, L, 1//1, sol, seq[s])
+	if s <= length(seq)
+		updateBoundSets!(UB, L, 1//1, sol, seq[s])
+	else 
+		updateBoundSets!(UB, L, 1//1, sol, seq[s-1])
+	end 
 
 	numberCasesIdenticalWeights = 0
 
@@ -113,7 +117,11 @@ function parametricMethod(prob::_MOMKP,
 				updatePositions!(seq, pos, start, finish)
 			end 
 
-			updateBoundSets!(UB, L, init.transpositions[iter].λ, sol, seq[s]) 
+			if s <= length(seq)
+				updateBoundSets!(UB, L, init.transpositions[iter].λ, sol, seq[s]) 
+			else 
+				updateBoundSets!(UB, L, init.transpositions[iter].λ, sol, seq[s-1]) 
+			end 			
 		else
 
 			(i,j) = init.transpositions[iter].pairs[1]
@@ -133,7 +141,11 @@ function parametricMethod(prob::_MOMKP,
 			tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
 			seq[pos[i]] = i ; seq[pos[j]] = j
 
-			updateBoundSets!(UB, L, init.transpositions[iter].λ, sol, seq[s])
+			if s <= length(seq)
+				updateBoundSets!(UB, L, init.transpositions[iter].λ, sol, seq[s])
+			else 
+				updateBoundSets!(UB, L, init.transpositions[iter].λ, sol, seq[s-1]) 
+			end 
 		end
 	end
 
