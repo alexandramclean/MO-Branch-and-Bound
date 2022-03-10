@@ -5,6 +5,7 @@
 ################################################################################
 
 include("functions.jl")
+include("displayGraphic.jl")
 
 @enum Order INCREASING DECREASING 
 
@@ -22,12 +23,12 @@ function ranks(r1::Vector{Rational{Int}}, # Utilities for objective function 1
     return rank1, rank2 
 end 
 
-# Items selected in increasing or decreasing order of min(u1,u2)
-function minUtility(u1::Vector{Rational{Int}}, 
-                    u2::Vector{Rational{Int}},
+# Items selected in increasing or decreasing order of min(r1,r2)
+function minUtility(r1::Vector{Rational{Int}}, 
+                    r2::Vector{Rational{Int}},
                     order::Order)
 
-    min_utility = [min(u1[j], u2[j]) for j in 1:length(u1)]
+    min_utility = [min(r1[j], r2[j]) for j in 1:length(r1)]
     if order == DECREASING
         return sortperm(min_utility, rev=true) # Best variable first
     else 
@@ -36,11 +37,11 @@ function minUtility(u1::Vector{Rational{Int}},
 end 
 
 # Items selected in increasing or decreasing order of max(u1,u2) 
-function maxUtility(u1::Vector{Rational{Int}}, 
-                    u2::Vector{Rational{Int}},
+function maxUtility(r1::Vector{Rational{Int}}, 
+                    r2::Vector{Rational{Int}},
                     order::Order)
 
-    max_utility = [max(u1[j], u2[j]) for j in 1:length(u1)]
+    max_utility = [max(r1[j], r2[j]) for j in 1:length(r1)]
     if order == DECREASING 
         return sortperm(max_utility, rev=true) # Best variable first
     else 
@@ -50,11 +51,11 @@ function maxUtility(u1::Vector{Rational{Int}},
 end 
 
 # Items selected in increasing or decreasing order of (u1+u2)/2 
-function avgUtility(u1::Vector{Rational{Int}}, 
-                    u2::Vector{Rational{Int}},
+function avgUtility(r1::Vector{Rational{Int}}, 
+                    r2::Vector{Rational{Int}},
                     order::Order)
 
-    avg_utility = [(u1[j] + u2[j])//2 for j in 1:length(u1)] 
+    avg_utility = [(r1[j] + r2[j])//2 for j in 1:length(u1)] 
     if order == DECREASING 
         return sortperm(avg_utility, rev=true) # Best variable first
     else 
@@ -63,11 +64,11 @@ function avgUtility(u1::Vector{Rational{Int}},
 end 
 
 # Items selected in increasing or decreasing order of r1+r2 
-function sumRank(r1::Vector{Int}, 
-                 r2::Vector{Int},
+function sumRank(rank1::Vector{Int}, 
+                 rank2::Vector{Int},
                  order::Order) 
     
-    sum_rank = [r1[j] + r2[j] for j in 1:length(r1)]
+    sum_rank = [rank1[j] + rank2[j] for j in 1:length(rank1)]
     if order == INCREASING 
         return sortperm(sum_rank)           # Best variable first
     else 
@@ -76,12 +77,12 @@ function sumRank(r1::Vector{Int},
 end 
 
 # Items selected in increasing or decreasing order of min(r1,r2)
-function minRank(r1::Vector{Int},
-                 r2::Vector{Int},
+function minRank(rank1::Vector{Int},
+                 rank2::Vector{Int},
                  order::Order)
 
-    n = length(r1)
-    min_rank = [min(r1[j],r2[j]) + (r1[j] + r2[j])//2*n for j in 1:n]
+    n = length(rank1)
+    min_rank = [min(rank1[j],rank2[j]) + (rank1[j] + rank2[j])//2*n for j in 1:n]
     if order == INCREASING 
         return sortperm(min_rank)           # Best variable first
     else
@@ -90,12 +91,12 @@ function minRank(r1::Vector{Int},
 end 
 
 # Items selected in increasing or decreasing order of max(r1,r2)
-function maxRank(r1::Vector{Int},
-                 r2::Vector{Int},
+function maxRank(rank1::Vector{Int},
+                 rank2::Vector{Int},
                  order::Order)
 
-    n = length(r1)
-    max_rank = [max(r1[j],r2[j]) + (r1[j] + r2[j])//2*n for j in 1:n]
+    n = length(rank1)
+    max_rank = [max(rank1[j],rank2[j]) + (rank1[j] + rank2[j])//2*n for j in 1:n]
     if order == INCREASING 
         return sortperm(max_rank)           # Best variable first
     else
@@ -104,22 +105,13 @@ function maxRank(r1::Vector{Int},
 end 
 
 # ----- LOCAL NADIR POINTS AND DOMINANCE TESTS ------------------------------- # 
-# Exemple
-upperBound = DualBoundSet([[1.,8.], [4.,7.], [7.,4.], [9.,1.]], 
-                           [Constraint(1//1, [9.,1.]), 
-                           Constraint(7//15, [4.,7.]), 
-                           Constraint(3//5, [7.,4.]),
-                           Constraint(0//1, [1.,8.])])
-incumbentSet1 = [[10.,4.], [9.,6.], [6.,8.], [3.,9.]] 
-incumbentSet2 = [[10.,3.], [8.,5.], [4.,9.]]
-
 # Computes the local nadir points 
 function localNadirPoints(incumbentSet::Vector{Solution})
 
     nadirs = Vector{Vector{Float64}}(undef, length(incumbentSet)-1)
     for i in 1:length(incumbentSet)-1 
-        yl = incumbentSet[i+1]
-        yr = incumbentSet[i] 
+        yl = incumbentSet[i].z
+        yr = incumbentSet[i+1].z 
         nadirs[i] = [yl[1], yr[2]]
     end 
     return nadirs
@@ -135,7 +127,7 @@ function shiftedLocalNadirPoints(nadirs::Vector{Vector{Float64}})
     return shiftedNadirs
 end 
 
-# Returns true if the local nadir point verifies all the constraints 
+# Returns true if the point y verifies all the constraints 
 function verifiesConstraints(constraints::Vector{Constraint}, 
                              y::Vector{Float64})
             
@@ -150,6 +142,32 @@ function verifiesConstraints(constraints::Vector{Constraint},
     end 
     return verif 
 end 
+
+# Plots the upper bound set for a node and the lower bound set 
+function plotBoundSets(UB::DualBoundSet, L::Vector{Solution})
+    # Setup
+    randNumber = rand(1:100)
+    println(randNumber)
+    figure("Upper and lower bound sets"*string(randNumber),figsize=(6.5,5))
+    xlabel(L"z^1(x)")
+    ylabel(L"z^2(x)")
+    PyPlot.title("Upper and lower bound sets")
+
+    # Show the upper bound set 
+    y_UBS1 = [y[1] for y in UB.points] 
+    y_UBS2 = [y[2] for y in UB.points]
+    scatter(y_UBS1, y_UBS2, color="green", marker="+", label = "UB")
+    plot(y_UBS1, y_UBS2, color="green", linewidth=0.75, marker="+",
+        markersize=1.0, linestyle=":")
+
+    # Show the points computed by the dichotomic method 
+    y_LBS1 = [y.z[1] for y in L] 
+    y_LBS2 = [y.z[2] for y in L]
+    scatter(y_LBS1, y_LBS2, color="red", marker="+", label = "L")
+    plot(y_LBS1, y_LBS2, color="red", linewidth=0.75, marker="+",
+        markersize=1.0, linestyle=":")
+end 
+
 
 # Returns true if the upper bound set for a particular node is dominated by the 
 # lower bound set 

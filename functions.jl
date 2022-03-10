@@ -58,6 +58,7 @@ function addItem!(prob::_MOMKP, sol::Solution, item::Int)
 	sol.X[item] = 1
 	sol.z      += prob.P[:,item]
 	sol.ω_     -= prob.W[1,item]
+	@assert sol.ω_ >= 0 "addItem"
 end
 
 # Add a break item to a solution
@@ -70,20 +71,21 @@ function addBreakItem!(prob::_MOMKP,
 end
 
 # Computes the dantzig solution for a given sequence
-function dantzigSolution(prob::_MOMKP, sequence::Vector{Int}, solInit::Solution)
+function dantzigSolution(prob::_MOMKP, seq::Vector{Int}, solInit::Solution)
 
 	n   = size(prob.P)[2]
 	ω_  = prob.ω[1]
 	sol = Solution{Float64}(solInit.X[1:end], solInit.z[1:end], solInit.ω_)
 	i   = 1
 
-	while i <= n && prob.W[1,sequence[i]] <= sol.ω_
-		item = sequence[i]
+	while i <= length(seq) && prob.W[1,seq[i]] <= sol.ω_
+		println("ω_ = ", sol.ω_)
 		# L'objet est inséré
-		addItem!(prob, sol, item)
-		sol.ω_ -= prob.W[1,item]
+		addItem!(prob, sol, seq[i])
 		i += 1
 	end
+
+	@assert sol.ω_ >= 0 "dantzigSolution"
 
 	return sol, i
 end
@@ -94,10 +96,12 @@ function buildSolution(prob::_MOMKP, seq::Vector{Int}, solInit::Solution)
 	n      = size(prob.P)[2]
 	sol, s = dantzigSolution(prob, seq, solInit)
 
-	if sol.ω_ > 0
+	if sol.ω_ > 0 && s <= length(seq)
 		# Une fraction de l'objet s est insérée
 		addBreakItem!(prob, sol, seq[s])
 	end
+
+	@assert sol.ω_ >= 0 "buildSolution"
 
 	return sol, s
 end
@@ -109,34 +113,35 @@ function reoptSolution(prob::_MOMKP,
 					   finish::Int, 
 					   sol::Solution)
 
-	# Les objets entre start et fin dans la séquence sont retirés
+	# The items between start and finish in the sequence are removed 
 	for pos in start:finish
 
 		item = seq[pos]
 		
 		if sol.X[item] < 1 && sol.X[item] > 0 
-			# L'objet cassé est retiré
+			# The break item is removed
 			sol.z      -= sol.X[item] * prob.P[:,item]
 			sol.X[item] = 0
 			
 		elseif sol.X[item] == 1 
-			# Un objet inséré dans le sac est retiré
+			# An item that was in the bag is removed 
 			sol.z      -= prob.P[:,item]
 			sol.ω_     += prob.W[1,item]
 			sol.X[item] = 0
 		end 
 	end
 
-	# Les objets sont insérés en partant de start dans la nouvelle séquence
+	# The items are inserted from start to finish 
 	pos = start
 	while prob.W[1,seq[pos]] <= sol.ω_
 
 		# L'objet est inséré en entier
 		addItem!(prob, sol, seq[pos])
-		sol.ω_ -= prob.W[1,seq[pos]]
 
 		pos += 1
 	end
+
+	@assert sol.ω_ >= 0 "reoptSolution"
 	
 	return sol, pos
 end
