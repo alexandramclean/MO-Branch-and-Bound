@@ -59,8 +59,8 @@ function transpositionPreprocessing(weights::Vector{Rational{Int}},
             transp = Transposition(weights[iter])
 
             while iter < length(weights) && weights[iter] == weights[iter+1]
-            push!(transp.pairs, pairs[iter])
-            iter += 1
+                push!(transp.pairs, pairs[iter])
+                iter += 1
             end
 
             # The last occurence of λ
@@ -186,8 +186,8 @@ function setVariable(init::Initialisation,
     end
 
     # The positions of items after var in the sequence are diminished by 1
-    for p in init.pos[var]+1:length(init.pos)
-        newPos[seq[p]] = init.pos[seq[p]] - 1
+    for p in init.pos[var]+1:length(init.seq)
+        newPos[init.seq[p]] = init.pos[init.seq[p]] - 1
     end
 
     return Initialisation(newTranspositions, newSeq, newPos)
