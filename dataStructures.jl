@@ -47,7 +47,8 @@ struct Initialisation
     seq::Vector{Int}                      # Initial sequence 
     pos::Vector{Int}                      # Positions in the sequence
 end 
-Initialisation(transpositions, seq, pos) = Initialisation([], [], transpositions, seq, pos)
+Initialisation(transpositions, seq, pos) = 
+    Initialisation([], [], transpositions, seq, pos)
 
 # ----- BOUND SETS ----------------------------------------------------------- #
 # Data structure of a constraint generated whilst computing the upper bound set
@@ -71,15 +72,12 @@ DualBoundSet{Rational{Int}}() = DualBoundSet(Vector{Rational{Int}}[], Constraint
 @enum Status DOMINANCE OPTIMALITY INFEASIBILITY NOTPRUNED
 
 # Data structure representing a node in a branch-and-bound algorithm
-struct Node 
+mutable struct Node 
     UB::DualBoundSet            # Upper bound set for the node
-    parent::Union{Node,Nothing} # Parent node 
-    setVar::Tuple{Int,Int}      # Variable to set and value (var,val)
+    #parent::Union{Node,Nothing} # Parent node 
+    #setVar::Tuple{Int,Int}      # Variable to set and value (var,val)
     solInit::Solution           # Initial solution with set variables
     init::Initialisation        # Transpositions and initial sequence
     pruned::Status              # Indicates whether the node has been pruned 
                                 # and for what reason
 end
-
-# Constructors 
-Node(UB, init) = Node(UB, Nothing, (0,0), init, NOTPRUNED)
