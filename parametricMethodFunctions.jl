@@ -7,77 +7,6 @@
 include("functions.jl")
 using TimerOutputs
 
-# ----- TRANSPOSITIONS AND CRITICAL WEIGHTS ---------------------------------- #
-# Computes the critical weights
-function criticalWeights(prob::_MOMKP,
-                         r1::Vector{Rational{Int}},
-                         r2::Vector{Rational{Int}})
-
-    n       = size(prob.P)[2]
-    weights = Rational{Int}[]
-    pairs   = Tuple{Int,Int}[]
-
-    nbTransp = 0
-
-    # Computes the critical weight for each pair of items (i,j)
-    for i in 1:n
-        for j in i+1:n
-
-            if !(r1[i] == r1[j] || r2[i] == r2[j]) 
-
-                λ = (r2[j] - r2[i])//(r1[i] - r2[i] - r1[j] + r2[j])
-
-                if λ > 0 && λ < 1
-                    nbTransp += 1 
-                    push!(weights, λ)
-                    push!(pairs, (i,j))
-                end
-            end
-        end
-    end
-
-    #println("\tNumber of transpositions : ", nbTransp, " / ", Int(n*(n-1)/2))
-
-    # Sorts the critical weights and associated item pairs in decreasing order
-    perm = sortperm(weights, rev=true)
-    return weights[perm], pairs[perm]
-end
-
-# Returns a list containing all the distinct λ values in decreasing order and
-# the associated item pair(s)
-function transpositionPreprocessing(weights::Vector{Rational{Int}},
-                                    pairs::Vector{Tuple{Int,Int}})
-
-    transpositions = Transposition[]
-
-    iter = 1
-    while iter <= length(weights)
-
-        # There are multiple identical critical weights λ
-        if iter < length(weights) && weights[iter] == weights[iter+1]
-
-            transp = Transposition(weights[iter])
-
-            while iter < length(weights) && weights[iter] == weights[iter+1]
-                push!(transp.pairs, pairs[iter])
-                iter += 1
-            end
-
-            # The last occurence of λ
-            push!(transp.pairs, pairs[iter])
-            iter += 1
-
-            push!(transpositions, transp)
-
-        else
-            push!(transpositions, Transposition(weights[iter], [pairs[iter]]))
-            iter += 1
-        end
-    end
-
-    return transpositions
-end
-
 # ----- SEQUENCE AND POSITIONS ----------------------------------------------- #
 # Identification of the modified subsequences
 function identifySubsequences(positions)
@@ -115,7 +44,7 @@ function updatePositions!(seq::Vector{Int},
 end
 
 # ----- INITIALISATION ------------------------------------------------------- #
-# Computes the utilities, transpositions, initial sequence and positions 
+#= Computes the utilities, transpositions, initial sequence and positions 
 function initialisation(prob::_MOMKP)
 
     #@timeit to "Initialisation" begin 
@@ -142,53 +71,5 @@ function initialisation(prob::_MOMKP)
         #end 
 	#end
 	return Initialisation(r1, r2, transpositions, seq, pos)
-end
+end=#
 
-# ----- SETTING VARIABLES ---------------------------------------------------- #
-# Remove a variable from the sequence and transpositions
-function setVariable(init::Initialisation,
-                     var::Int)
-       
-    newTranspositions = Transposition[]
-    newSeq            = Vector{Int}(undef,length(init.seq)-1)
-    newPos            = copy(init.pos)
-
-    # The variable is removed from the set of transpositions
-    for t in init.transpositions
-
-        if length(t.pairs) > 1	
-
-            swaps = Tuple{Int,Int}[]
-            for pair in t.pairs 
-                if !(var in pair) 
-                    push!(swaps, pair)
-                end
-            end
-
-            if length(swaps) > 0 
-                push!(newTranspositions, Transposition(t.λ, swaps))
-            end
-        else
-
-            if !(var in t.pairs[1])
-                push!(newTranspositions, Transposition(t.λ, t.pairs))
-            end
-        end
-    end
-
-    # The variable is removed from the sequence
-    inser = 1
-    for i in 1:length(init.seq)
-        if init.seq[i] != var
-            newSeq[inser] = init.seq[i] 
-            inser += 1 
-        end
-    end
-
-    # The positions of items after var in the sequence are diminished by 1
-    for p in init.pos[var]+1:length(init.seq)
-        newPos[init.seq[p]] = init.pos[init.seq[p]] - 1
-    end
-
-    return Initialisation(newTranspositions, newSeq, newPos)
-end

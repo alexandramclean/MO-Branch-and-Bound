@@ -81,7 +81,7 @@ function parametricMethod(prob::_MOMKP,
 	UB = DualBoundSet{Float64}()
 	if s <= length(seq)
 		updateBoundSets!(UB, L, 1//1, sol, seq[s])
-	else 
+	elseif length(seq) > 0 
 		updateBoundSets!(UB, L, 1//1, sol, seq[s-1])
 	end 
 

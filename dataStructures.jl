@@ -6,6 +6,8 @@
 
 @enum Optimisation MAX MIN
 
+@enum Method PARAMETRIC_LP DICHOTOMIC SIMPLEX PARAMETRIC_MT 
+
 # ----- PROBLEMS ------------------------------------------------------------- #
 # Datastructure of a multi-objective multi-dimensionnal KP with 0/1 variables
 struct _MOMKP
@@ -41,14 +43,16 @@ Transposition(λ) = Transposition(λ,[])
 
 # Stores the transpositions and initial sequence and positions 
 struct Initialisation
-    r1::Vector{Rational{Int}}             # Utilities for z1 
-    r2::Vector{Rational{Int}}             # Utilities for z2
-    transpositions::Vector{Transposition} # Critical weights and transpositions
-    seq::Vector{Int}                      # Initial sequence 
-    pos::Vector{Int}                      # Positions in the sequence
+    r1::Union{Vector{Rational{Int}},Nothing}             # Utilities for z1 
+    r2::Union{Vector{Rational{Int}},Nothing}             # Utilities for z2
+    transpositions::Union{Vector{Transposition},Nothing} # Critical weights and transpositions
+    seq::Union{Vector{Int},Nothing}                      # Initial sequence 
+    pos::Union{Vector{Int},Nothing}                      # Positions in the sequence
 end 
-Initialisation(transpositions, seq, pos) = 
-    Initialisation([], [], transpositions, seq, pos)
+Initialisation(transpositions::Vector{Transposition}, 
+               seq::Vector{Int}, 
+               pos::Vector{Int}) = 
+    Initialisation(nothing, nothing, transpositions, seq, pos) 
 
 # ----- BOUND SETS ----------------------------------------------------------- #
 # Data structure of a constraint generated whilst computing the upper bound set
@@ -69,15 +73,15 @@ DualBoundSet{Float64}() = DualBoundSet(Vector{Float64}[], Constraint[])
 DualBoundSet{Rational{Int}}() = DualBoundSet(Vector{Rational{Int}}[], Constraint[])
 
 # ----- BRANCH-AND-BOUND ----------------------------------------------------- #
-@enum Status DOMINANCE OPTIMALITY INFEASIBILITY NOTPRUNED
+@enum Status DOMINANCE OPTIMALITY INFEASIBILITY NOTPRUNED MAXDEPTH
 
 # Data structure representing a node in a branch-and-bound algorithm
 mutable struct Node 
     UB::DualBoundSet            # Upper bound set for the node
-    #parent::Union{Node,Nothing} # Parent node 
+    parent::Union{Node,Nothing} # Parent node 
     #setVar::Tuple{Int,Int}      # Variable to set and value (var,val)
     solInit::Solution           # Initial solution with set variables
     init::Initialisation        # Transpositions and initial sequence
-    pruned::Status              # Indicates whether the node has been pruned 
+    status::Status              # Indicates whether the node has been pruned 
                                 # and for what reason
 end

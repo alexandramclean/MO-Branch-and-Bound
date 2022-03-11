@@ -33,7 +33,7 @@ function dominates(x::Solution, y::Solution, opt::Optimisation=MAX)
     end
 end
 
-# ----- RATIOS --------------------------------------------------------------- #
+# ----- INITIALISATION ------------------------------------------------------- #
 # Computes the utilities (profit-to-weight ratios) for both objective functions
 function utilities(prob::_MOMKP)
 
@@ -52,13 +52,180 @@ function utilities(prob::_MOMKP)
 	return r1, r2
 end
 
+# Computes the critical weights
+function criticalWeights(prob::_MOMKP,
+						 r1::Vector{Rational{Int}},
+						 r2::Vector{Rational{Int}})
+
+	n       = size(prob.P)[2]
+	weights = Rational{Int}[]
+	pairs   = Tuple{Int,Int}[]
+
+	nbTransp = 0
+
+	# Computes the critical weight for each pair of items (i,j)
+	for i in 1:n
+		for j in i+1:n
+
+			if !(r1[i] == r1[j] || r2[i] == r2[j]) 
+
+				λ = (r2[j] - r2[i])//(r1[i] - r2[i] - r1[j] + r2[j])
+
+				if λ > 0 && λ < 1
+					nbTransp += 1 
+					push!(weights, λ)
+					push!(pairs, (i,j))
+				end
+			end
+		end
+	end
+
+	#println("\tNumber of transpositions : ", nbTransp, " / ", Int(n*(n-1)/2))
+
+	# Sorts the critical weights and associated item pairs in decreasing order
+	perm = sortperm(weights, rev=true)
+	return weights[perm], pairs[perm]
+end
+
+# Returns a list containing all the distinct λ values in decreasing order and
+# the associated item pair(s)
+function transpositionPreprocessing(weights::Vector{Rational{Int}},
+									pairs::Vector{Tuple{Int,Int}})
+
+	transpositions = Transposition[]
+
+	iter = 1
+	while iter <= length(weights)
+
+		# There are multiple identical critical weights λ
+		if iter < length(weights) && weights[iter] == weights[iter+1]
+
+			transp = Transposition(weights[iter])
+
+			while iter < length(weights) && weights[iter] == weights[iter+1]
+			push!(transp.pairs, pairs[iter])
+			iter += 1
+			end
+
+			# The last occurence of λ
+			push!(transp.pairs, pairs[iter])
+			iter += 1
+
+			push!(transpositions, transp)
+
+		else
+			push!(transpositions, Transposition(weights[iter], [pairs[iter]]))
+			iter += 1
+		end
+	end
+
+	return transpositions
+end
+
+# Computes the utilities, transpositions, initial sequence and positions 
+function initialisation(prob::_MOMKP, method::Method)
+
+    r1, r2 = utilities(prob)
+
+	if method == DICHOTOMIC 
+
+		return Initialisation(r1, r2, nothing, nothing, nothing)
+	else
+		# Item sequence 
+		seq = sortperm(1000000*r1 + r2, rev=true) 
+
+		if method == SIMPLEX 
+			
+			return Initialisation(nothing, nothing, nothing, seq, nothing)
+
+		else # method == PARAMETRIC 
+
+			# Item positions
+			pos = sortperm(seq)          			  
+
+			weights, pairs = criticalWeights(prob, r1, r2)
+
+			transpositions = transpositionPreprocessing(weights, pairs)
+
+			return Initialisation(transpositions, seq, pos)
+		end 
+	end 
+end
+# ----- SETTING VARIABLES ---------------------------------------------------- #
+# Removes a variable from the sequence 
+function removeFromSequence(seq::Vector{Int}, var::Int)
+
+	newSeq = Vector{Int}(undef,length(init.seq)-1)
+
+	# The variable is removed from the sequence
+	inser = 1
+	for i in 1:length(init.seq)
+		if init.seq[i] != var
+			newSeq[inser] = init.seq[i] 
+		inser += 1 
+		end
+	end
+	return newSeq 
+end 
+
+# Remove a variable from the sequence and transpositions
+function setVariable(init::Initialisation,
+					 var::Int,
+					 method::Method)
+
+	if method == PARAMETRIC_LP || method == PARAMETRIC_MT
+
+		newTranspositions = Transposition[]
+		newPos            = copy(init.pos)
+
+		# The variable is removed from the set of transpositions
+		for t in init.transpositions
+
+			if length(t.pairs) > 1	
+
+				swaps = Tuple{Int,Int}[]
+				for pair in t.pairs 
+					if !(var in pair) 
+						push!(swaps, pair)
+					end
+				end
+
+				if length(swaps) > 0 
+					push!(newTranspositions, Transposition(t.λ, swaps))
+				end
+			else
+
+				if !(var in t.pairs[1])
+					push!(newTranspositions, Transposition(t.λ, t.pairs))
+				end
+			end
+		end
+
+		# The variable is removed form the sequence 
+		newSeq = removeFromSequence(init.seq, var)
+
+		# The positions of items after var in the sequence are diminished by 1
+		for p in init.pos[var]+1:length(init.seq)
+			newPos[init.seq[p]] = init.pos[init.seq[p]] - 1
+		end
+
+		return Initialisation(newTranspositions, newSeq, newPos)
+
+	elseif method == SIMPLEX 
+
+		newSeq = removeFromSequence(init.seq, var)
+		return Initialisation(nothing, nothing, nothing, newSeq, nothing)
+		
+	end 
+end
+
 # ----- SOLUTIONS ------------------------------------------------------------ #
 # Add an item to a solution
 function addItem!(prob::_MOMKP, sol::Solution, item::Int)
 	sol.X[item] = 1
 	sol.z      += prob.P[:,item]
 	sol.ω_     -= prob.W[1,item]
-	@assert sol.ω_ >= 0 "addItem"
+	@assert sol.ω_ >= 0 "Negative capacity addItem"
 end
 
 # Add a break item to a solution
@@ -79,13 +246,12 @@ function dantzigSolution(prob::_MOMKP, seq::Vector{Int}, solInit::Solution)
 	i   = 1
 
 	while i <= length(seq) && prob.W[1,seq[i]] <= sol.ω_
-		println("ω_ = ", sol.ω_)
 		# L'objet est inséré
 		addItem!(prob, sol, seq[i])
 		i += 1
 	end
 
-	@assert sol.ω_ >= 0 "dantzigSolution"
+	@assert sol.ω_ >= 0 "Negative capacity dantzigSolution"
 
 	return sol, i
 end
@@ -101,7 +267,7 @@ function buildSolution(prob::_MOMKP, seq::Vector{Int}, solInit::Solution)
 		addBreakItem!(prob, sol, seq[s])
 	end
 
-	@assert sol.ω_ >= 0 "buildSolution"
+	@assert sol.ω_ >= 0 "Negative capacity buildSolution"
 
 	return sol, s
 end
@@ -114,7 +280,9 @@ function reoptSolution(prob::_MOMKP,
 					   sol::Solution)
 
 	# The items between start and finish in the sequence are removed 
-	for pos in start:finish
+	pos = finish 
+	stop = false 
+	while !stop && pos >= start
 
 		item = seq[pos]
 		
@@ -122,6 +290,7 @@ function reoptSolution(prob::_MOMKP,
 			# The break item is removed
 			sol.z      -= sol.X[item] * prob.P[:,item]
 			sol.X[item] = 0
+			stop        = true
 			
 		elseif sol.X[item] == 1 
 			# An item that was in the bag is removed 
@@ -129,6 +298,7 @@ function reoptSolution(prob::_MOMKP,
 			sol.ω_     += prob.W[1,item]
 			sol.X[item] = 0
 		end 
+		pos -= 1 
 	end
 
 	# The items are inserted from start to finish 
@@ -137,11 +307,10 @@ function reoptSolution(prob::_MOMKP,
 
 		# L'objet est inséré en entier
 		addItem!(prob, sol, seq[pos])
-
 		pos += 1
 	end
 
-	@assert sol.ω_ >= 0 "reoptSolution"
+	@assert sol.ω_ >= 0 "Negative capacity reoptSolution"
 	
 	return sol, pos
 end

@@ -92,8 +92,7 @@ end
 
 function dichotomicMethod(prob::_MOMKP,
 						  L::Vector{Solution},
-						  r1::Vector{Rational{Int}},
-						  r2::Vector{Rational{Int}})
+						  init::Initialisation)
 
 	n = size(prob.P)[2]
 
@@ -101,7 +100,7 @@ function dichotomicMethod(prob::_MOMKP,
 	UB = DualBoundSet{Rational{Int}}()
 
 	# Calcul des solutions lexicographiquement optimales
-	x12, x21 = lexicographicSolutions!(prob, UB, L, r1, r2) 	
+	x12, x21 = lexicographicSolutions!(prob, UB, L, init.r1, init.r2) 	
 
 	# Appel récursif
 	solveRecursion!(prob, UB, L, x12, x21)

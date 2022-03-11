@@ -14,42 +14,55 @@ function branch!(η::Node,
                  L::Vector{Solution}, 
                  branchingVariables::Vector{Int}, 
                  depth::Int)
-
-    # Compute the upper bound set for η 
-    UBη = parametricMethod(prob, L, η.init, η.solInit) 
-
+    
     println("\ndepth = ", depth, " L = ", L)
+    println("solInit : ", η.solInit.ω_)
 
-    # Compare with lower bound set and update status 
-    if UBη.points == [[0.,0.]]
-        η.pruned = INFEASIBILITY
-    elseif length(L) > 1 && isDominated(UBη, L) 
-        η.pruned = DOMINANCE 
-        plotBoundSets(UBη, L)
+    # Upper bound and dominance test 
+    if η.status == NOTPRUNED
+        # Compute the upper bound set for η 
+        UBη = parametricMethod(prob, L, η.init, η.solInit) 
+
+        # Compare with lower bound set and update status 
+        if UBη.points == [[0.,0.]]
+            η.status = INFEASIBILITY
+        elseif length(L) > 1 && isDominated(UBη, L) 
+            η.status = DOMINANCE 
+            plotBoundSets(UBη, L)
+        end 
     end 
-    # INFEASIBILITY, OPTIMALITY ? 
-    println("status : ", η.pruned)
 
-    if η.pruned == NOTPRUNED
+    println("status : ", η.status)
 
-        # Branching 
-        var = branchingVariables[depth] 
-        newInit = setVariable(η.init, var)
-        println("Variable ", var, " has been set")
+    # Branching 
+    if η.status == NOTPRUNED
+        
+        if depth <= length(branchingVariables)
+            # Set variable  
+            var = branchingVariables[depth] 
+            newInit = setVariable(η.init, var)
+            println("Variable ", var, " has been set")
 
-        # var is set to 0
-        η0 = Node(DualBoundSet{Float64}(), η.solInit, newInit, NOTPRUNED)
-        branch!(η0, prob, L, branchingVariables, depth+1) 
+            # var is set to 0
+            η0 = Node(DualBoundSet{Float64}(), η, η.solInit, newInit, NOTPRUNED)
+            branch!(η0, prob, L, branchingVariables, depth+1) 
 
-        # var is set to 1
-        if prob.W[1,var] <= solInit.ω_ 
-            solInit1 = Solution(η.solInit.X[1:end], 
-                        η.solInit.z + prob.P[:,var],
-                        η.solInit.ω_ - prob.W[1,var])  
-            solInit1.X[var] = 1 
+            # var is set to 1
+            if prob.W[1,var] <= η.solInit.ω_ 
+                solInit1 = Solution(η.solInit.X[1:end], 
+                            η.solInit.z + prob.P[:,var],
+                            η.solInit.ω_ - prob.W[1,var])  
+                solInit1.X[var] = 1 
 
-            η1 = Node(DualBoundSet{Float64}(), solInit1, newInit, NOTPRUNED) 
-            branch!(η1, prob, L, branchingVariables, depth+1) 
+                η1 = Node(DualBoundSet{Float64}(), η, solInit1, newInit, NOTPRUNED) 
+                branch!(η1, prob, L, branchingVariables, depth+1) 
+            else 
+                η1 = Node(DualBoundSet{Float64}(), η, η.solInit, newInit, INFEASIBILITY)
+                branch!(η1, prob, L, branchingVariables, depth+1)
+            end 
+        else 
+            η.status = MAXDEPTH
+            println("Max depth has been reached")
         end 
     end 
 end 
@@ -59,7 +72,7 @@ function branchAndBound(prob::_MOMKP)
     init = initialisation(prob)
     solInit = Solution{Float64}(didactic) 
     rootNode = 
-        Node(DualBoundSet{Float64}(), solInit, init, NOTPRUNED)
+        Node(DualBoundSet{Float64}(), nothing, solInit, init, NOTPRUNED)
 
     # Lower bound set 
     L = Solution[] 
