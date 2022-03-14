@@ -106,7 +106,7 @@ end
 
 # ----- LOCAL NADIR POINTS AND DOMINANCE TESTS ------------------------------- # 
 # Computes the local nadir points 
-function localNadirPoints(incumbentSet::Vector{Solution})
+function localNadirPoints(incumbentSet::Vector{Solution{T}}) where T<:Real
 
     nadirs = Vector{Vector{Float64}}(undef, length(incumbentSet)-1)
     for i in 1:length(incumbentSet)-1 
@@ -143,6 +143,23 @@ function verifiesConstraints(constraints::Vector{Constraint},
     return verif 
 end 
 
+# Returns true if the upper bound set for a particular node is dominated by the 
+# lower bound set 
+function isDominated(UB::DualBoundSet, L::Vector{Solution{T}}) where T<:Real
+
+    is_dominated  = true 
+    shiftedNadirs = shiftedLocalNadirPoints(localNadirPoints(L))
+    #shiftedNadirs = localNadirPoints(L)
+    i = 1 
+
+    while is_dominated && i <= length(shiftedNadirs)
+        is_dominated = is_dominated && !verifiesConstraints(UB.constraints, shiftedNadirs[i])
+        i += 1 
+    end 
+    return is_dominated
+end 
+
+# ----- PRINT AND GRAPHICS --------------------------------------------------- #
 # Plots the upper bound set for a node and the lower bound set 
 function plotBoundSets(UB::DualBoundSet, L::Vector{Solution})
     # Setup
@@ -166,20 +183,43 @@ function plotBoundSets(UB::DualBoundSet, L::Vector{Solution})
     scatter(y_LBS1, y_LBS2, color="red", marker="+", label = "L")
     plot(y_LBS1, y_LBS2, color="red", linewidth=0.75, marker="+",
         markersize=1.0, linestyle=":")
+
+    legend(bbox_to_anchor=[1,1], loc=0, borderaxespad=0, fontsize = "x-small")
 end 
 
+# Plot the nondominated points obtained by vOpt and the branch-and-bound algorithm
+function plotYN(ref::Vector{Vector{Float64}}, L::Vector{Solution})
+    # Setup
+    figure("Nondominated points",figsize=(6.5,5))
+    xlabel(L"z^1(x)")
+    ylabel(L"z^2(x)")
+    PyPlot.title("Nondominated points")
 
-# Returns true if the upper bound set for a particular node is dominated by the 
-# lower bound set 
-function isDominated(UB::DualBoundSet, L::Vector{Solution})
+    # Show the set of nondominated points computed by vOpt 
+    y_ref1 = [y[1] for y in ref] 
+    y_ref2 = [y[2] for y in ref]
+    scatter(y_ref1, y_ref2, color="black", marker="*", label = "ref")
+    plot(y_ref1, y_ref2, color="black", linewidth=0.75, marker="*",
+        markersize=1.0, linestyle=":")
 
-    is_dominated  = true 
-    shiftedNadirs = shiftedLocalNadirPoints(localNadirPoints(L))
-    i = 1 
+    # Show the points computed by branch-and-bound
+    y_N1 = [y.z[1] for y in L] 
+    y_N2 = [y.z[2] for y in L]
+    scatter(y_N1, y_N2, color="cyan", marker="+", label = "branch-and-bound")
+    plot(y_N1, y_N2, color="cyan", linewidth=0.75, marker="+",
+        markersize=1.0, linestyle=":")
 
-    while is_dominated && i <= length(shiftedNadirs)
-        is_dominated = is_dominated && !verifiesConstraints(UB.constraints, shiftedNadirs[i])
-        i += 1 
+    legend(bbox_to_anchor=[1,1], loc=0, borderaxespad=0, fontsize = "x-small")
+end 
+
+function printBoundSet(BS::Vector{Solution})
+    if length(BS) > 0
+        print("[")
+        for i in 1:length(BS)-1 
+            print(BS[i].z, ", ")
+        end
+        print(BS[end].z, "]\n")
+    else 
+        println("[]")
     end 
-    return is_dominated
 end 

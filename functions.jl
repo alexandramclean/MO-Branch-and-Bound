@@ -147,7 +147,7 @@ function initialisation(prob::_MOMKP, method::Method)
 
 			transpositions = transpositionPreprocessing(weights, pairs)
 
-			return Initialisation(transpositions, seq, pos)
+			return Initialisation(r1, r2, transpositions, seq, pos)
 		end 
 	end 
 end
@@ -155,13 +155,13 @@ end
 # Removes a variable from the sequence 
 function removeFromSequence(seq::Vector{Int}, var::Int)
 
-	newSeq = Vector{Int}(undef,length(init.seq)-1)
+	newSeq = Vector{Int}(undef,length(seq)-1)
 
 	# The variable is removed from the sequence
 	inser = 1
-	for i in 1:length(init.seq)
-		if init.seq[i] != var
-			newSeq[inser] = init.seq[i] 
+	for i in 1:length(seq)
+		if seq[i] != var
+			newSeq[inser] = seq[i] 
 		inser += 1 
 		end
 	end
