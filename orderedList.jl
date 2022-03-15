@@ -9,8 +9,8 @@ using Random
 # ----- AUXILIARY FUNCTIONS -------------------------------------------------- #
 # Precondition : x and y are of the same type 
 # Returns true if x is strictly smaller than y on dimension dim 
-function isStrictlySmaller(x::Union{Solution, Vector{T}},
-                           y::Union{Solution, Vector{T}},
+function isStrictlySmaller(x::Union{Solution{T}, Vector{T}},
+                           y::Union{Solution{T}, Vector{T}},
                            dim::Int) where T<:Real
     if typeof(x) == Solution{Float64} || typeof(x) == Solution{Rational{Int}} 
         return x.z[dim] < y.z[dim]
@@ -21,8 +21,8 @@ end
 
 # ----- VERIFY --------------------------------------------------------------- #
 # Searches for the index of the last point dominated by y 
-function lastDominatedPoint(yN::Union{Vector{Solution}, Vector{Vector{T}}},
-                            y::Union{Solution, Vector{T}},
+function lastDominatedPoint(yN::Union{Vector{Solution{T}}, Vector{Vector{T}}},
+                            y::Union{Solution{T}, Vector{T}},
                             start::Int64, 
                             finish::Int64,
                             opt::Optimisation=MAX) where T<:Real
@@ -58,8 +58,8 @@ end
 # Verifies that y's successors (>ind) are not dominated by y 
 # Vérification que les successeurs de y (>ind) ne sont pas dominés par y
 # Si y domine des points de yN alors il domine sont successeur large minimum
-function verify(yN::Union{Vector{Solution}, Vector{Vector{T}}},
-                y::Union{Solution, Vector{T}}, 
+function verify(yN::Union{Vector{Solution{T}}, Vector{Vector{T}}},
+                y::Union{Solution{T}, Vector{T}}, 
                 ind::Int64,
                 opt::Optimisation=MAX) where T<:Real
                   
@@ -80,8 +80,8 @@ function verify(yN::Union{Vector{Solution}, Vector{Vector{T}}},
 end
 
 # ----- ADD ------------------------------------------------------------------ #
-function addRec(yN::Union{Vector{Solution}, Vector{Vector{T}}},
-                y::Union{Solution, Vector{T}},
+function addRec(yN::Union{Vector{Solution{T}}, Vector{Vector{T}}},
+                y::Union{Solution{T}, Vector{T}},
                 start::Int64, 
                 finish::Int64,
                 opt::Optimisation=MAX) where T<:Real
@@ -116,8 +116,8 @@ function addRec(yN::Union{Vector{Solution}, Vector{Vector{T}}},
     end
 end
 
-function add!(yN::Union{Vector{Solution}, Vector{Vector{T}}}, 
-              y::Union{Solution,Vector{T}}, 
+function add!(yN::Union{Vector{Solution{T}}, Vector{Vector{T}}}, 
+              y::Union{Solution{T},Vector{T}}, 
               opt::Optimisation=MAX) where T<:Real
     #! Affichage
     #println("Adding ", y)

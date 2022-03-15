@@ -18,11 +18,11 @@ end
 
 # ----- SOLUTIONS ------------------------------------------------------------ #
 # Data structure of a solution that can contain fractions of an object
-mutable struct Solution{T} 
+mutable struct Solution{T<:Real} 
     X::Vector{Rational{Int}} # Vector of binary variables 
     z::Vector{T}             # Values for the objective functions 
     ω_::Int                  # Residual capacity 
-end
+end 
 
 # Constructors 
 Solution{Float64}(prob::_MOMKP) = Solution(zeros(Rational{Int}, size(prob.P)[2]), 

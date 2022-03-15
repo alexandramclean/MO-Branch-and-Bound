@@ -320,6 +320,33 @@ function isInteger(sol::Solution, breakItem::Int)
 	return (sol.X[breakItem] == 0 || sol.X[breakItem] == 1)
 end
 
+# Returns true if the solution is integer 
+function isInteger(sol::Solution)
+	is_integer = true 
+	for i in 1:length(sol.X)
+		is_integer = is_integer && !(sol.X[i] > 0 && sol.X[i] < 1)
+	end 
+	return is_integer
+end
+
+# Verifies the values for the objective function and the residual capacity
+function verifySolution(prob::_MOMKP, sol::Solution{T}) where T<:Real 
+    objValue = [0,0]
+    residualCapacity = prob.ω[1] 
+
+    for i in 1:size(prob.P)[2] 
+        if sol.X[i] == 1//1
+            objValue += prob.P[:,i] 
+            residualCapacity -= prob.W[1,i] 
+        elseif sol.X[i] > 0 
+            objValue += sol.X[i] * prob.P[:,i]
+        end
+    end
+
+    println("z : ", sol.z == objValue)
+    println("ω_ : ", sol.ω_ == residualCapacity)
+end 
+
 # ----- PROBLEMS ------------------------------------------------------------- #
 # Groups together equivalent items 
 function groupEquivalentItems(prob::_MOMKP)
@@ -368,7 +395,7 @@ end
 
 # ----- BOUND SETs ----------------------------------------------------------- #
 # Returns true if sol is identical to the most recent solution in UB 
-function identicalToPrevious(UB::DualBoundSet, sol::Solution)
+function identicalToPrevious(UB::DualBoundSet, sol::Solution{T}) where T<:Real
     return length(UB.points) > 0 && UB.points[end] == sol.z 
 end 
 
@@ -382,10 +409,10 @@ end
 
 # Parametric method for LP relaxation 
 function updateBoundSets!(UB::DualBoundSet{Float64}, 
-						  L::Vector{Solution}, 
+						  L::Vector{Solution{T}}, 
 						  λ::Rational{Int}, 
-						  sol::Solution, 
-						  breakItem::Int)
+						  sol::Solution{T}, 
+						  breakItem::Int) where T<:Real
     
     if !identicalToPrevious(UB, sol)
         push!(UB.points, sol.z) 

@@ -106,7 +106,8 @@ end
 
 # ----- LOCAL NADIR POINTS AND DOMINANCE TESTS ------------------------------- # 
 # Computes the local nadir points 
-function localNadirPoints(incumbentSet::Vector{Solution{T}}) where T<:Real
+function localNadirPoints(incumbentSet::Vector{Solution{T}}
+                         ) where T<:Real
 
     nadirs = Vector{Vector{Float64}}(undef, length(incumbentSet)-1)
     for i in 1:length(incumbentSet)-1 
@@ -145,23 +146,27 @@ end
 
 # Returns true if the upper bound set for a particular node is dominated by the 
 # lower bound set 
-function isDominated(UB::DualBoundSet, L::Vector{Solution{T}}) where T<:Real
+function isDominated(UB::DualBoundSet, 
+                     L::Vector{Solution{T}}
+                    ) where T<:Real
 
     is_dominated  = true 
-    shiftedNadirs = shiftedLocalNadirPoints(localNadirPoints(L))
-    #shiftedNadirs = localNadirPoints(L)
+    #shiftedNadirs = shiftedLocalNadirPoints(localNadirPoints(L))
+    shiftedNadirs = localNadirPoints(L)
     i = 1 
 
     while is_dominated && i <= length(shiftedNadirs)
-        is_dominated = is_dominated && !verifiesConstraints(UB.constraints, shiftedNadirs[i])
+        is_dominated = is_dominated && 
+            !verifiesConstraints(UB.constraints, shiftedNadirs[i])
         i += 1 
     end 
     return is_dominated
 end 
 
-# ----- PRINT AND GRAPHICS --------------------------------------------------- #
+# ----- PRINT AND GRAPHIC FUNCTIONS ------------------------------------------- #
 # Plots the upper bound set for a node and the lower bound set 
-function plotBoundSets(UB::DualBoundSet, L::Vector{Solution})
+function plotBoundSets(UB::DualBoundSet, 
+                       L::Vector{Solution{T}}) where T<:Real
     # Setup
     randNumber = rand(1:100)
     println(randNumber)
@@ -188,7 +193,8 @@ function plotBoundSets(UB::DualBoundSet, L::Vector{Solution})
 end 
 
 # Plot the nondominated points obtained by vOpt and the branch-and-bound algorithm
-function plotYN(ref::Vector{Vector{Float64}}, L::Vector{Solution})
+function plotYN(ref::Vector{Vector{Float64}}, 
+                L::Vector{Solution{T}}) where T<:Real
     # Setup
     figure("Nondominated points",figsize=(6.5,5))
     xlabel(L"z^1(x)")
@@ -212,7 +218,9 @@ function plotYN(ref::Vector{Vector{Float64}}, L::Vector{Solution})
     legend(bbox_to_anchor=[1,1], loc=0, borderaxespad=0, fontsize = "x-small")
 end 
 
-function printBoundSet(BS::Vector{Solution})
+# Prints the objective values for all the solutions in a lower bound set
+function printBoundSet(BS::Vector{Solution{T}}) where T<:Real
+
     if length(BS) > 0
         print("[")
         for i in 1:length(BS)-1 
@@ -221,5 +229,6 @@ function printBoundSet(BS::Vector{Solution})
         print(BS[end].z, "]\n")
     else 
         println("[]")
-    end 
+    end        
 end 
+        

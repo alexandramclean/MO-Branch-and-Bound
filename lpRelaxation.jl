@@ -41,8 +41,8 @@ end
 # The break item is swapped with an item that is not in the knapsack
 function swapWithItemNotInBag(prob::_MOMKP,
 						   	  seq::Vector{Int},
-						   	  sol::Solution,
-						   	  s::Int)
+						   	  sol::Solution{T},
+						   	  s::Int) where T<:Real 
 
 	# The item in position s is removed
 	sol.z -= sol.X[seq[s]] * prob.P[:,seq[s]]
@@ -67,9 +67,9 @@ end
 
 # Computes the LP relaxation using the parametric method 
 function parametricMethod(prob::_MOMKP,
-						  L::Vector{Solution},
+						  L::Vector{Solution{T}},
 						  init::Initialisation,
-						  solInit::Solution)
+						  solInit::Solution{T}) where T<:Real
 
 	# Creates copies of the sequence and positions as they will be modified 
 	seq = init.seq[1:end] 
@@ -148,6 +148,9 @@ function parametricMethod(prob::_MOMKP,
 			end 
 		end
 	end
+
+	# Add the last constraint : z2 <= sol.z[2]
+	push!(UB.constraints, Constraint(0//1, sol.z))
 
 	#println("\tNumber of cases of identical critical weights : ", numberCasesIdenticalWeights)
 	return UB
