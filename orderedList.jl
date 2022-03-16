@@ -31,26 +31,32 @@ function lastDominatedPoint(yN::Union{Vector{Solution{T}}, Vector{Vector{T}}},
     elseif opt == MIN && dominates(y, yN[finish], opt)
         return finish
     elseif opt == MAX && dominates(y, yN[start], opt)
-        return start
+        return start 
     end
     
     mid = div(start + finish, 2)
     
     if dominates(y, yN[mid], opt)
-        if ((opt == MIN && !dominates(y, yN[mid+1], opt))
-            || (opt == MAX && !dominates(y, yN[mid-1], opt)))
-            # yN[mid] is the last dominated point 
-            return mid
-        elseif opt == MIN
-            return lastDominatedPoint(yN, y, mid+1, finish, opt)
-        else
-            return lastDominatedPoint(yN, y, start, mid-1, opt)
+        if opt == MIN
+            if !dominates(y, yN[mid+1], opt)
+                # yN[mid] is the last dominated point 
+                return mid
+            else 
+                return lastDominatedPoint(yN, y, mid+1, finish, opt)
+            end 
+        elseif opt == MAX
+            if !dominates(y, yN[mid-1], opt)
+                # yN[mid] is the first dominated point 
+                return mid 
+            else 
+                return lastDominatedPoint(yN, y, start, mid-1, opt) 
+            end 
         end
         
     # y does not dominate yN[mid]
     elseif opt == MIN
         return lastDominatedPoint(yN, y, start, mid-1, opt)
-    else
+    elseif opt == MAX 
         return lastDominatedPoint(yN, y, mid+1, finish, opt)
     end
 end
@@ -62,21 +68,22 @@ function verify(yN::Union{Vector{Solution{T}}, Vector{Vector{T}}},
                 y::Union{Solution{T}, Vector{T}}, 
                 ind::Int64,
                 opt::Optimisation=MAX) where T<:Real
-                  
-    if opt == MIN && ind < length(yN) && dominates(y, yN[ind+1], opt)
+                
+    # If y dominates any points it dominates its immediate successor 
+    # (or predecessor if opt == MAX)
+    if opt == MIN && ind < length(yN) && dominates(y, yN[ind+1], opt) 
         indLastDominated = lastDominatedPoint(yN, y, ind+1, length(yN), opt)
         #println("Last dominated point : ", indLastDominated)
         for j in indLastDominated:-1:ind+1
             deleteat!(yN, j)
         end
-        
     elseif opt == MAX && ind > 1 && dominates(y, yN[ind-1], opt)
         indFirstDominated = lastDominatedPoint(yN, y, 1, ind-1, opt)
-        #println("First dominated point : ", indFirstDominated)
+
         for j in ind-1:-1:indFirstDominated
             deleteat!(yN, j)
-        end
-    end
+        end 
+    end 
 end
 
 # ----- ADD ------------------------------------------------------------------ #
@@ -88,12 +95,26 @@ function addRec(yN::Union{Vector{Solution{T}}, Vector{Vector{T}}},
                      
     # Stopping criterion : only 1 element left in the list            
     if start >= finish 
-        if dominates(yN[start], y, opt)
-            return 0
-        elseif isStrictlySmaller(yN[start], y, 1)
-            return start + 1
-        else
-            return start
+
+        # y is inserted before yN[start] and yN[start] will be deleted
+        if dominates(y, yN[start], opt)
+            if opt == MIN
+                return start
+            else 
+                return start+1
+            end 
+        
+        # y is dominated and not inserted
+        elseif dominates(yN[start], y, opt)
+            return 0 
+
+        # There is no dominance between y and yN[start]
+        elseif isStrictlySmaller(y, yN[start], 1)
+            # y is inserted before yN[start]
+            return start 
+
+        else # y is inserted after yN[start]
+            return start+1
         end
     end
     
@@ -108,8 +129,6 @@ function addRec(yN::Union{Vector{Solution{T}}, Vector{Vector{T}}},
     elseif isStrictlySmaller(y, yN[mid], 1)
         # The case where y and yN[mid] have equal values for both objective 
         # functions is included in the dominance test 
-        # Le cas d'égalité sur les deux fonctions objectif a déjà été traité
-        # dans le test de dominance
         return addRec(yN, y, start, mid-1, opt)
     else
         return addRec(yN, y, mid+1, finish, opt)
@@ -127,40 +146,68 @@ function add!(yN::Union{Vector{Solution{T}}, Vector{Vector{T}}},
         insert!(yN, 1, y)
         #afficher(yN)
     else
+        #println("length = ", length(yN))
         ind = addRec(yN, y, 1, length(yN), opt)
+        #println("ind = ", ind)
         if ind > 0 
             insert!(yN, ind, y)
             #afficher(yN)
 
             # Elimination of the dominated points
-            verify(yN, y, ind, opt)
             #println("Verification : ")
-            #afficher(yN)
+            verify(yN, y, ind, opt)
         end
+        #afficher(yN)
     end
 end
 
 # ----- AFFICHER ------------------------------------------------------------- #
+# Prints yN in a readable format
 function afficher(yN)
-    print("|  ")
-    for i in 1:length(yN)
-        if yN[i].z[1] < 10
-            print("  ", yN[i].z[1], "  ")
-        elseif yN[i].z[1] < 100
-            print(" ", yN[i].z[1], "  ")
-        else
-            print(yN[i].z[1], "  ")
+    if typeof(yN[1]) == Solution{Float64} || 
+            typeof(yN[1]) == Solution{Rational{Int}}
+        print("| ")
+        for i in 1:length(yN)
+            if yN[i].z[1] < 10
+                print("  ", yN[i].z[1], "  ")
+            elseif yN[i].z[1] < 100
+                print(" ", yN[i].z[1], "  ")
+            else
+                print(yN[i].z[1], "  ")
+            end
         end
-    end
-    print("|\n| ")
-    for i in 1:length(yN)
-        if yN[i].z[2] < 10
-            print("  ", yN[i].z[2], "  ")
-        elseif yN[i].z[2] < 100
-            print(" ", yN[i].z[2], "  ")
-        else
-            print(yN[i].z[2], "  ")
+        print("|\n| ")
+        for i in 1:length(yN)
+            if yN[i].z[2] < 10
+                print("  ", yN[i].z[2], "  ")
+            elseif yN[i].z[2] < 100
+                print(" ", yN[i].z[2], "  ")
+            else
+                print(yN[i].z[2], "  ")
+            end
         end
+        print("|\n")
+    else 
+        print("| ")
+        for i in 1:length(yN)
+            if yN[i][1] < 10
+                print("  ", yN[i][1], "  ")
+            elseif yN[i][1] < 100
+                print(" ", yN[i][1], "  ")
+            else
+                print(yN[i][1], "  ")
+            end
+        end
+        print("|\n| ")
+        for i in 1:length(yN)
+            if yN[i][2] < 10
+                print("  ", yN[i][2], "  ")
+            elseif yN[i][2] < 100
+                print(" ", yN[i][2], "  ")
+            else
+                print(yN[i][2], "  ")
+            end
+        end
+        print("|\n")
     end
-    print("|\n")
 end

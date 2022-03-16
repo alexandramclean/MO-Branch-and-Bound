@@ -16,7 +16,7 @@ function dominates(x, y, opt::Optimisation=MAX)
              || (x[1] == y[1] && x[2] == y[2])) # No duplicates
     else
         return ((x[1] >= y[1] && x[2] >  y[2])
-             || (x[1] > y[1]  && x[2] >= y[2])
+             || (x[1] >  y[1] && x[2] >= y[2])
              || (x[1] == y[1] && x[2] == y[2])) # No duplicates
     end
 end
@@ -414,23 +414,25 @@ end
 # is not already present and adding the solution to the list of integer 
 # solutions if applicable 
 
-# Parametric method for LP relaxation 
+# -- Parametric method for LP relaxation 
 function updateBoundSets!(UB::DualBoundSet{Float64}, 
-						  L::Vector{Solution{T}}, 
+						  L::Vector{Solution{Float64}}, 
 						  λ::Rational{Int}, 
-						  sol::Solution{T}, 
-						  breakItem::Int) where T<:Real
+						  sol::Solution{Float64}, 
+						  breakItem::Int)
     
     if !identicalToPrevious(UB, sol)
         push!(UB.points, sol.z) 
 		push!(UB.constraints, Constraint(λ, sol.z))
         if isInteger(sol, breakItem) 
+			#println("\nL = ", [sol.z for sol in L])
+			#println("Adding ", sol.z)
             add!(L, Solution(sol.X[1:end], sol.z[1:end], sol.ω_)) 
         end 
     end 
 end 
 
-# Parametric method for Martello and Toth
+# -- Parametric method for Martello and Toth
 function updateBoundSet!(UB::DualBoundSet{Float64}, 
 						 λ::Union{Rational{Int},Float64}, 
 						 y::Vector{Float64})
@@ -441,11 +443,11 @@ function updateBoundSet!(UB::DualBoundSet{Float64},
 	end 
 end 
 
-# Dichotomic method 
+# -- Dichotomic method 
 function updateBoundSets!(UB::DualBoundSet{Rational{Int}},  
-						  L::Vector{Solution{T}},
-						  sol::Solution{T}, 
-						  breakItem::Int) where T<:Real
+						  L::Vector{Solution{Rational{Int}}},
+						  sol::Solution{Rational{Int}}, 
+						  breakItem::Int)
 
 	if !identicalToPrevious(UB, sol)
 		add!(UB.points, sol.z) 
@@ -455,11 +457,11 @@ function updateBoundSets!(UB::DualBoundSet{Rational{Int}},
 	end 
 end
 
-# Simplex algorithm 
+# -- Simplex algorithm 
 function updateBoundSets!(UB::DualBoundSet{Float64},  
-						  L::Vector{Solution{T}},
-						  sol::Solution{T}, 
-						  breakItem::Int) where T<:Real
+						  L::Vector{Solution{Float64}},
+						  sol::Solution{Float64}, 
+						  breakItem::Int)
 
 	if !identicalToPrevious(UB, sol)
 		push!(UB.points, sol.z) 
