@@ -54,9 +54,9 @@ end
 
 # Simplex algorithm 
 function simplex(prob::_MOMKP, 
-                 L::Vector{Solution}, 
+                 L::Vector{Solution{T}}, 
                  init::Initialisation, 
-                 solInit::Solution)
+                 solInit::Solution{T}) where T<:Real
 
     upperBound = DualBoundSet{Float64}() 
 

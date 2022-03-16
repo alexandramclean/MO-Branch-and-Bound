@@ -343,6 +343,7 @@ function verifySolution(prob::_MOMKP, sol::Solution{T}) where T<:Real
         end
     end
 
+	@assert residualCapacity >= 0 "Solution non-admissible"
     println("z : ", sol.z == objValue)
     println("ω_ : ", sol.ω_ == residualCapacity)
 end 
@@ -393,6 +394,12 @@ end
 
 # TODO : tightness ratio 
 
+# Transforms a multi-dimensional instance into a mono-dimensional instance by 
+# only keep the first constraint 
+function multiToMonoDimensional(prob::_MOMKP)
+	return _MOMKP(prob.P, prob.W[setdiff(1:end,2),:], prob.ω[1:1])
+end 
+
 # ----- BOUND SETs ----------------------------------------------------------- #
 # Returns true if sol is identical to the most recent solution in UB 
 function identicalToPrevious(UB::DualBoundSet, sol::Solution{T}) where T<:Real
@@ -436,9 +443,9 @@ end
 
 # Dichotomic method 
 function updateBoundSets!(UB::DualBoundSet{Rational{Int}},  
-						  L::Vector{Solution},
-						  sol::Solution, 
-						  breakItem::Int)
+						  L::Vector{Solution{T}},
+						  sol::Solution{T}, 
+						  breakItem::Int) where T<:Real
 
 	if !identicalToPrevious(UB, sol)
 		add!(UB.points, sol.z) 
@@ -450,9 +457,9 @@ end
 
 # Simplex algorithm 
 function updateBoundSets!(UB::DualBoundSet{Float64},  
-						  L::Vector{Solution},
-						  sol::Solution, 
-						  breakItem::Int)
+						  L::Vector{Solution{T}},
+						  sol::Solution{T}, 
+						  breakItem::Int) where T<:Real
 
 	if !identicalToPrevious(UB, sol)
 		push!(UB.points, sol.z) 

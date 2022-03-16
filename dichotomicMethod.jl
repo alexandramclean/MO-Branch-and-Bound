@@ -53,9 +53,9 @@ end
 # Returns the lexicographically optimal solutions
 function lexicographicSolutions!(prob::_MOMKP,
 								 UB::DualBoundSet,
-								 L::Vector{Solution},
+								 L::Vector{Solution{T}},
 								 r1::Vector{Rational{Int}},
-								 r2::Vector{Rational{Int}}) 
+								 r2::Vector{Rational{Int}}) where T<:Real
 	
 	# Lexicographically optimal solution for (1,2) 
 	seq12  = sortperm(1000000*r1 + r2, rev=true) 
@@ -72,9 +72,9 @@ end
 
 function solveRecursion!(prob::_MOMKP,
 						 UB::DualBoundSet,
-						 L::Vector{Solution},
+						 L::Vector{Solution{T}},
 						 x1::Solution{Rational{Int}}, 
-						 x2::Solution{Rational{Int}})
+						 x2::Solution{Rational{Int}}) where T<:Real
 	# Calcul de la direction λ
 	λ1 = x2.z[2] - x1.z[2]
 	λ2 = x1.z[1] - x2.z[1]
@@ -91,8 +91,8 @@ function solveRecursion!(prob::_MOMKP,
 end
 
 function dichotomicMethod(prob::_MOMKP,
-						  L::Vector{Solution},
-						  init::Initialisation)
+						  L::Vector{Solution{T}},
+						  init::Initialisation) where T<:Real
 
 	n = size(prob.P)[2]
 

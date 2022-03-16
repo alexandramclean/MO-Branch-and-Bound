@@ -7,26 +7,26 @@
 include("parametricMethodFunctions.jl")
 
 # Martello and Toth upper bound 
-function u0(prob::_MOMKP, seq::Vector{Int}, sol::Solution, s::Int, ω_::Int)
+function u0(prob::_MOMKP, seq::Vector{Int}, sol::Solution, s::Int)
 
 	U0::Vector{Float64} = sol.z + [0.0, 0.0]
-	U0[1] += ω_/prob.W[1,seq[s+1]] * prob.P[1,seq[s+1]]
-	U0[2] += ω_/prob.W[1,seq[s+1]] * prob.P[2,seq[s+1]]
+	U0[1] += sol.ω_/prob.W[1,seq[s+1]] * prob.P[1,seq[s+1]]
+	U0[2] += sol.ω_/prob.W[1,seq[s+1]] * prob.P[2,seq[s+1]]
 	return U0
 end
 
-function u1(prob::_MOMKP, seq::Vector{Int}, sol::Solution, s::Int, ω_::Int)
+function u1(prob::_MOMKP, seq::Vector{Int}, sol::Solution, s::Int)
 
 	U1::Vector{Float64} = sol.z + prob.P[:,seq[s]]
-	U1[1] -= (prob.W[1,seq[s]] - ω_)/prob.W[1,seq[s-1]] * prob.P[1,seq[s-1]]
-	U1[2] -= (prob.W[1,seq[s]] - ω_)/prob.W[1,seq[s-1]] * prob.P[2,seq[s-1]]
+	U1[1] -= (prob.W[1,seq[s]] - sol.ω_)/prob.W[1,seq[s-1]] * prob.P[1,seq[s-1]]
+	U1[2] -= (prob.W[1,seq[s]] - sol.ω_)/prob.W[1,seq[s-1]] * prob.P[2,seq[s-1]]
 	return U1
 end
 
-function uMT(prob::_MOMKP, seq::Vector{Int}, sol::Solution, s::Int, ω_::Int)
+function uMT(prob::_MOMKP, seq::Vector{Int}, sol::Solution, s::Int)
 
-	U0 = u0(prob, seq, sol, s, ω_)
-	U1 = u1(prob, seq, sol, s, ω_)
+	U0 = u0(prob, seq, sol, s)
+	U1 = u1(prob, seq, sol, s)
 	return U0, U1
 end
 
@@ -104,9 +104,9 @@ function martelloAndToth(prob::_MOMKP,
 	UB  = DualBoundSet{Float64}()
 
 	# Builds the initial dantzig solution
-	sol, s, ω_ = dantzigSolution(prob, seq, solInit)
+	sol, s = dantzigSolution(prob, seq, solInit)
 
-	U0, U1 = uMT(prob, seq, sol, s, ω_)
+	U0, U1 = uMT(prob, seq, sol, s)
 	chooseBound!(UB, 1//1, init.transpositions[1].λ, U0, U1)
 
 	numberCasesIdenticalWeights = 0
@@ -141,16 +141,16 @@ function martelloAndToth(prob::_MOMKP,
 				updatePositions!(seq, pos, start, finish)
 
 				if start < s-1 && finish == s-1 		# Only U1 is modified
-					U1 = u1(prob, seq, sol, s, ω_)
+					U1 = u1(prob, seq, sol, s)
 
 				elseif start == s+1 && finish > s+1		# Only U0 is modified
-					U0 = u0(prob, seq, sol, s, ω_)
+					U0 = u0(prob, seq, sol, s)
 
 				elseif start <= s && finish >= s
 
 					# The dantzig solution is potentially modified
-					sol, s, ω_ = reoptSolution(prob, seq, start, finish, sol, ω_)
-					U0, U1 = uMT(prob, seq, sol, s, ω_)
+					sol, s = reoptSolution(prob, seq, start, finish, sol)
+					U0, U1 = uMT(prob, seq, sol, s)
 				end
 			end
 
@@ -167,45 +167,43 @@ function martelloAndToth(prob::_MOMKP,
 			if k == s-2     # Swap items s-2 and s-1
 
 				# Only U1 is modified
-				U1 = u1(prob, seq, sol, s, ω_)
+				U1 = u1(prob, seq, sol, s)
 				chooseBound!(UB, prev, next, U0, U1)
 
 			elseif k == s-1 # Swap items s-1 and s
 
 				# The item previously in position s-1 is removed
-				sol.z -= prob.P[:,seq[s]]
-				ω_ += prob.W[1,seq[s]]
+				sol.z  -= prob.P[:,seq[s]]
+				sol.ω_ += prob.W[1,seq[s]]
 				sol.X[seq[s]] = 0
 
-				if prob.W[1,seq[s-1]] <= ω_
+				if prob.W[1,seq[s-1]] <= sol.ω_
 					# The item previously in position s is inserted
 					addItem!(prob, sol, seq[s-1])
-					ω_ -= prob.W[1,seq[s-1]]
 				else
 					# The position of the break item changes
 					s = s-1
 				end
 
-				U0, U1 = uMT(prob, seq, sol, s, ω_)
+				U0, U1 = uMT(prob, seq, sol, s)
 				chooseBound!(UB, prev, next, U0, U1)
 
 			elseif k == s   # Swap items s and s+1
 
-				if prob.W[1,seq[s]] <= ω_
+				if prob.W[1,seq[s]] <= sol.ω_
 					# The item previously in position s+1 is inserted
 					addItem!(prob, sol, seq[s])
-					ω_ -= prob.W[1,seq[s]]
 					# The position of the break item changes
 					s = s+1
 				end
 
-				U0, U1 = uMT(prob, seq, sol, s, ω_)
+				U0, U1 = uMT(prob, seq, sol, s)
 				chooseBound!(UB, prev, next, U0, U1)
 
 			elseif k == s+1 # Swap items s+1 and s+2
 
 				# Only U0 is modified
-				U0 = u0(prob, seq, sol, s, ω_)
+				U0 = u0(prob, seq, sol, s)
 				chooseBound!(UB, prev, next, U0, U1)
 			end
 		end
