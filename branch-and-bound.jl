@@ -17,32 +17,35 @@ function branch!(η::Node,
                  method::Method) where T<:Real
     
     verbose = false
-    
-    add!(L, η.solInit)
 
     # Upper bound and dominance test 
     if η.status == NOTPRUNED
         # Compute the upper bound set for η 
-        η.UB = parametricMethod(prob, L, η.init, η.solInit) 
+        η.UB, Lη = parametricMethod(prob, η.init, η.solInit) 
 
         # Compare with lower bound set and update status 
         if η.UB.points == [[0.,0.]]
             η.status = INFEASIBILITY
         elseif length(L) > 1 && isDominated(η.UB, L) 
             η.status = DOMINANCE 
-            #plotBoundSets(η.UB, L)
+            plotBoundSets(η.UB, L)
         end
+
+        for sol in Lη 
+            add!(L, sol)
+        end 
     end 
+    add!(L, η.solInit)
 
     if verbose 
         println("\ndepth = ", depth)
-        printBoundSet(L)
-        println(η.UB.points)
+        println("L = ", [sol.z for sol in L])
+        println("UB = ", η.UB.points)
         println("solInit.X = ", η.solInit.X)
         println("solInit.z = ", η.solInit.z)
         println("solInit.ω_ = ", η.solInit.ω_)
         println("status : ", η.status)
-    end 
+    end     
 
     # Branching 
     if η.status == NOTPRUNED

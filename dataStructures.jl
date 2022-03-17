@@ -79,7 +79,7 @@ DualBoundSet{Rational{Int}}() = DualBoundSet(Vector{Rational{Int}}[], Constraint
 mutable struct Node 
     UB::DualBoundSet            # Upper bound set for the node
     parent::Union{Node,Nothing} # Parent node 
-    #setVar::Tuple{Int,Int}      # Variable to set and value (var,val)
+    #setVar::Tuple{Int,Int}     # Variable to set and value (var,val)
     solInit::Solution           # Initial solution with set variables
     init::Initialisation        # Transpositions and initial sequence
     status::Status              # Indicates whether the node has been pruned 

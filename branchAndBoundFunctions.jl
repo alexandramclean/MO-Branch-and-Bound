@@ -106,8 +106,7 @@ end
 
 # ----- LOCAL NADIR POINTS AND DOMINANCE TESTS ------------------------------- # 
 # Computes the local nadir points 
-function localNadirPoints(incumbentSet::Vector{Solution{T}}
-                         ) where T<:Real
+function localNadirPoints(incumbentSet::Vector{Solution{T}}) where T<:Real
 
     nadirs = Vector{Vector{Float64}}(undef, length(incumbentSet)-1)
     for i in 1:length(incumbentSet)-1 
@@ -151,24 +150,23 @@ function isDominated(UB::DualBoundSet,
                     ) where T<:Real
 
     is_dominated  = true 
-    #shiftedNadirs = shiftedLocalNadirPoints(localNadirPoints(L))
-    shiftedNadirs = localNadirPoints(L)
+    shiftedNadirs = shiftedLocalNadirPoints(localNadirPoints(L))
     i = 1 
 
     while is_dominated && i <= length(shiftedNadirs)
         is_dominated = is_dominated && 
-            !verifiesConstraints(UB.constraints, shiftedNadirs[i])
+            !verifiesConstraints(UB.constraints[2:end-1], shiftedNadirs[i])
         i += 1 
     end 
     return is_dominated
 end 
 
-# ----- PRINT AND GRAPHIC FUNCTIONS ------------------------------------------- #
+# ----- GRAPHIC FUNCTIONS ---------------------------------------------------- #
 # Plots the upper bound set for a node and the lower bound set 
 function plotBoundSets(UB::DualBoundSet, 
                        L::Vector{Solution{T}}) where T<:Real
     # Setup
-    randNumber = rand(1:100)
+    randNumber = rand(1:1000)
     println(randNumber)
     figure("Upper and lower bound sets"*string(randNumber),figsize=(6.5,5))
     xlabel(L"z^1(x)")
@@ -182,17 +180,22 @@ function plotBoundSets(UB::DualBoundSet,
     plot(y_UBS1, y_UBS2, color="green", linewidth=0.75, marker="+",
         markersize=1.0, linestyle=":")
 
-    # Show the points computed by the dichotomic method 
+    # Show the lower bound set 
     y_LBS1 = [y.z[1] for y in L] 
     y_LBS2 = [y.z[2] for y in L]
     scatter(y_LBS1, y_LBS2, color="red", marker="+", label = "L")
     plot(y_LBS1, y_LBS2, color="red", linewidth=0.75, marker="+",
         markersize=1.0, linestyle=":")
 
+    # display segments joining non-dominated points and their corners points
+    Env1,Env2 = computeCornerPointsLowerEnvelop(y_LBS1, y_LBS2)
+    plot(Env1, Env2, color="black", linewidth=0.75, marker="+", markersize=1.0, 
+        linestyle=":")
+
     legend(bbox_to_anchor=[1,1], loc=0, borderaxespad=0, fontsize = "x-small")
 end 
 
-# Plot the nondominated points obtained by vOpt and the branch-and-bound algorithm
+# Plot the nondominated points obtained by vOpt and the branch-and-bound method 
 function plotYN(ref::Vector{Vector{Float64}}, 
                 L::Vector{Solution{T}}) where T<:Real
     # Setup
@@ -216,19 +219,5 @@ function plotYN(ref::Vector{Vector{Float64}},
         markersize=1.0, linestyle=":")
 
     legend(bbox_to_anchor=[1,1], loc=0, borderaxespad=0, fontsize = "x-small")
-end 
-
-# Prints the objective values for all the solutions in a lower bound set
-function printBoundSet(BS::Vector{Solution{T}}) where T<:Real
-
-    if length(BS) > 0
-        print("[")
-        for i in 1:length(BS)-1 
-            print(BS[i].z, ", ")
-        end
-        print(BS[end].z, "]\n")
-    else 
-        println("[]")
-    end        
 end 
         

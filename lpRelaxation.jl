@@ -9,8 +9,8 @@ include("parametricMethodFunctions.jl")
 # The break item is swapped with an item in the knapsack
 function swapWithItemInBag(prob::_MOMKP,
 						   seq::Vector{Int},
-						   sol::Solution,
-						   s::Int)
+						   sol::Solution{T},
+						   s::Int) where T<:Real
 
 	# Remove item s-1
 	sol.ω_ += prob.W[1,seq[s-1]]
@@ -67,9 +67,12 @@ end
 
 # Computes the LP relaxation using the parametric method 
 function parametricMethod(prob::_MOMKP,
-						  L::Vector{Solution{T}},
+						  #L::Vector{Solution{T}},
 						  init::Initialisation,
 						  solInit::Solution{T}) where T<:Real
+
+	# Will contain the integer solutions found whilst computing the upper bound
+	L = Solution{Float64}[]
 
 	# Creates copies of the sequence and positions as they will be modified 
 	seq = init.seq[1:end] 
@@ -153,5 +156,5 @@ function parametricMethod(prob::_MOMKP,
 	push!(UB.constraints, Constraint(0//1, sol.z))
 
 	#println("\tNumber of cases of identical critical weights : ", numberCasesIdenticalWeights)
-	return UB
+	return UB, L
 end
