@@ -62,7 +62,7 @@ struct Constraint
 end
 # The associated constraint is λz1 + (1-λ)z2 <= λu1 + (1-λ)u2
 
-# Data structure representing an upper bound set 
+# Data structure representing the dual bound set (upper bound set in this case)  
 struct DualBoundSet{T} 
     points::Vector{Vector{T}}    
     constraints::Vector{Constraint}
@@ -72,16 +72,21 @@ end
 DualBoundSet{Float64}() = DualBoundSet(Vector{Float64}[], Constraint[]) 
 DualBoundSet{Rational{Int}}() = DualBoundSet(Vector{Rational{Int}}[], Constraint[])
 
+# Data structure representing the incumbent set (lower bound set in this case)
+mutable struct PrimalBoundSet{T}
+    L::Vector{Solution{T}}    # Vector of integer solutions 
+    nadirs::Vector{Vector{T}} # Local nadir points
+end 
+
 # ----- BRANCH-AND-BOUND ----------------------------------------------------- #
 @enum Status DOMINANCE OPTIMALITY INFEASIBILITY NOTPRUNED MAXDEPTH
 
 # Data structure representing a node in a branch-and-bound algorithm
 mutable struct Node 
-    UB::DualBoundSet            # Upper bound set for the node
-    parent::Union{Node,Nothing} # Parent node 
-    #setVar::Tuple{Int,Int}     # Variable to set and value (var,val)
-    solInit::Solution           # Initial solution with set variables
-    init::Initialisation        # Transpositions and initial sequence
-    status::Status              # Indicates whether the node has been pruned 
-                                # and for what reason
+    UB::Union{DualBoundSet,Nothing} # Upper bound set for the node
+    parent::Union{Node,Nothing}     # Parent node 
+    init::Initialisation            # Transpositions and initial sequence
+    solInit::Solution               # Initial solution with set variables
+    status::Status                  # Indicates whether the node has been pruned 
+                                    # and for what reason
 end
