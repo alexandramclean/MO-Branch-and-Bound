@@ -90,7 +90,7 @@ end
 function testChooseBound()
 	# Didactic example 
 	prob       = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
-	r1, r2     = ratios(prob)
+	r1, r2     = utilities(prob)
 	weights, _ = criticalWeights(prob, r1, r2) 
 	 
 	upperBound = DualBoundSet{Float64}()
@@ -143,9 +143,15 @@ function testIsDominated()
 		  Solution{Float64}(Rational{Int}[], [8.,5.], 0),
 		  Solution{Float64}(Rational{Int}[], [10.,3.], 0)]
 
+	nadirPoints1 = localNadirPoints(L1)
+	nadirPoints2 = localNadirPoints(L2)
+
 	@testset "Dominance Tests" begin 
-		@test isDominated(UB, L1)
-		@test !isDominated(UB, L2)
+		@test isDominated(UB, nadirPoints1)
+		@test !isDominated(UB, nadirPoints2)
+
+		@test isDominated(UB.points, nadirPoints1)
+		@test !isDominated(UB.points, nadirPoints2)
 	end;
 end 
 
@@ -157,10 +163,10 @@ function mainTest()
 	testSetVariable()
 
 	# Solutions 
-	testReoptSolution() 
+	#testReoptSolution() 
 
 	# Martello and Toth 
-	testChooseBound()
+	#testChooseBound()
 
 	# Branch-and-bound 
 	testIsDominated()
