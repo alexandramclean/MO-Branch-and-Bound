@@ -21,19 +21,23 @@ function branch!(η::Node,
     # Upper bound and dominance test 
     if η.status == NOTPRUNED
         # Compute the upper bound set for η 
-        η.UB, Lη = parametricMethod(prob, η.init, η.solInit) 
+        η.UB = parametricMethod(prob, L, η.init, η.solInit) 
 
         # Compare with lower bound set and update status 
-        if η.UB.points == [[0.,0.]]
+        if length(η.UB.points) == 0 || η.UB.points == [[0.,0.]]
             η.status = INFEASIBILITY
-        elseif length(L) > 1 && isDominated(η.UB, L) 
-            η.status = DOMINANCE 
-            plotBoundSets(η.UB, L)
-        end
+        elseif length(L) > 1 
 
-        for sol in Lη 
-            add!(L, sol)
-        end 
+            nadirPoints = shiftedLocalNadirPoints(localNadirPoints(L))
+
+            if !(L[end].z[1] < η.UB.points[1][1]       # max z1 in L < max z1 in UB(η)
+                || η.UB.points[end][1] < L[1].z[1]) && # min z1 in UB(η) < min z1 in L 
+                isDominated(η.UB, nadirPoints) 
+
+                η.status = DOMINANCE 
+                #plotBoundSets(η.UB, L)
+            end
+        end
     end 
     add!(L, η.solInit)
 
@@ -78,9 +82,7 @@ function branch!(η::Node,
  
         else 
             η.status = MAXDEPTH
-            if verbose 
-                println("Max depth has been reached")
-            end 
+            verbose ? println("Max depth has been reached") : nothing
         end 
     end 
 end 

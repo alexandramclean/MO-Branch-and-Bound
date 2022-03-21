@@ -67,12 +67,9 @@ end
 
 # Computes the LP relaxation using the parametric method 
 function parametricMethod(prob::_MOMKP,
-						  #L::Vector{Solution{T}},
+						  L::Vector{Solution{T}},
 						  init::Initialisation,
 						  solInit::Solution{T}) where T<:Real
-
-	# Will contain the integer solutions found whilst computing the upper bound
-	L = Solution{Float64}[]
 
 	# Creates copies of the sequence and positions as they will be modified 
 	seq = init.seq[1:end] 
@@ -156,5 +153,5 @@ function parametricMethod(prob::_MOMKP,
 	push!(UB.constraints, Constraint(0//1, sol.z))
 
 	#println("\tNumber of cases of identical critical weights : ", numberCasesIdenticalWeights)
-	return UB, L
+	return UB
 end

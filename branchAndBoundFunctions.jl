@@ -144,21 +144,42 @@ function verifiesConstraints(constraints::Vector{Constraint},
 end 
 
 # Returns true if the upper bound set for a particular node is dominated by the 
-# lower bound set 
+# lower bound set by using the constraints and shifted local nadir points 
 function isDominated(UB::DualBoundSet, 
-                     L::Vector{Solution{T}}
+                     nadirPoints::Vector{Vector{T}}
                     ) where T<:Real
 
     is_dominated  = true 
-    shiftedNadirs = shiftedLocalNadirPoints(localNadirPoints(L))
     i = 1 
 
-    while is_dominated && i <= length(shiftedNadirs)
+    while is_dominated && i <= length(nadirPoints)
         is_dominated = is_dominated && 
-            !verifiesConstraints(UB.constraints[2:end-1], shiftedNadirs[i])
+            !verifiesConstraints(UB.constraints[2:end-1], nadirPoints[i])
         i += 1 
     end 
     return is_dominated
+end 
+
+# Returns true if the upper bound set for a particular node is dominated by the 
+# lower bound set by testing is each point in UB is at least weakly dominated by a 
+# point in L 
+function isDominated(UB::Vector{Vector{T}},
+                     L::Vector{Vector{T}}) where T<:Real 
+    
+    is_dominated = false
+
+    for i in 1:length(UB) 
+        is_weakly_dominated = false 
+        j = 1 
+        while !is_weakly_dominated && j <= length(L) 
+            is_weakly_dominated = is_weakly_dominated || dominates(L[j], UB[i])
+            j += 1 
+        end 
+        print(is_weakly_dominated)
+        is_dominated = is_dominated || is_weakly_dominated 
+    end 
+
+    return is_dominated 
 end 
 
 # ----- GRAPHIC FUNCTIONS ---------------------------------------------------- #
