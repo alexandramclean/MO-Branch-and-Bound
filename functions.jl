@@ -142,9 +142,7 @@ function initialisation(prob::_MOMKP, method::Method)
 
 			# Item positions
 			pos = sortperm(seq)          			  
-
 			weights, pairs = criticalWeights(prob, r1, r2)
-
 			transpositions = transpositionPreprocessing(weights, pairs)
 
 			return Initialisation(r1, r2, transpositions, seq, pos)
@@ -215,7 +213,6 @@ function setVariable(init::Initialisation,
 
 		newSeq = removeFromSequence(init.seq, var)
 		return Initialisation(nothing, nothing, nothing, newSeq, nothing)
-		
 	end 
 end
 
@@ -397,7 +394,12 @@ end
 # Transforms a multi-dimensional instance into a mono-dimensional instance by 
 # only keep the first constraint 
 function multiToMonoDimensional(prob::_MOMKP)
-	return _MOMKP(prob.P, prob.W[setdiff(1:end,2),:], prob.ω[1:1])
+	m, n = size(prob.W)
+	W = prob.W 
+	for i in 1:m-1
+		W = W[setdiff(1:end,2),:]
+	end 
+	return _MOMKP(prob.P, W, prob.ω[1:1])
 end 
 
 # ----- BOUND SETs ----------------------------------------------------------- #
