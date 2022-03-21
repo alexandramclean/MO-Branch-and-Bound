@@ -9,90 +9,94 @@ include("parametricMethodFunctions.jl")
 # The break item is swapped with an item in the knapsack
 function swapWithItemInBag(prob::_MOMKP,
 						   seq::Vector{Int},
-						   sol::Solution,
-						   s::Int,
-						   ω_::Int)
+						   sol::Solution{T},
+						   s::Int) where T<:Real
 
 	# Remove item s-1
-	ω_ += prob.W[1,seq[s-1]]
-	sol.z -= prob.P[:,seq[s-1]]
+	sol.ω_ += prob.W[1,seq[s-1]]
+	sol.z  -= prob.P[:,seq[s-1]]
 	sol.X[seq[s-1]] = 0
 
 	# Remove item s
 	sol.z -= sol.X[seq[s]] * prob.P[:,seq[s]]
 	sol.X[seq[s]] = 0
 
-	if prob.W[1,seq[s]] <= ω_
+	if prob.W[1,seq[s]] <= sol.ω_
 		# Item s is inserted
 		addItem!(prob, sol, seq[s])
-		ω_ -= prob.W[1,seq[s]]
 
-		if ω_ > 0
+		if sol.ω_ > 0
 			# A fraction of item s-1 is inserted 
-			addBreakItem!(prob, sol, ω_, seq[s-1])
+			addBreakItem!(prob, sol, seq[s-1])
 		end
 
 	else # Item s remains the break item
-		addBreakItem!(prob, sol, ω_, seq[s])
+		addBreakItem!(prob, sol, seq[s])
 		s = s-1 # The position of the break item changes
 	end
 
-	return sol, s, ω_
+	return sol, s
 end
 
 # The break item is swapped with an item that is not in the knapsack
 function swapWithItemNotInBag(prob::_MOMKP,
 						   	  seq::Vector{Int},
-						   	  sol::Solution,
-						   	  s::Int,
-						   	  ω_::Int)
+						   	  sol::Solution{T},
+						   	  s::Int) where T<:Real 
 
 	# The item in position s is removed
 	sol.z -= sol.X[seq[s]] * prob.P[:,seq[s]]
 	sol.X[seq[s]] = 0
 
-	if prob.W[1,seq[s+1]] <= ω_
+	if prob.W[1,seq[s+1]] <= sol.ω_
 		# Item s+1 can be inserted 
 		addItem!(prob, sol, seq[s+1])
-		ω_ -= prob.W[1,seq[s+1]]
 
-		if ω_ > 0
+		if sol.ω_ > 0
 			# A fraction of item s is inserted
-			addBreakItem!(prob, sol, ω_, seq[s])
+			addBreakItem!(prob, sol, seq[s])
 		end
 		s = s+1 # The position of the break item changes
 
 	else # Item s+1 becomes the break item
-		addBreakItem!(prob, sol, ω_, seq[s+1])
+		addBreakItem!(prob, sol, seq[s+1])
 	end
 
-	return sol, s, ω_
+	return sol, s
 end
 
 # Computes the LP relaxation using the parametric method 
 function parametricMethod(prob::_MOMKP,
-						  transpositions::Vector{Transposition},
-						  seq::Vector{Int},
-						  pos::Vector{Int})
+						  L::Vector{Solution{T}},
+						  init::Initialisation,
+						  solInit::Solution{T}) where T<:Real
 
+	# Creates copies of the sequence and positions as they will be modified 
+	seq = init.seq[1:end] 
+	pos = init.pos[1:end] 
+	
 	# Builds the initial solution
-	sol, s, ω_ = buildSolution(prob, seq)
+	sol, s = buildSolution(prob, seq, solInit)
 
-	upperBound = DualBoundSet()
-	updateBoundSet!(upperBound, sol, seq[s])
+	UB = DualBoundSet{Float64}()
+	if s <= length(seq)
+		updateBoundSets!(UB, L, 1//1, sol, seq[s])
+	elseif length(seq) > 0 
+		updateBoundSets!(UB, L, 1//1, sol, seq[s-1])
+	end 
 
 	numberCasesIdenticalWeights = 0
 
-	for iter in 1:length(transpositions)
+	for iter in 1:length(init.transpositions)
 
 		# Multiple identical critical weights
-		if length(transpositions[iter].pairs) > 1
+		if length(init.transpositions[iter].pairs) > 1
 
 			numberCasesIdenticalWeights += 1
 
 			# Positions corresponding to each transposition
 			positions = [(min(pos[i], pos[j]), max(pos[i], pos[j])) 
-						for (i,j) in transpositions[iter].pairs]
+						for (i,j) in init.transpositions[iter].pairs]
 			sort!(positions)
 			
 			# Identification of the modified subsequences
@@ -104,28 +108,32 @@ function parametricMethod(prob::_MOMKP,
 				seq[start:finish] = seq[finish:-1:start]
 					
 				if start <= s && finish >= s # The solution is modified
-					sol, s, ω_ = reoptSolution(prob, seq, start, finish, sol, ω_)
-					if ω_ > 0
-						addBreakItem!(prob, sol, ω_, seq[s])
+					sol, s = reoptSolution(prob, seq, start, finish, sol)
+					if sol.ω_ > 0
+						addBreakItem!(prob, sol, seq[s])
 					end
 				end
 					
 				updatePositions!(seq, pos, start, finish)
 			end 
 
-			updateBoundSet!(upperBound, sol, seq[s]) 
+			if s <= length(seq)
+				updateBoundSets!(UB, L, init.transpositions[iter].λ, sol, seq[s]) 
+			else 
+				updateBoundSets!(UB, L, init.transpositions[iter].λ, sol, seq[s-1]) 
+			end 			
 		else
 
-			(i,j) = transpositions[iter].pairs[1]
+			(i,j) = init.transpositions[iter].pairs[1]
 			k = min(pos[i], pos[j])
 
 			if k == s-1   # Swap items s-1 and s
 
-				sol, s, ω_ = swapWithItemInBag(prob, seq, sol, s, ω_)
+				sol, s = swapWithItemInBag(prob, seq, sol, s)
 
 			elseif k == s # Swap items s and s+1
 
-				sol, s, ω_ = swapWithItemNotInBag(prob, seq, sol, s, ω_)
+				sol, s = swapWithItemNotInBag(prob, seq, sol, s)
 				
 			end
 
@@ -133,11 +141,17 @@ function parametricMethod(prob::_MOMKP,
 			tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
 			seq[pos[i]] = i ; seq[pos[j]] = j
 
-			updateBoundSet!(upperBound, sol, seq[s])
+			if s <= length(seq)
+				updateBoundSets!(UB, L, init.transpositions[iter].λ, sol, seq[s])
+			else 
+				updateBoundSets!(UB, L, init.transpositions[iter].λ, sol, seq[s-1]) 
+			end 
 		end
 	end
 
-	println("\tNumber of cases of identical critical weights : ", numberCasesIdenticalWeights)
+	# Add the last constraint : z2 <= sol.z[2]
+	push!(UB.constraints, Constraint(0//1, sol.z))
 
-	return upperBound
+	#println("\tNumber of cases of identical critical weights : ", numberCasesIdenticalWeights)
+	return UB
 end

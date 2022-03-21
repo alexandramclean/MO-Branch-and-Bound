@@ -47,23 +47,26 @@ end
 
 # Initialisaiton 
 function simplexInitialisation(prob::_MOMKP)
-    u1, u2    = utilities(prob)
-    seq       = sortperm(1000000*u1 + u2, rev=true) 
-    return seq 
+    r1, r2    = utilities(prob)
+    seq       = sortperm(1000000*r1 + r2, rev=true) 
+    return Initialisation(r1, r2, nothing, seq, nothing)
 end 
 
 # Simplex algorithm 
-function simplex(prob::_MOMKP, seq::Vector{Int})
+function simplex(prob::_MOMKP, 
+                 L::Vector{Solution{T}}, 
+                 init::Initialisation, 
+                 solInit::Solution{T}) where T<:Real
 
-    #upperBound = Vector{Float64}[]
-    upperBound = Solution[]
+    upperBound = DualBoundSet{Float64}() 
 
     # Lexicographically optimal solution for the first objective function 
-    sol, s, _ = buildSolution(prob, seq) 
-    push!(upperBound, Solution(sol.X, sol.z))
+    sol, s = buildSolution(prob, init.seq, solInit) 
 
     # The critical objet constitutes an efficient basic variable 
-    c = seq[s] 
+    c = init.seq[s] 
+
+    updateBoundSets!(upperBound, L, sol, c)
     
     costs::Matrix{Rational{Int}} = reducedCosts(prob, c)
 
@@ -73,7 +76,8 @@ function simplex(prob::_MOMKP, seq::Vector{Int})
 
     while !stop 
 
-        costRatios::Vector{Rational{Int}} = [costs[2,j]//costs[1,j] for j in candidates]
+        costRatios::Vector{Rational{Int}} = 
+            [costs[2,j]//costs[1,j] for j in candidates]
         perm = sortperm(costRatios)
         j = candidates[perm[1]] 
     
@@ -148,7 +152,7 @@ function simplex(prob::_MOMKP, seq::Vector{Int})
             end 
         end 
 
-        push!(upperBound, Solution(sol.X, sol.z))
+        updateBoundSets!(upperBound, L, sol, c)
         
         costs      = reducedCosts(prob, c)
         candidates = candidateVariables(costs, sol)

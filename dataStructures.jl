@@ -4,6 +4,11 @@
 #         Data structures                                                      #
 ################################################################################
 
+@enum Optimisation MAX MIN
+
+@enum Method PARAMETRIC_LP DICHOTOMIC SIMPLEX PARAMETRIC_MT 
+
+# ----- PROBLEMS ------------------------------------------------------------- #
 # Datastructure of a multi-objective multi-dimensionnal KP with 0/1 variables
 struct _MOMKP
     P  :: Matrix{Int} # profit of items for the objectives, k=1..p, j=1..n
@@ -11,41 +16,72 @@ struct _MOMKP
     ω  :: Vector{Int} # capacity of knapsacks, i=1..m
 end
 
+# ----- SOLUTIONS ------------------------------------------------------------ #
 # Data structure of a solution that can contain fractions of an object
-mutable struct Solution
+mutable struct Solution{T<:Real} 
     X::Vector{Rational{Int}} # Vector of binary variables 
-    z::Vector{Float64}       # Values for the objective functions 
-end
-Solution(n) = Solution(zeros(Rational{Int},n), [0,0])
+    z::Vector{T}             # Values for the objective functions 
+    ω_::Int                  # Residual capacity 
+end 
 
-# Solution data structure for the dichotomic method (rational values)
-mutable struct SolutionD
-    X::Vector{Rational{Int}} # Liste des éléments insérés dans le sac
-    z::Vector{Rational{Int}} # Valeurs pour les fonctions objectif
-end
+# Constructors 
+Solution{Float64}(prob::_MOMKP) = Solution(zeros(Rational{Int}, size(prob.P)[2]), 
+                                    [0.,0.], prob.ω[1])
+Solution{Rational{Int}}(prob::_MOMKP) = Solution(
+                                    zeros(Rational{Int}, size(prob.P)[2]), 
+                                    [0//1,0//1], prob.ω[1])
 
+# ----- TRANSPOSITIONS ------------------------------------------------------- #
 # Stores a critical weight λ and the corresponding transposition(s)
 struct Transposition
 	λ::Rational{Int}			  # Critical weight 
 	pairs::Vector{Tuple{Int,Int}} # List of pairs of items to swap 
 end
+
+# Constructors 
 Transposition(λ) = Transposition(λ,[])
 
+# Stores the transpositions and initial sequence and positions 
+struct Initialisation
+    r1::Union{Vector{Rational{Int}},Nothing}             # Utilities for z1 
+    r2::Union{Vector{Rational{Int}},Nothing}             # Utilities for z2
+    transpositions::Union{Vector{Transposition},Nothing} # Critical weights and transpositions
+    seq::Union{Vector{Int},Nothing}                      # Initial sequence 
+    pos::Union{Vector{Int},Nothing}                      # Positions in the sequence
+end 
+Initialisation(transpositions::Vector{Transposition}, 
+               seq::Vector{Int}, 
+               pos::Vector{Int}) = 
+    Initialisation(nothing, nothing, transpositions, seq, pos) 
+
+# ----- BOUND SETS ----------------------------------------------------------- #
 # Data structure of a constraint generated whilst computing the upper bound set
 struct Constraint 
-	λ::Rational{Int}       # Critical weight
-	point::Vector{Float64} # Associated point (u1,u2)
+	λ::Union{Rational{Int},Float64} # Critical weight
+	point::Vector{Float64}          # Associated point (u1,u2)
 end
 # The associated constraint is λz1 + (1-λ)z2 <= λu1 + (1-λ)u2
 
 # Data structure representing an upper bound set 
-mutable struct DualBoundSet 
-    points::Vector{Vector{Float64}}    
+struct DualBoundSet{T} 
+    points::Vector{Vector{T}}    
     constraints::Vector{Constraint}
-    integerSols::Vector{Solution} # Integer solutions
-end 
-DualBoundSet() = DualBoundSet(Solution[], Constraint[], Int[]) 
+end
 
-@enum Optimisation Max Min
+# Constructors 
+DualBoundSet{Float64}() = DualBoundSet(Vector{Float64}[], Constraint[]) 
+DualBoundSet{Rational{Int}}() = DualBoundSet(Vector{Rational{Int}}[], Constraint[])
 
-#@enum Status DOMINANCE OPTIMALITY INFEASIBILITY
+# ----- BRANCH-AND-BOUND ----------------------------------------------------- #
+@enum Status DOMINANCE OPTIMALITY INFEASIBILITY NOTPRUNED MAXDEPTH
+
+# Data structure representing a node in a branch-and-bound algorithm
+mutable struct Node 
+    UB::DualBoundSet            # Upper bound set for the node
+    parent::Union{Node,Nothing} # Parent node 
+    #setVar::Tuple{Int,Int}     # Variable to set and value (var,val)
+    solInit::Solution           # Initial solution with set variables
+    init::Initialisation        # Transpositions and initial sequence
+    status::Status              # Indicates whether the node has been pruned 
+                                # and for what reason
+end

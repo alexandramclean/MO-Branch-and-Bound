@@ -5,81 +5,271 @@
 ################################################################################
 
 include("dataStructures.jl")
+include("orderedList.jl")
 
 # ----- DOMINANCE ------------------------------------------------------------ #
 # Returns true if x dominates y
-function domine(x, y, opt::Optimisation=Max)
-    if opt == Min
-        return ((x[1] <= y[1] && x[2] < y[2])
-            || (x[1] < y[1] && x[2] <= y[2])
-            || (x[1] == y[1] && x[2] == y[2])) # No duplicates
+function dominates(x, y, opt::Optimisation=MAX)
+    if opt == MIN
+        return ((x[1] <= y[1] && x[2] <  y[2])
+             || (x[1] <  y[1] && x[2] <= y[2])
+             || (x[1] == y[1] && x[2] == y[2])) # No duplicates
     else
-        return ((x[1] >= y[1] && x[2] > y[2])
-            || (x[1] > y[1] && x[2] >= y[2])
-            || (x[1] == y[1] && x[2] == y[2])) # No duplicates
+        return ((x[1] >= y[1] && x[2] >  y[2])
+             || (x[1] >  y[1] && x[2] >= y[2])
+             || (x[1] == y[1] && x[2] == y[2])) # No duplicates
     end
 end
 
-# ----- RATIOS --------------------------------------------------------------- #
+function dominates(x::Solution, y::Solution, opt::Optimisation=MAX)
+    if opt == MIN
+        return ((x.z[1] <= y.z[1] && x.z[2] <  y.z[2])
+             || (x.z[1] <  y.z[1] && x.z[2] <= y.z[2])
+             || (x.z[1] == y.z[1] && x.z[2] == y.z[2])) # No duplicates
+    else
+        return ((x.z[1] >= y.z[1] && x.z[2] >  y.z[2])
+             || (x.z[1] >  y.z[1] && x.z[2] >= y.z[2])
+             || (x.z[1] == y.z[1] && x.z[2] == y.z[2])) # No duplicates
+    end
+end
+
+# ----- INITIALISATION ------------------------------------------------------- #
 # Computes the utilities (profit-to-weight ratios) for both objective functions
 function utilities(prob::_MOMKP)
 
-	n = size(prob.P)[2]
+	p, n = size(prob.P)
 
-	u1 = [prob.P[1,i]//prob.W[1,i] for i in 1:n]
-	u2 = [prob.P[2,i]//prob.W[1,i] for i in 1:n]
+	#=ratios = Matrix{Rational{Int}}(undef, p, n)
+	for k in 1:p 
+		for j in 1:n 
+			ratios[k,j] = prob.P[k,j]//prob.W[1,j]
+		end 
+	end 
+	return ratios=#
 
-	return u1, u2
+	r1 = [prob.P[1,j]//prob.W[1,j] for j in 1:n]
+	r2 = [prob.P[2,j]//prob.W[1,j] for j in 1:n]
+	return r1, r2
+end
+
+# Computes the critical weights
+function criticalWeights(prob::_MOMKP,
+						 r1::Vector{Rational{Int}},
+						 r2::Vector{Rational{Int}})
+
+	n       = size(prob.P)[2]
+	weights = Rational{Int}[]
+	pairs   = Tuple{Int,Int}[]
+
+	nbTransp = 0
+
+	# Computes the critical weight for each pair of items (i,j)
+	for i in 1:n
+		for j in i+1:n
+
+			if !(r1[i] == r1[j] || r2[i] == r2[j]) 
+
+				λ = (r2[j] - r2[i])//(r1[i] - r2[i] - r1[j] + r2[j])
+
+				if λ > 0 && λ < 1
+					nbTransp += 1 
+					push!(weights, λ)
+					push!(pairs, (i,j))
+				end
+			end
+		end
+	end
+
+	#println("\tNumber of transpositions : ", nbTransp, " / ", Int(n*(n-1)/2))
+
+	# Sorts the critical weights and associated item pairs in decreasing order
+	perm = sortperm(weights, rev=true)
+	return weights[perm], pairs[perm]
+end
+
+# Returns a list containing all the distinct λ values in decreasing order and
+# the associated item pair(s)
+function transpositionPreprocessing(weights::Vector{Rational{Int}},
+									pairs::Vector{Tuple{Int,Int}})
+
+	transpositions = Transposition[]
+
+	iter = 1
+	while iter <= length(weights)
+
+		# There are multiple identical critical weights λ
+		if iter < length(weights) && weights[iter] == weights[iter+1]
+
+			transp = Transposition(weights[iter])
+
+			while iter < length(weights) && weights[iter] == weights[iter+1]
+			push!(transp.pairs, pairs[iter])
+			iter += 1
+			end
+
+			# The last occurence of λ
+			push!(transp.pairs, pairs[iter])
+			iter += 1
+
+			push!(transpositions, transp)
+
+		else
+			push!(transpositions, Transposition(weights[iter], [pairs[iter]]))
+			iter += 1
+		end
+	end
+
+	return transpositions
+end
+
+# Computes the utilities, transpositions, initial sequence and positions 
+function initialisation(prob::_MOMKP, method::Method)
+
+    r1, r2 = utilities(prob)
+
+	if method == DICHOTOMIC 
+
+		return Initialisation(r1, r2, nothing, nothing, nothing)
+	else
+		# Item sequence 
+		seq = sortperm(1000000*r1 + r2, rev=true) 
+
+		if method == SIMPLEX 
+			
+			return Initialisation(nothing, nothing, nothing, seq, nothing)
+
+		else # method == PARAMETRIC 
+
+			# Item positions
+			pos = sortperm(seq)          			  
+
+			weights, pairs = criticalWeights(prob, r1, r2)
+
+			transpositions = transpositionPreprocessing(weights, pairs)
+
+			return Initialisation(r1, r2, transpositions, seq, pos)
+		end 
+	end 
+end
+# ----- SETTING VARIABLES ---------------------------------------------------- #
+# Removes a variable from the sequence 
+function removeFromSequence(seq::Vector{Int}, var::Int)
+
+	newSeq = Vector{Int}(undef,length(seq)-1)
+
+	# The variable is removed from the sequence
+	inser = 1
+	for i in 1:length(seq)
+		if seq[i] != var
+			newSeq[inser] = seq[i] 
+		inser += 1 
+		end
+	end
+	return newSeq 
+end 
+
+# Remove a variable from the sequence and transpositions
+function setVariable(init::Initialisation,
+					 var::Int,
+					 method::Method)
+
+	if method == PARAMETRIC_LP || method == PARAMETRIC_MT
+
+		newTranspositions = Transposition[]
+		newPos            = copy(init.pos)
+
+		# The variable is removed from the set of transpositions
+		for t in init.transpositions
+
+			if length(t.pairs) > 1	
+
+				swaps = Tuple{Int,Int}[]
+				for pair in t.pairs 
+					if !(var in pair) 
+						push!(swaps, pair)
+					end
+				end
+
+				if length(swaps) > 0 
+					push!(newTranspositions, Transposition(t.λ, swaps))
+				end
+			else
+
+				if !(var in t.pairs[1])
+					push!(newTranspositions, Transposition(t.λ, t.pairs))
+				end
+			end
+		end
+
+		# The variable is removed form the sequence 
+		newSeq = removeFromSequence(init.seq, var)
+
+		# The positions of items after var in the sequence are diminished by 1
+		for p in init.pos[var]+1:length(init.seq)
+			newPos[init.seq[p]] = init.pos[init.seq[p]] - 1
+		end
+
+		return Initialisation(newTranspositions, newSeq, newPos)
+
+	elseif method == SIMPLEX 
+
+		newSeq = removeFromSequence(init.seq, var)
+		return Initialisation(nothing, nothing, nothing, newSeq, nothing)
+		
+	end 
 end
 
 # ----- SOLUTIONS ------------------------------------------------------------ #
 # Add an item to a solution
-function addItem!(prob::_MOMKP, sol::Union{Solution,SolutionD}, item::Int)
+function addItem!(prob::_MOMKP, sol::Solution, item::Int)
 	sol.X[item] = 1
-	sol.z += prob.P[:,item]
+	sol.z      += prob.P[:,item]
+	sol.ω_     -= prob.W[1,item]
+	@assert sol.ω_ >= 0 "Negative capacity addItem"
 end
 
 # Add a break item to a solution
 function addBreakItem!(prob::_MOMKP,
-					   sol::Union{Solution,SolutionD},
-					   ω_::Int,
+					   sol::Solution,
 					   item::Int)
 
-	sol.X[item] = ω_//prob.W[1,item]
+	sol.X[item] = sol.ω_//prob.W[1,item]
 	sol.z += sol.X[item] * prob.P[:,item]
 end
 
 # Computes the dantzig solution for a given sequence
-function dantzigSolution(prob::_MOMKP, sequence::Vector{Int})
+function dantzigSolution(prob::_MOMKP, seq::Vector{Int}, solInit::Solution)
 
 	n   = size(prob.P)[2]
 	ω_  = prob.ω[1]
-	sol = Solution(n)
+	sol = Solution{Float64}(solInit.X[1:end], solInit.z[1:end], solInit.ω_)
 	i   = 1
 
-	while i <= n && prob.W[1,sequence[i]] <= ω_
-		item = sequence[i]
+	while i <= length(seq) && prob.W[1,seq[i]] <= sol.ω_
 		# L'objet est inséré
-		addItem!(prob, sol, item)
-		ω_ -= prob.W[1,item]
+		addItem!(prob, sol, seq[i])
 		i += 1
 	end
 
-	return sol, i, ω_
+	@assert sol.ω_ >= 0 "Negative capacity dantzigSolution"
+
+	return sol, i
 end
 
 # Builds a solution including the break item
-function buildSolution(prob::_MOMKP, seq::Vector{Int})
+function buildSolution(prob::_MOMKP, seq::Vector{Int}, solInit::Solution)
 
-	n          = size(prob.P)[2]
-	sol, s, ω_ = dantzigSolution(prob, seq)
+	n      = size(prob.P)[2]
+	sol, s = dantzigSolution(prob, seq, solInit)
 
-	if ω_ > 0
+	if sol.ω_ > 0 && s <= length(seq)
 		# Une fraction de l'objet s est insérée
-		addBreakItem!(prob, sol, ω_, seq[s])
+		addBreakItem!(prob, sol, seq[s])
 	end
 
-	return sol, s, ω_
+	@assert sol.ω_ >= 0 "Negative capacity buildSolution"
+
+	return sol, s
 end
 
 # Re-build part of a solution after a sequence reversal
@@ -87,45 +277,76 @@ function reoptSolution(prob::_MOMKP,
 					   seq::Vector{Int},
 					   start::Int,
 					   finish::Int, 
-					   sol::Solution,
-					   ω_::Int)
+					   sol::Solution)
 
-	# Les objets entre start et fin dans la séquence sont retirés
-	for pos in start:finish
+	# The items between start and finish in the sequence are removed 
+	pos = finish 
+	stop = false 
+	while !stop && pos >= start
 
 		item = seq[pos]
 		
 		if sol.X[item] < 1 && sol.X[item] > 0 
-			# L'objet cassé est retiré
+			# The break item is removed
 			sol.z      -= sol.X[item] * prob.P[:,item]
 			sol.X[item] = 0
+			stop        = true
 			
 		elseif sol.X[item] == 1 
-			# Un objet inséré dans le sac est retiré
+			# An item that was in the bag is removed 
 			sol.z      -= prob.P[:,item]
-			ω_         += prob.W[1,item]
+			sol.ω_     += prob.W[1,item]
 			sol.X[item] = 0
 		end 
+		pos -= 1 
 	end
 
-	# Les objets sont insérés en partant de start dans la nouvelle séquence
+	# The items are inserted from start to finish 
 	pos = start
-	while prob.W[1,seq[pos]] <= ω_
+	while prob.W[1,seq[pos]] <= sol.ω_
 
 		# L'objet est inséré en entier
 		addItem!(prob, sol, seq[pos])
-		ω_ -= prob.W[1,seq[pos]]
-
 		pos += 1
 	end
 
-	return sol, pos, ω_
+	@assert sol.ω_ >= 0 "Negative capacity reoptSolution"
+	
+	return sol, pos
 end
 
 # Returns true if the solution is integer 
 function isInteger(sol::Solution, breakItem::Int)
 	return (sol.X[breakItem] == 0 || sol.X[breakItem] == 1)
 end
+
+# Returns true if the solution is integer 
+function isInteger(sol::Solution)
+	is_integer = true 
+	for i in 1:length(sol.X)
+		is_integer = is_integer && !(sol.X[i] > 0 && sol.X[i] < 1)
+	end 
+	return is_integer
+end
+
+# Verifies the values for the objective function and the residual capacity
+function verifySolution(prob::_MOMKP, sol::Solution{T}) where T<:Real 
+    objValue = [0,0]
+    residualCapacity = prob.ω[1] 
+
+    for i in 1:size(prob.P)[2] 
+        if sol.X[i] == 1//1
+            objValue += prob.P[:,i] 
+            residualCapacity -= prob.W[1,i] 
+        elseif sol.X[i] > 0 
+            objValue += sol.X[i] * prob.P[:,i]
+        end
+    end
+
+	@assert residualCapacity >= 0 "Solution non-admissible"
+    println("z : ", sol.z == objValue)
+    println("ω_ : ", sol.ω_ == residualCapacity)
+end 
 
 # ----- PROBLEMS ------------------------------------------------------------- #
 # Groups together equivalent items 
@@ -170,3 +391,82 @@ function groupEquivalentItems(prob::_MOMKP)
 
     return _MOMKP(P, reshape(W, 1, length(W)), prob.ω)
 end 
+
+# TODO : tightness ratio 
+
+# Transforms a multi-dimensional instance into a mono-dimensional instance by 
+# only keep the first constraint 
+function multiToMonoDimensional(prob::_MOMKP)
+	return _MOMKP(prob.P, prob.W[setdiff(1:end,2),:], prob.ω[1:1])
+end 
+
+# ----- BOUND SETs ----------------------------------------------------------- #
+# Returns true if sol is identical to the most recent solution in UB 
+function identicalToPrevious(UB::DualBoundSet, sol::Solution{T}) where T<:Real
+    return length(UB.points) > 0 && UB.points[end] == sol.z 
+end 
+
+function identicalToPrevious(UB::DualBoundSet, y::Vector{Float64})
+    return length(UB.points) > 0 && UB.points[end] == y
+end 
+
+# Updates the bound set by adding the point and corresponding constraint if it 
+# is not already present and adding the solution to the list of integer 
+# solutions if applicable 
+
+# -- Parametric method for LP relaxation 
+function updateBoundSets!(UB::DualBoundSet{Float64}, 
+						  L::Vector{Solution{Float64}}, 
+						  λ::Rational{Int}, 
+						  sol::Solution{Float64}, 
+						  breakItem::Int)
+    
+    if !identicalToPrevious(UB, sol)
+        push!(UB.points, sol.z) 
+		push!(UB.constraints, Constraint(λ, sol.z))
+        if isInteger(sol, breakItem) 
+			#println("\nL = ", [sol.z for sol in L])
+			#println("Adding ", sol.z)
+            add!(L, Solution(sol.X[1:end], sol.z[1:end], sol.ω_)) 
+        end 
+    end 
+end 
+
+# -- Parametric method for Martello and Toth
+function updateBoundSet!(UB::DualBoundSet{Float64}, 
+						 λ::Union{Rational{Int},Float64}, 
+						 y::Vector{Float64})
+
+	if !identicalToPrevious(UB, y)
+		add!(UB.points, y) 
+		push!(UB.constraints, Constraint(λ, y))
+	end 
+end 
+
+# -- Dichotomic method 
+function updateBoundSets!(UB::DualBoundSet{Rational{Int}},  
+						  L::Vector{Solution{Rational{Int}}},
+						  sol::Solution{Rational{Int}}, 
+						  breakItem::Int)
+
+	if !identicalToPrevious(UB, sol)
+		add!(UB.points, sol.z) 
+		if isInteger(sol, breakItem) 
+			add!(L, Solution(sol.X[1:end], sol.z[1:end], sol.ω_)) 
+		end 
+	end 
+end
+
+# -- Simplex algorithm 
+function updateBoundSets!(UB::DualBoundSet{Float64},  
+						  L::Vector{Solution{Float64}},
+						  sol::Solution{Float64}, 
+						  breakItem::Int)
+
+	if !identicalToPrevious(UB, sol)
+		push!(UB.points, sol.z) 
+		if isInteger(sol, breakItem) 
+			add!(L, Solution(sol.X[1:end], sol.z[1:end], sol.ω_)) 
+		end 
+	end 
+end
