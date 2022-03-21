@@ -8,7 +8,9 @@ include("lpRelaxation.jl")
 include("martelloAndToth.jl")
 include("dichotomicMethod.jl")
 include("simplexAlgorithm.jl")
+include("branch-and-bound.jl")
 include("vOptMomkp.jl")
+include("parsers.jl")
 include("parserMomkpPG.jl")
 include("parserMomkpZL.jl")
 include("displayGraphic.jl")
@@ -20,13 +22,17 @@ const to = TimerOutput()
 # Compute reference sets for all files in the specified folder 
 function computeReferenceSets(dir::String)
 
-	files = readdir(dir)
+	files = readdir(dir*"dat/")
+
 	for fname in files 
+
 		println("\n", fname)
+
+		# Read the instance in the file 
 		if fname[length(fname)-3:length(fname)] == ".DAT"
-			prob = readInstanceMOMKPformatPG(false, dir*fname)
+			prob = readInstanceMOMKPformatPG(false, dir*"dat/"*fname)
 		else
-			prob = readInstanceMOMKPformatZL(false, dir*fname)
+			prob = readInstanceMOMKPformatZL(false, dir*"dat/"*fname)
 		end
 
 		# Transform the multi-dimensional problem into a mono-dimensional problem
@@ -35,7 +41,13 @@ function computeReferenceSets(dir::String)
 		# Solve the problem with vOpt 
 		ref, _ = vSolveBi01IP(GLPK.Optimizer, prob.P, prob.W, prob.ω)
 
-		println("ref = ", ref)
+		# Write in a file 
+		open(dir*"res/ref_"*fname, "w") do io 
+			write(io, fname)
+			for y in ref 
+				write(io, "\n"*string(y[1])*" "*string(y[2]))
+			end 
+		end; 
 	end 
 end 
 
@@ -277,6 +289,8 @@ function testInstancesSimplex(dir::String, graphic=false)
 end
 
 # ----- UBS COMPARISON ------------------------------------------------------- #
+# Compare CPU time and memory usage for nIter runs for all methods that compute 
+# an upper bound set on the instance in file fname 
 function compareUBS(fname::String, nIter::Int)
 
 	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
@@ -327,4 +341,40 @@ function compareUBS(fname::String, nIter::Int)
 				simplex(prob, L, initSimplex, Solution{Float64}(prob)) 
 		end 
 	end 
+end 
+
+# ----- BRANCH-AND-BOUND ----------------------------------------------------- #
+# Tests the branch-and-bound algorithm on the instance in file fname 
+function testBranchAndBound(fname::String, ref::Vector{Vector{Float64}})
+
+	println(fname)
+
+	# Read the instance in the file 
+	if fname[length(fname)-3:length(fname)] == ".DAT"
+		prob = readInstanceMOMKPformatPG(false, fname)
+	else
+		prob = readInstanceMOMKPformatZL(false, fname)
+	end
+
+	# Branch-and-bound 
+	L = branchAndBound(prob)
+
+	@assert ref == [sol.z for sol in L] "The solutions obtained by the 
+	branch-and-bound algorithm must be identical to those in the reference set"
+
+	# Plot the obtained set of solutions 
+	plotYN(ref, L)
+end 
+
+# Tests the branch-and-bound algorithm on all instances in directory dir 
+function testInstancesBranchAndBound(dir::String)
+
+	files = readdir(dir*"dat/")
+	for fname in files 
+		# Get the reference set 
+		ref = readReferenceSet(dir*"res/ref_"*fname)
+
+		testBranchAndBound(dir*fname, ref)
+	end 
+
 end 
