@@ -137,7 +137,9 @@ function verifiesConstraints(constraints::Vector{Constraint},
     while verif && i <= length(constraints)
         λ     = constraints[i].λ 
         point = constraints[i].point
-        verif = verif && λ*y[1] + (1-λ)*y[2] <= λ*point[1] + (1-λ)*point[2]
+        if λ != 1//1 && λ != 0//1 
+            verif = verif && λ*y[1] + (1-λ)*y[2] <= λ*point[1] + (1-λ)*point[2]
+        end 
         i    += 1 
     end 
     return verif 
@@ -154,7 +156,7 @@ function isDominated(UB::DualBoundSet,
 
     while is_dominated && i <= length(nadirPoints)
         is_dominated = is_dominated && 
-            !verifiesConstraints(UB.constraints[2:end-1], nadirPoints[i])
+            !verifiesConstraints(UB.constraints, nadirPoints[i])
         i += 1 
     end 
     return is_dominated
@@ -217,10 +219,11 @@ function plotBoundSets(UB::DualBoundSet,
 end 
 
 # Plot the nondominated points obtained by vOpt and the branch-and-bound method 
-function plotYN(ref::Vector{Vector{Float64}}, 
+function plotYN(fname::String,
+                ref::Vector{Vector{Float64}}, 
                 L::Vector{Solution{T}}) where T<:Real
     # Setup
-    figure("Nondominated points",figsize=(6.5,5))
+    figure("Nondominated points "*fname,figsize=(6.5,5))
     xlabel(L"z^1(x)")
     ylabel(L"z^2(x)")
     PyPlot.title("Nondominated points")
