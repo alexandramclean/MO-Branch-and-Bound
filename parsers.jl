@@ -11,11 +11,11 @@ function readReferenceSet(fname::String)
     lines = readlines(f)
 
     # Reference set 
-    ref = Vector{Vector{Float64}}(undef, length(lines)-1)
+    ref = Vector{Vector{Float64}}(undef, length(lines)-2)
 
-    for i in 2:length(lines)
+    for i in 3:length(lines)
         splitLine = split(lines[i])
-        ref[i-1] = [parse(Float64, splitLine[1]), parse(Float64, splitLine[2])]
+        ref[i-2] = [parse(Float64, splitLine[1]), parse(Float64, splitLine[2])]
     end 
 
     return ref
