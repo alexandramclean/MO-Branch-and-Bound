@@ -15,6 +15,7 @@ function V(prob::_MOMKP,
 end 
 
 function reducedCosts(prob::_MOMKP, 
+                      init::Initialisation, 
                       c::Int) # Basic variable 
     
     n     = size(prob.P)[2] 
@@ -22,7 +23,11 @@ function reducedCosts(prob::_MOMKP,
 
     for k in 1:2
         for j in 1:n
-            costs[k,j] = V(prob, c, j, k)
+            if r1[i] == -1 && r2[i] == -1
+                costs[k,j] = 0
+            else 
+                costs[k,j] = V(prob, c, j, k)
+            end 
         end
     end
     return costs
@@ -45,12 +50,6 @@ function candidateVariables(costs::Matrix{Rational{Int}},
     return candidates
 end
 
-# Initialisaiton 
-function simplexInitialisation(prob::_MOMKP)
-    r1, r2    = utilities(prob)
-    seq       = sortperm(1000000*r1 + r2, rev=true) 
-    return Initialisation(r1, r2, nothing, seq, nothing)
-end 
 
 # Simplex algorithm 
 function simplex(prob::_MOMKP, 
@@ -68,7 +67,7 @@ function simplex(prob::_MOMKP,
 
     updateBoundSets!(upperBound, L, sol, c)
     
-    costs::Matrix{Rational{Int}} = reducedCosts(prob, c)
+    costs::Matrix{Rational{Int}} = reducedCosts(prob, init, c)
 
     candidates = candidateVariables(costs, sol)
     # Stopping criterion : no candidate variables
@@ -154,7 +153,7 @@ function simplex(prob::_MOMKP,
 
         updateBoundSets!(upperBound, L, sol, c)
         
-        costs      = reducedCosts(prob, c)
+        costs      = reducedCosts(prob, init, c)
         candidates = candidateVariables(costs, sol)
         stop       = (length(candidates) == 0)
     end 

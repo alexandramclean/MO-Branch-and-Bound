@@ -211,8 +211,43 @@ function setVariable(init::Initialisation,
 
 	elseif method == SIMPLEX 
 
+		n = length(r1) 
+
 		newSeq = removeFromSequence(init.seq, var)
-		return Initialisation(nothing, nothing, nothing, newSeq, nothing)
+
+		r1 = Vector{Rational{Int}}(undef, n)
+		r2 = Vector{Rational{Int}}(undef, n)
+
+		for i in 1:n
+			if i == var 
+				r1[i] = -1
+				r2[i] = -1 
+			else 
+				r1[i] = init.r1[i] 
+				r2[i] = init.r2[i] 
+			end 
+		end 
+
+		return Initialisation(r1, r2, nothing, newSeq, nothing)
+
+	elseif method == DICHOTOMIC 
+
+		n = length(r1) 
+
+		r1 = Vector{Rational{Int}}(undef, n)
+		r2 = Vector{Rational{Int}}(undef, n)
+
+		for i in 1:n
+			if i == var 
+				r1[i] = -1
+				r2[i] = -1 
+			else 
+				r1[i] = init.r1[i] 
+				r2[i] = init.r2[i] 
+			end 
+		end 
+
+		return Initialisation(r1, r2, nothing, nothing, nothing)
 	end 
 end
 
@@ -418,7 +453,7 @@ end
 
 # -- Parametric method for LP relaxation 
 function updateBoundSets!(UB::DualBoundSet{Float64}, 
-						  L::Vector{Solution{Float64}}, 
+						  L::PrimalBoundSet{Float64}, 
 						  λ::Rational{Int}, 
 						  sol::Solution{Float64}, 
 						  breakItem::Int)
@@ -427,9 +462,7 @@ function updateBoundSets!(UB::DualBoundSet{Float64},
         push!(UB.points, sol.z) 
 		push!(UB.constraints, Constraint(λ, sol.z))
         if isInteger(sol, breakItem) 
-			#println("\nL = ", [sol.z for sol in L])
-			#println("Adding ", sol.z)
-            add!(L, Solution(sol.X[1:end], sol.z[1:end], sol.ω_)) 
+            add!(L.solutions, Solution(sol.X[1:end], sol.z[1:end], sol.ω_)) 
         end 
     end 
 end 
@@ -447,14 +480,16 @@ end
 
 # -- Dichotomic method 
 function updateBoundSets!(UB::DualBoundSet{Rational{Int}},  
-						  L::Vector{Solution{Rational{Int}}},
+						  L::PrimalBoundSet{Rational{Int}},
+						  λ::Rational{Int}, 
 						  sol::Solution{Rational{Int}}, 
 						  breakItem::Int)
 
 	if !identicalToPrevious(UB, sol)
 		add!(UB.points, sol.z) 
+		push!(UB.constraints, Constraint(λ, sol.z))
 		if isInteger(sol, breakItem) 
-			add!(L, Solution(sol.X[1:end], sol.z[1:end], sol.ω_)) 
+			add!(L.solutions, Solution(sol.X[1:end], sol.z[1:end], sol.ω_)) 
 		end 
 	end 
 end
@@ -467,8 +502,21 @@ function updateBoundSets!(UB::DualBoundSet{Float64},
 
 	if !identicalToPrevious(UB, sol)
 		push!(UB.points, sol.z) 
+
+		# Constraint 
+		if length(UB.constraints) == 0 
+			@assert length(UB.points) == 1 "There are no constraints because the 
+			first point has just been added"
+			push!(UB.constraints, Constraint(1//1, sol.z))
+		else 
+			λ1 = abs(sol.z[2] - UB.points[end][2])
+			λ2 = abs(sol.z[1] - UB.points[end][1])
+			λ  = λ1//(λ1 + λ2)
+			push!(UB.constraints, Constraint(λ, sol.z))
+		end 
+
 		if isInteger(sol, breakItem) 
-			add!(L, Solution(sol.X[1:end], sol.z[1:end], sol.ω_)) 
+			add!(L.solutions, Solution(sol.X[1:end], sol.z[1:end], sol.ω_)) 
 		end 
 	end 
 end
