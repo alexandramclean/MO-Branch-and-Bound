@@ -11,12 +11,13 @@ include("lpRelaxation.jl")
 # Recursive branching function 
 function branch!(η::Node, 
                  prob::_MOMKP, 
-                 L::Vector{Solution{T}}, 
+                 L::PrimalBoundSet{T}, 
                  branchingVariables::Vector{Int}, 
                  depth::Int,
                  method::Method) where T<:Real
     
     verbose = false
+    graphic = false 
 
     # Upper bound and dominance test 
     if η.status == NOTPRUNED
@@ -26,24 +27,26 @@ function branch!(η::Node,
         # Compare with lower bound set and update status 
         if length(η.UB.points) == 0 || η.UB.points == [[0.,0.]]
             η.status = INFEASIBILITY
-        elseif length(L) > 1 
+        elseif length(L.solutions) > 1 
 
-            nadirPoints = shiftedLocalNadirPoints(localNadirPoints(L))
+            L.nadirs = shiftedLocalNadirPoints(localNadirPoints(L.solutions))
 
-            if !(L[end].z[1] < η.UB.points[1][1]       # max z1 in L < max z1 in UB(η)
-                || η.UB.points[end][1] < L[1].z[1]) && # min z1 in UB(η) < min z1 in L 
-                isDominated(η.UB, nadirPoints) 
+            if !(L.solutions[end].z[1] < η.UB.points[1][1] 
+                # max z1 in L < max z1 in UB(η)
+                || η.UB.points[end][1] < L.solutions[1].z[1]) && 
+                # min z1 in UB(η) < min z1 in L 
+                isDominated(η.UB, L.nadirs) 
 
                 η.status = DOMINANCE 
-                #plotBoundSets(η.UB, L)
+                graphic ? plotBoundSets(η.UB, L.solutions) : nothing
             end
         end
     end 
-    add!(L, η.solInit)
+    add!(L.solutions, η.solInit)
 
     if verbose 
         println("\ndepth = ", depth)
-        println("L = ", [sol.z for sol in L])
+        println("L = ", [sol.z for sol in L.solutions])
         println("UB = ", η.UB.points)
         println("solInit.X = ", η.solInit.X)
         println("solInit.z = ", η.solInit.z)
@@ -58,9 +61,7 @@ function branch!(η::Node,
             # Set variable  
             var = branchingVariables[depth] 
             newInit = setVariable(η.init, var, method)
-            if verbose 
-                println("Variable ", var, " has been set")
-            end 
+            verbose ? println("Variable ", var, " has been set") : nothing
 
             # var is set to 1
             if prob.W[1,var] <= η.solInit.ω_ 
@@ -69,15 +70,15 @@ function branch!(η::Node,
                             η.solInit.ω_ - prob.W[1,var])  
                 solInit1.X[var] = 1 
 
-                η1 = Node(DualBoundSet{Float64}(), η, solInit1, newInit, NOTPRUNED) 
+                η1 = Node(DualBoundSet{Float64}(), η, newInit, solInit1, NOTPRUNED) 
                 branch!(η1, prob, L, branchingVariables, depth+1, method) 
             else 
-                η1 = Node(DualBoundSet{Float64}(), η, η.solInit, newInit, INFEASIBILITY)
+                η1 = Node(DualBoundSet{Float64}(), η, newInit, η.solInit, INFEASIBILITY)
                 branch!(η1, prob, L, branchingVariables, depth+1, method)
             end
 
             # var is set to 0
-            η0 = Node(DualBoundSet{Float64}(), η, η.solInit, newInit, NOTPRUNED)
+            η0 = Node(DualBoundSet{Float64}(), η, newInit, η.solInit, NOTPRUNED)
             branch!(η0, prob, L, branchingVariables, depth+1, method) 
  
         else 
@@ -91,17 +92,17 @@ function branchAndBound(prob::_MOMKP, method::Method=PARAMETRIC_LP)
 
     # Lower bound set and initial solution  
     if method == DICHOTOMIC
-        L       = Solution{Rational{Int}}[] 
+        L       = PrimalBoundSet{Rational{Int}}()
         solInit = Solution{Rational{Int}}(prob)
     else 
-        L       = Solution{Float64}[]
+        L       = PrimalBoundSet{Float64}()
         solInit = Solution{Float64}(prob) 
     end 
 
     # Root node 
     init     = initialisation(prob, method)
     rootNode = 
-        Node(DualBoundSet{Float64}(), nothing, solInit, init, NOTPRUNED)
+        Node(nothing, nothing, init, solInit, NOTPRUNED)
 
     # Computes the ranks for each variable 
     rank1, rank2 = ranks(init.r1, init.r2)

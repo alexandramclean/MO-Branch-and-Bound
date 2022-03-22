@@ -67,7 +67,7 @@ end
 
 # Computes the LP relaxation using the parametric method 
 function parametricMethod(prob::_MOMKP,
-						  L::Vector{Solution{T}},
+						  L::PrimalBoundSet{T},
 						  init::Initialisation,
 						  solInit::Solution{T}) where T<:Real
 

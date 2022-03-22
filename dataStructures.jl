@@ -74,9 +74,14 @@ DualBoundSet{Rational{Int}}() = DualBoundSet(Vector{Rational{Int}}[], Constraint
 
 # Data structure representing the incumbent set (lower bound set in this case)
 mutable struct PrimalBoundSet{T}
-    L::Vector{Solution{T}}    # Vector of integer solutions 
-    nadirs::Vector{Vector{T}} # Local nadir points
+    solutions::Vector{Solution{T}} # Vector of integer solutions 
+    nadirs::Vector{Vector{T}}      # Local nadir points
 end 
+
+# Constructors 
+PrimalBoundSet{Float64}() = PrimalBoundSet(Solution{Float64}[], Vector{Float64}[])
+PrimalBoundSet{Rational{Int}}() = PrimalBoundSet(Solution{Rational{Int}}[], 
+    Vector{Rational{Int}}[])
 
 # ----- BRANCH-AND-BOUND ----------------------------------------------------- #
 @enum Status DOMINANCE OPTIMALITY INFEASIBILITY NOTPRUNED MAXDEPTH
