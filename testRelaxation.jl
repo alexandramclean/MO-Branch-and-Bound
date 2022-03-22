@@ -38,12 +38,15 @@ function computeReferenceSets(dir::String)
 		# Transform the multi-dimensional problem into a mono-dimensional problem
 		prob = multiToMonoDimensional(prob)
 
-		# Solve the problem with vOpt 
+		# Solve the problem with vOpt
+		start = time() 
 		ref, _ = vSolveBi01IP(GLPK.Optimizer, prob.P, prob.W, prob.ω)
+		elapsed = time() - start 
 
 		# Write in a file 
 		open(dir*"res/ref_"*fname, "w") do io 
-			write(io, fname)
+			write(io, fname*"\n")
+			write(io, string(elapsed))
 			for y in ref 
 				write(io, "\n"*string(y[1])*" "*string(y[2]))
 			end 
@@ -347,7 +350,7 @@ end
 # Tests the branch-and-bound algorithm on the instance in file fname 
 function testBranchAndBound(fname::String, ref::Vector{Vector{Float64}})
 
-	println(fname)
+	println(basename(fname))
 
 	# Read the instance in the file 
 	if fname[length(fname)-3:length(fname)] == ".DAT"
@@ -357,13 +360,13 @@ function testBranchAndBound(fname::String, ref::Vector{Vector{Float64}})
 	end
 
 	# Branch-and-bound 
-	L = branchAndBound(prob)
-
-	@assert ref == [sol.z for sol in L] "The solutions obtained by the 
-	branch-and-bound algorithm must be identical to those in the reference set"
+	@time L = branchAndBound(prob)
 
 	# Plot the obtained set of solutions 
-	plotYN(ref, L)
+	plotYN(basename(fname), ref, L.solutions)
+
+	@assert ref == [sol.z for sol in L.solutions] "The solutions obtained by the 
+	branch-and-bound algorithm must be identical to those in the reference set"
 end 
 
 # Tests the branch-and-bound algorithm on all instances in directory dir 
@@ -374,7 +377,7 @@ function testInstancesBranchAndBound(dir::String)
 		# Get the reference set 
 		ref = readReferenceSet(dir*"res/ref_"*fname)
 
-		testBranchAndBound(dir*fname, ref)
+		testBranchAndBound(dir*"dat/"*fname, ref)
 	end 
 
 end 
