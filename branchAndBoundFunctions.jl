@@ -117,12 +117,27 @@ function localNadirPoints(incumbentSet::Vector{Solution{T}}) where T<:Real
     return nadirs
 end 
 
-# Calcule les nadirs locaux décalés (hypothèse d'intégrité)
-function shiftedLocalNadirPoints(nadirs::Vector{Vector{Float64}})
+# Calcule les nadirs locaux décalés (hypothèse d'intégrité) à partir des 
+# points nadirs locaux
+function shiftedLocalNadirPoints(nadirs::Vector{Vector{T}}) where T<:Real
 
     shiftedNadirs = Vector{Vector{Float64}}(undef, length(nadirs))
     for i in 1:length(nadirs)
         shiftedNadirs[i] = nadirs[i] + [1.,1.]
+    end 
+    return shiftedNadirs
+end 
+
+# Calcule les nadirs locaux décalés (hypothèse d'intégrité) à partir de 
+# l'ensemble bornant inférieur
+function shiftedLocalNadirPoints(incumbentSet::Vector{Solution{T}}
+                                ) where T<:Real
+
+    shiftedNadirs = Vector{Vector{Float64}}(undef, length(incumbentSet)-1)
+    for i in 1:length(incumbentSet)-1
+        yl = incumbentSet[i].z
+        yr = incumbentSet[i+1].z 
+        shiftedNadirs[i] = [yl[1], yr[2]] + [1.,1.]
     end 
     return shiftedNadirs
 end 

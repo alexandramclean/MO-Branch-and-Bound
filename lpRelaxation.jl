@@ -66,10 +66,13 @@ function swapWithItemNotInBag(prob::_MOMKP,
 end
 
 # Computes the LP relaxation using the parametric method 
-function parametricMethod(prob::_MOMKP,
-						  L::PrimalBoundSet{T},
-						  init::Initialisation,
-						  solInit::Solution{T}) where T<:Real
+function parametricMethod(prob::_MOMKP,           # Bi01KP instance
+						  L::PrimalBoundSet{T},   # Lower bound set 
+						  init::Initialisation,   # seq, pos, transpositions
+						  solInit::Solution{T},   # Initial solution 
+						  interrupt::Bool = false # The computation of the 
+						  # upper bound set can be interrupted
+						 ) where T<:Real
 
 	# Creates copies of the sequence and positions as they will be modified 
 	seq = init.seq[1:end] 

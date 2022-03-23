@@ -22,27 +22,29 @@ function branch!(η::Node,
     # Upper bound and dominance test 
     if η.status == NOTPRUNED
         # Compute the upper bound set for η 
-        η.UB = parametricMethod(prob, L, η.init, η.solInit) 
+        @timeit to "Upper bound" η.UB = parametricMethod(prob, L, η.init, η.solInit) 
 
         # Compare with lower bound set and update status 
         if length(η.UB.points) == 0 || η.UB.points == [[0.,0.]]
             η.status = INFEASIBILITY
         elseif length(L.solutions) > 1 
 
-            L.nadirs = shiftedLocalNadirPoints(localNadirPoints(L.solutions))
+            @timeit to "Nadirs" L.nadirs = shiftedLocalNadirPoints(L.solutions)
+
+            @timeit to "Dominance" is_dominated = isDominated(η.UB, L.nadirs)
 
             if !(L.solutions[end].z[1] < η.UB.points[1][1] 
                 # max z1 in L < max z1 in UB(η)
                 || η.UB.points[end][1] < L.solutions[1].z[1]) && 
                 # min z1 in UB(η) < min z1 in L 
-                isDominated(η.UB, L.nadirs) 
+                is_dominated
 
                 η.status = DOMINANCE 
                 graphic ? plotBoundSets(η.UB, L.solutions) : nothing
             end
         end
     end 
-    add!(L.solutions, η.solInit)
+    @timeit to "solInit" add!(L.solutions, η.solInit)
 
     if verbose 
         println("\ndepth = ", depth)
@@ -60,7 +62,7 @@ function branch!(η::Node,
         if depth <= length(branchingVariables)
             # Set variable  
             var = branchingVariables[depth] 
-            newInit = setVariable(η.init, var, method)
+            @timeit to "setVar" newInit = setVariable(η.init, var, method)
             verbose ? println("Variable ", var, " has been set") : nothing
 
             # var is set to 1
