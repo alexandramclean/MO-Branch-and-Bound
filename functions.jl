@@ -37,15 +37,7 @@ end
 # Computes the utilities (profit-to-weight ratios) for both objective functions
 function utilities(prob::_MOMKP)
 
-	p, n = size(prob.P)
-
-	#=ratios = Matrix{Rational{Int}}(undef, p, n)
-	for k in 1:p 
-		for j in 1:n 
-			ratios[k,j] = prob.P[k,j]//prob.W[1,j]
-		end 
-	end 
-	return ratios=#
+	n = size(prob.P)[2]
 
 	r1 = [prob.P[1,j]//prob.W[1,j] for j in 1:n]
 	r2 = [prob.P[2,j]//prob.W[1,j] for j in 1:n]
@@ -136,7 +128,7 @@ function initialisation(prob::_MOMKP, method::Method)
 
 		if method == SIMPLEX 
 			
-			return Initialisation(nothing, nothing, nothing, seq, nothing)
+			return Initialisation(r1, r2, nothing, seq, nothing)
 
 		else # method == PARAMETRIC 
 
@@ -211,7 +203,7 @@ function setVariable(init::Initialisation,
 
 	elseif method == SIMPLEX 
 
-		n = length(r1) 
+		n = length(init.r1) 
 
 		newSeq = removeFromSequence(init.seq, var)
 
@@ -232,7 +224,7 @@ function setVariable(init::Initialisation,
 
 	elseif method == DICHOTOMIC 
 
-		n = length(r1) 
+		n = length(init.r1) 
 
 		r1 = Vector{Rational{Int}}(undef, n)
 		r2 = Vector{Rational{Int}}(undef, n)
@@ -257,7 +249,6 @@ function addItem!(prob::_MOMKP, sol::Solution, item::Int)
 	sol.X[item] = 1
 	sol.z      += prob.P[:,item]
 	sol.ω_     -= prob.W[1,item]
-	@assert sol.ω_ >= 0 "Negative capacity addItem"
 end
 
 # Add a break item to a solution
@@ -273,7 +264,6 @@ end
 function dantzigSolution(prob::_MOMKP, seq::Vector{Int}, solInit::Solution)
 
 	n   = size(prob.P)[2]
-	ω_  = prob.ω[1]
 	sol = Solution{Float64}(solInit.X[1:end], solInit.z[1:end], solInit.ω_)
 	i   = 1
 
@@ -282,8 +272,6 @@ function dantzigSolution(prob::_MOMKP, seq::Vector{Int}, solInit::Solution)
 		addItem!(prob, sol, seq[i])
 		i += 1
 	end
-
-	@assert sol.ω_ >= 0 "Negative capacity dantzigSolution"
 
 	return sol, i
 end
@@ -298,8 +286,6 @@ function buildSolution(prob::_MOMKP, seq::Vector{Int}, solInit::Solution)
 		# Une fraction de l'objet s est insérée
 		addBreakItem!(prob, sol, seq[s])
 	end
-
-	@assert sol.ω_ >= 0 "Negative capacity buildSolution"
 
 	return sol, s
 end
@@ -341,8 +327,6 @@ function reoptSolution(prob::_MOMKP,
 		addItem!(prob, sol, seq[pos])
 		pos += 1
 	end
-
-	@assert sol.ω_ >= 0 "Negative capacity reoptSolution"
 	
 	return sol, pos
 end
@@ -496,7 +480,7 @@ end
 
 # -- Simplex algorithm 
 function updateBoundSets!(UB::DualBoundSet{Float64},  
-						  L::Vector{Solution{Float64}},
+						  L::PrimalBoundSet{Float64},
 						  sol::Solution{Float64}, 
 						  breakItem::Int)
 
@@ -511,7 +495,7 @@ function updateBoundSets!(UB::DualBoundSet{Float64},
 		else 
 			λ1 = abs(sol.z[2] - UB.points[end][2])
 			λ2 = abs(sol.z[1] - UB.points[end][1])
-			λ  = λ1//(λ1 + λ2)
+			λ  = λ1/(λ1 + λ2)
 			push!(UB.constraints, Constraint(λ, sol.z))
 		end 
 

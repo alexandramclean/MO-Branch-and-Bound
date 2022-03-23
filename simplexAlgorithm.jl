@@ -23,7 +23,7 @@ function reducedCosts(prob::_MOMKP,
 
     for k in 1:2
         for j in 1:n
-            if r1[i] == -1 && r2[i] == -1
+            if init.r1[j] == -1 && init.r2[j] == -1
                 costs[k,j] = 0
             else 
                 costs[k,j] = V(prob, c, j, k)
@@ -53,7 +53,7 @@ end
 
 # Simplex algorithm 
 function simplex(prob::_MOMKP, 
-                 L::Vector{Solution{T}}, 
+                 L::PrimalBoundSet{T}, 
                  init::Initialisation, 
                  solInit::Solution{T}) where T<:Real
 
