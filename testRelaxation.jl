@@ -267,7 +267,7 @@ function compareSetVar(fname::String,
 
 	# Dichotomic method 
 	L = PrimalBoundSet{Rational{Int}}() 
-	
+
 	# Variable setting 
 	newInit = setVariable(init, var, DICHOTOMIC)	
 
@@ -427,7 +427,8 @@ function compareUBS(fname::String, nIter::Int)
 
 	# Dichotomic method 
 	initDicho = initialisation(didactic, DICHOTOMIC)
-	_ = dichotomicMethod(didactic, Solution{Rational{Int}}[], initDicho)
+	L = PrimalBoundSet{Rational{Int}}()
+	_ = dichotomicMethod(didactic, L, initDicho, Solution{Rational{Int}}(didactic))
 	
 	# Simplex algorithm 
 	initSimplex = initialisation(didactic, SIMPLEX) 
@@ -456,11 +457,12 @@ function compareUBS(fname::String, nIter::Int)
 		L = Solution{Rational{Int}}[]
 		@timeit to "Dichotomic method" begin 
 			@timeit to "Initialisation" initDicho = initialisation(prob, DICHOTOMIC)
-			@timeit to "Relaxation" _ = dichotomicMethod(prob, L, initDicho)
+			@timeit to "Relaxation" _ = 
+				dichotomicMethod(prob, L, initDicho, Solution{Rational{Int}}(prob))
 		end 
 
 		# Simplex algorithm 
-		L = Solution{Float64}[]
+		L = PrimalBoundSet{Float64}()
 		@timeit to "Simplex" begin 
 			@timeit to "Initialisaiton" initSimplex = initialisation(prob, SIMPLEX)
 			@timeit to "Relaxation" _ = 
