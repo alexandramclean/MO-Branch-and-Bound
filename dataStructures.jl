@@ -89,7 +89,7 @@ PrimalBoundSet{Rational{Int}}() = PrimalBoundSet(Solution{Rational{Int}}[],
 # Data structure representing a node in a branch-and-bound algorithm
 mutable struct Node 
     UB::Union{DualBoundSet,Nothing} # Upper bound set for the node
-    parent::Union{Node,Nothing}     # Parent node 
+    #parent::Union{Node,Nothing}    # Parent node 
     init::Initialisation            # Transpositions and initial sequence
     solInit::Solution               # Initial solution with set variables
     status::Status                  # Indicates whether the node has been pruned 

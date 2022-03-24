@@ -29,7 +29,19 @@ function branch!(η::Node,
             η.status = INFEASIBILITY
         elseif length(L.solutions) > 1 
 
-            @timeit to "Nadirs" L.nadirs = shiftedLocalNadirPoints(L.solutions)
+            println("\nL : ")
+            afficher(L.solutions)
+
+
+            shiftedNadirs = localNadirPoints(L.solutions)
+
+            println()
+            afficher(L.nadirs)
+            afficher(shiftedNadirs)
+
+            @assert L.nadirs ==  shiftedNadirs "The local nadir points are incorrect"
+
+            #@timeit to "Nadirs" L.nadirs = shiftedLocalNadirPoints(L.solutions)
 
             @timeit to "Dominance" is_dominated = isDominated(η.UB, L.nadirs)
 
@@ -44,7 +56,11 @@ function branch!(η::Node,
             end
         end
     end 
-    @timeit to "solInit" add!(L.solutions, η.solInit)
+    #=@timeit to "solInit" add!(L, η.solInit)
+
+    println()
+    afficher(L.nadirs)
+    afficher(shiftedNadirs)=#
 
     if verbose 
         println("\ndepth = ", depth)
@@ -72,15 +88,15 @@ function branch!(η::Node,
                             η.solInit.ω_ - prob.W[1,var])  
                 solInit1.X[var] = 1 
 
-                η1 = Node(DualBoundSet{Float64}(), η, newInit, solInit1, NOTPRUNED) 
+                η1 = Node(DualBoundSet{Float64}(), newInit, solInit1, NOTPRUNED) 
                 branch!(η1, prob, L, branchingVariables, depth+1, method) 
             else 
-                η1 = Node(DualBoundSet{Float64}(), η, newInit, η.solInit, INFEASIBILITY)
+                η1 = Node(DualBoundSet{Float64}(), newInit, η.solInit, INFEASIBILITY)
                 branch!(η1, prob, L, branchingVariables, depth+1, method)
             end
 
             # var is set to 0
-            η0 = Node(DualBoundSet{Float64}(), η, newInit, η.solInit, NOTPRUNED)
+            η0 = Node(DualBoundSet{Float64}(), newInit, η.solInit, NOTPRUNED)
             branch!(η0, prob, L, branchingVariables, depth+1, method) 
  
         else 
@@ -104,7 +120,7 @@ function branchAndBound(prob::_MOMKP, method::Method=PARAMETRIC_LP)
     # Root node 
     init     = initialisation(prob, method)
     rootNode = 
-        Node(nothing, nothing, init, solInit, NOTPRUNED)
+        Node(nothing, init, solInit, NOTPRUNED)
 
     # Computes the ranks for each variable 
     rank1, rank2 = ranks(init.r1, init.r2)

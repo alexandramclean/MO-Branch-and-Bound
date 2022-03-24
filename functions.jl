@@ -446,7 +446,7 @@ function updateBoundSets!(UB::DualBoundSet{Float64},
         push!(UB.points, sol.z) 
 		push!(UB.constraints, Constraint(λ, sol.z))
         if isInteger(sol, breakItem) 
-            add!(L.solutions, Solution(sol.X[1:end], sol.z[1:end], sol.ω_)) 
+            add!(L, Solution(sol.X[1:end], sol.z[1:end], sol.ω_)) 
         end 
     end 
 end 
