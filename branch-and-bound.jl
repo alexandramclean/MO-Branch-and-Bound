@@ -29,20 +29,6 @@ function branch!(η::Node,
             η.status = INFEASIBILITY
         elseif length(L.solutions) > 1 
 
-            println("\nL : ")
-            afficher(L.solutions)
-
-
-            shiftedNadirs = localNadirPoints(L.solutions)
-
-            println()
-            afficher(L.nadirs)
-            afficher(shiftedNadirs)
-
-            @assert L.nadirs ==  shiftedNadirs "The local nadir points are incorrect"
-
-            #@timeit to "Nadirs" L.nadirs = shiftedLocalNadirPoints(L.solutions)
-
             @timeit to "Dominance" is_dominated = isDominated(η.UB, L.nadirs)
 
             if !(L.solutions[end].z[1] < η.UB.points[1][1] 
@@ -56,11 +42,7 @@ function branch!(η::Node,
             end
         end
     end 
-    #=@timeit to "solInit" add!(L, η.solInit)
-
-    println()
-    afficher(L.nadirs)
-    afficher(shiftedNadirs)=#
+    @timeit to "solInit" add!(L, η.solInit)
 
     if verbose 
         println("\ndepth = ", depth)
@@ -126,7 +108,7 @@ function branchAndBound(prob::_MOMKP, method::Method=PARAMETRIC_LP)
     rank1, rank2 = ranks(init.r1, init.r2)
     # Branching strategy 
     branchingVariables = sumRank(rank1, rank2, INCREASING)
-    println("Branching strategy : ", branchingVariables)
+    #println("Branching strategy : ", branchingVariables)
 
     # Recursive branching function 
     branch!(rootNode, prob, L, branchingVariables, 1, method)
