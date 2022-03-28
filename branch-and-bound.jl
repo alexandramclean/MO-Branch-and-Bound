@@ -14,7 +14,8 @@ function branch!(η::Node,
                  L::PrimalBoundSet{T}, 
                  branchingVariables::Vector{Int}, 
                  depth::Int,
-                 method::Method) where T<:Real
+                 method::Method,
+                 interrupt::Bool) where T<:Real
     
     verbose = false
     graphic = false 
@@ -22,7 +23,8 @@ function branch!(η::Node,
     # Upper bound and dominance test 
     if η.status == NOTPRUNED
         # Compute the upper bound set for η 
-        @timeit to "Upper bound" η.UB = parametricMethod(prob, L, η.init, η.solInit) 
+        @timeit to "Upper bound" η.UB, Lη = 
+            parametricMethod(prob, L, η.init, η.solInit, interrupt) 
 
         # Compare with lower bound set and update status 
         if length(η.UB.points) == 0 || η.UB.points == [[0.,0.]]
@@ -41,6 +43,10 @@ function branch!(η::Node,
                 graphic ? plotBoundSets(η.UB, L.solutions) : nothing
             end
         end
+
+        for sol in Lη.solutions
+            @timeit to "Integer solutions" add!(L, sol)
+        end 
     end 
     @timeit to "solInit" add!(L, η.solInit)
 
@@ -65,21 +71,27 @@ function branch!(η::Node,
 
             # var is set to 1
             if prob.W[1,var] <= η.solInit.ω_ 
-                solInit1 = Solution(η.solInit.X[1:end], 
-                            η.solInit.z + prob.P[:,var],
-                            η.solInit.ω_ - prob.W[1,var])  
+                if method == DICHOTOMIC
+                    solInit1 = Solution{Rational{Int}}(η.solInit.X[1:end], 
+                                η.solInit.z + prob.P[:,var],
+                                η.solInit.ω_ - prob.W[1,var])
+                else 
+                    solInit1 = Solution{Float64}(η.solInit.X[1:end], 
+                                η.solInit.z + prob.P[:,var],
+                                η.solInit.ω_ - prob.W[1,var])
+                end 
                 solInit1.X[var] = 1 
 
                 η1 = Node(DualBoundSet{Float64}(), newInit, solInit1, NOTPRUNED) 
-                branch!(η1, prob, L, branchingVariables, depth+1, method) 
+                branch!(η1, prob, L, branchingVariables, depth+1, method, interrupt) 
             else 
                 η1 = Node(DualBoundSet{Float64}(), newInit, η.solInit, INFEASIBILITY)
-                branch!(η1, prob, L, branchingVariables, depth+1, method)
+                branch!(η1, prob, L, branchingVariables, depth+1, method, interrupt)
             end
 
             # var is set to 0
             η0 = Node(DualBoundSet{Float64}(), newInit, η.solInit, NOTPRUNED)
-            branch!(η0, prob, L, branchingVariables, depth+1, method) 
+            branch!(η0, prob, L, branchingVariables, depth+1, method, interrupt) 
  
         else 
             η.status = MAXDEPTH
@@ -88,7 +100,13 @@ function branch!(η::Node,
     end 
 end 
 
-function branchAndBound(prob::_MOMKP, method::Method=PARAMETRIC_LP) 
+function branchAndBound(prob::_MOMKP, # Bi01KP instance
+                        # Initial lower bound set 
+                        L::PrimalBoundSet=PrimalBoundSet{Float64}(), 
+                        # Method for computing the upper bound set 
+                        method::Method=PARAMETRIC_LP,   
+                        # The computation of the upper bound set can be interrupted              
+                        interrupt::Bool=false)        
 
     # Lower bound set and initial solution  
     if method == DICHOTOMIC
@@ -100,7 +118,7 @@ function branchAndBound(prob::_MOMKP, method::Method=PARAMETRIC_LP)
     end 
 
     # Root node 
-    init     = initialisation(prob, method)
+    @timeit to "Initialisation" init = initialisation(prob, method)
     rootNode = 
         Node(nothing, init, solInit, NOTPRUNED)
 
@@ -111,7 +129,7 @@ function branchAndBound(prob::_MOMKP, method::Method=PARAMETRIC_LP)
     #println("Branching strategy : ", branchingVariables)
 
     # Recursive branching function 
-    branch!(rootNode, prob, L, branchingVariables, 1, method)
+    branch!(rootNode, prob, L, branchingVariables, 1, method, interrupt)
 
     return L 
 end 

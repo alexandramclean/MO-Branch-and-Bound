@@ -82,15 +82,23 @@ function parametricMethod(prob::_MOMKP,           # Bi01KP instance
 	sol, s = buildSolution(prob, seq, solInit)
 
 	UB = DualBoundSet{Float64}()
+	Lη = PrimalBoundSet{Float64}()
+
 	if s <= length(seq)
-		updateBoundSets!(UB, L, 1//1, sol, seq[s])
+		updateBoundSets!(UB, Lη, 1//1, sol, seq[s])
 	elseif length(seq) > 0 
-		updateBoundSets!(UB, L, 1//1, sol, seq[s-1])
+		updateBoundSets!(UB, Lη, 1//1, sol, seq[s-1])
 	end 
 
 	numberCasesIdenticalWeights = 0
 
-	for iter in 1:length(init.transpositions)
+	# Used to determine if the computation of the upper bound set is interrupted
+	a2             = sol.z[1:end] 
+	toBeTested     = [i for i in 1:length(L.nadirs)] 
+	is_interrupted = false 
+
+	iter = 1 
+	while !is_interrupted && iter <= length(init.transpositions)
 
 		# Multiple identical critical weights
 		if length(init.transpositions[iter].pairs) > 1
@@ -121,9 +129,9 @@ function parametricMethod(prob::_MOMKP,           # Bi01KP instance
 			end 
 
 			if s <= length(seq)
-				updateBoundSets!(UB, L, init.transpositions[iter].λ, sol, seq[s]) 
+				updateBoundSets!(UB, Lη, init.transpositions[iter].λ, sol, seq[s]) 
 			else 
-				updateBoundSets!(UB, L, init.transpositions[iter].λ, sol, seq[s-1]) 
+				updateBoundSets!(UB, Lη, init.transpositions[iter].λ, sol, seq[s-1]) 
 			end 			
 		else
 
@@ -145,16 +153,43 @@ function parametricMethod(prob::_MOMKP,           # Bi01KP instance
 			seq[pos[i]] = i ; seq[pos[j]] = j
 
 			if s <= length(seq)
-				updateBoundSets!(UB, L, init.transpositions[iter].λ, sol, seq[s])
+				updateBoundSets!(UB, Lη, init.transpositions[iter].λ, sol, seq[s])
 			else 
-				updateBoundSets!(UB, L, init.transpositions[iter].λ, sol, seq[s-1]) 
+				updateBoundSets!(UB, Lη, init.transpositions[iter].λ, sol, seq[s-1]) 
 			end 
 		end
+
+		if interrupt 
+			# The new constraint 
+			λ  = UB.constraints[end].λ
+			a1 = UB.constraints[end].point 
+
+			for i in toBeTested
+				if i != 0
+					# Does the local nadir point verify the new constraint ?
+					nadir = L.nadirs[i]
+
+					if λ*nadir[1] + (1-λ)*nadir[2] <= λ*a1[1] + (1-λ)*a1[2] 
+						# Can the computation be interrupted ? 
+						if nadir[1] <= a2[1] && nadir[2] <= a1[2] 
+							is_interrupted = true 
+						end 
+					else 
+						toBeTested[i] = 0 
+					end 
+				end 
+			end 
+			a2 = a1 
+		end 
+
+		iter += 1 
 	end
 
-	# Add the last constraint : z2 <= sol.z[2]
-	push!(UB.constraints, Constraint(0//1, sol.z))
+	if !interrupt
+		# Add the last constraint : z2 <= sol.z[2]
+		push!(UB.constraints, Constraint(0//1, sol.z))
+	end 
 
 	#println("\tNumber of cases of identical critical weights : ", numberCasesIdenticalWeights)
-	return UB
+	return UB, Lη
 end

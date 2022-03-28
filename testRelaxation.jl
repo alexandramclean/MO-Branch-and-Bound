@@ -473,7 +473,10 @@ end
 
 # ----- BRANCH-AND-BOUND ----------------------------------------------------- #
 # Tests the branch-and-bound algorithm on the instance in file fname 
-function testBranchAndBound(fname::String, ref::Vector{Vector{Float64}})
+function testBranchAndBound(fname::String, 
+							ref::Vector{Vector{Float64}},
+							method::Method=PARAMETRIC_LP,
+							interrupt::Bool=false)
 
 	println(basename(fname))
 
@@ -485,7 +488,7 @@ function testBranchAndBound(fname::String, ref::Vector{Vector{Float64}})
 	end
 
 	# Branch-and-bound 
-	@time L = branchAndBound(prob)
+	@time L = branchAndBound(prob, method, interrupt)
 
 	# Plot the obtained set of solutions 
 	plotYN(basename(fname), ref, L.solutions)
@@ -495,14 +498,18 @@ function testBranchAndBound(fname::String, ref::Vector{Vector{Float64}})
 end 
 
 # Tests the branch-and-bound algorithm on all instances in directory dir 
-function testInstancesBranchAndBound(dir::String)
+function testInstancesBranchAndBound(dir::String, 
+									 method::Method=PARAMETRIC_LP,
+									 interrupt::Bool=false)
 
+	# Exemple didactique 
+	
 	files = readdir(dir*"dat/")
 	for fname in files 
 		# Get the reference set 
 		ref = readReferenceSet(dir*"res/ref_"*fname)
 
-		testBranchAndBound(dir*"dat/"*fname, ref)
+		testBranchAndBound(dir*"dat/"*fname, ref, method, interrupt)
 	end 
 
 end 
