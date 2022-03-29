@@ -29,7 +29,7 @@ end
 # Retourne la solution pour une fonction objectif pondérée donnée 
 function getSolution(prob::_MOMKP, obj::Vector{Int64})
 
-    n = size(prob.P)[2] 
+    n::Int32 = size(prob.P)[2] 
     ω = prob.ω[1]
 
     probCombo = transformInstance(prob, obj)
@@ -42,9 +42,10 @@ function getSolution(prob::_MOMKP, obj::Vector{Int64})
     sol = Solution{Rational{Int}}(prob) 
 
     for i in 1:n 
-        sol.X[i] = probCombo[i].x//1 
-        sol.z   += sol.X[i] * prob.P[:,i] 
-        sol.ω_  -= sol.X[i] * prob.W[1,i]
+        index = probCombo[i].i + 1 
+        sol.X[index] = probCombo[i].x//1 
+        sol.z   += sol.X[index] * prob.P[:,index] 
+        sol.ω_  -= sol.X[index] * prob.W[1,index]
     end
     
     return sol
@@ -52,7 +53,7 @@ end
 
 # Calcul des solutions efficaces supportées par méthode dichotomique 
 function solveRecursion!(prob::_MOMKP,
-                         X_SE::Vector{Solution{Rational{Int}}},
+                         X_SE::PrimalBoundSet{Rational{Int}},
                          x1::Solution{Rational{Int}}, 
                          x2::Solution{Rational{Int}})
     # Calcul de la direction λ
@@ -60,10 +61,11 @@ function solveRecursion!(prob::_MOMKP,
     λ2 = x1.z[1] - x2.z[1]
 
     # Fonction objectif pondérée 
-    obj = weightedObjective(prob, λ1, λ2)
+    obj::Vector{Int64} = weightedObjective(prob, λ1, λ2)
 
     # Calcul de la solution
     x = getSolution(prob, obj)
+    add!(X_SE, x)
 
     # Si le point n'est pas sur le segment z(x1)z(x2) on continue la recherche
     if λ1*x.z[1] + λ2*x.z[2] > λ1*x1.z[1] + λ2*x1.z[2]
@@ -74,7 +76,7 @@ end
 
 function dichotomicMethod(prob::_MOMKP)
 
-    X_SE = Solution{Rational{Int}}[]
+    X_SE = PrimalBoundSet{Rational{Int}}()
 
     # Calcul des solutions lexicographiquement optimales
     obj12 = weightedObjective(prob, 1, 0)
@@ -86,5 +88,11 @@ function dichotomicMethod(prob::_MOMKP)
     # Appel récursif
     solveRecursion!(prob, X_SE, x12, x21)
 
-    return X_SE
+    L = PrimalBoundSet{Float64}() 
+    for sol in X_SE.solutions 
+        push!(L.solutions, Solution{Float64}(sol.X, 
+            [Float64(sol.z[1]), Float64(sol.z[2])], sol.ω_))
+    end 
+
+    return L
 end

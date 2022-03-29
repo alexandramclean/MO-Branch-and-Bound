@@ -105,18 +105,18 @@ end
 
 function branchAndBound(prob::_MOMKP, # Bi01KP instance
                         # Initial lower bound set 
-                        #L::PrimalBoundSet{T}=PrimalBoundSet{Float64}(), 
+                        L::PrimalBoundSet{T}=PrimalBoundSet{Float64}(), 
                         # Method for computing the upper bound set 
                         method::Method=PARAMETRIC_LP,   
                         # The computation of the upper bound set can be interrupted              
-                        interrupt::Bool=false)        
+                        interrupt::Bool=false) where T<:Real       
 
     # Lower bound set and initial solution  
     if method == DICHOTOMIC
-        L       = PrimalBoundSet{Rational{Int}}()
+        #L       = PrimalBoundSet{Rational{Int}}()
         solInit = Solution{Rational{Int}}(prob)
     else 
-        L       = PrimalBoundSet{Float64}()
+        #L       = PrimalBoundSet{Float64}()
         solInit = Solution{Float64}(prob) 
     end 
 

@@ -12,7 +12,7 @@ struct item
 end
 
 comboJulia(prob::Vector{item},nbItem::Int32,capa::Int64,maxZ::Int64) =
-ccall( (:comboJulia, "comboJulia"),
+ccall( (:comboJulia, "./comboJulia"),
         Int64,
         (Ref{item}, Int32, Int64, Int64),
         prob, nbItem, capa, maxZ

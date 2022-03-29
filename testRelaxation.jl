@@ -475,8 +475,9 @@ end
 # Tests the branch-and-bound algorithm on the instance in file fname 
 function testBranchAndBound(fname::String, 
 							ref::Vector{Vector{Float64}},
+							L::PrimalBoundSet{T}, 
 							method::Method=PARAMETRIC_LP,
-							interrupt::Bool=false)
+							interrupt::Bool=false) where T<:Real 
 
 	println(basename(fname))
 
@@ -488,7 +489,7 @@ function testBranchAndBound(fname::String,
 	end
 
 	# Branch-and-bound 
-	@time L = branchAndBound(prob, method, interrupt)
+	@time L = branchAndBound(prob, L, method, interrupt)
 
 	# Plot the obtained set of solutions 
 	plotYN(basename(fname), ref, L.solutions)

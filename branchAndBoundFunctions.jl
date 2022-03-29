@@ -133,9 +133,9 @@ function isDominated(UB::DualBoundSet,
     is_dominated  = true 
     i = 2 
 
-    while is_dominated && i <= length(nadirPoints)
+    while is_dominated && i <= length(L.solutions)
         is_dominated = is_dominated && 
-            !verifiesConstraints(UB.constraints, L.solutions[i-1], L.solutions[i])
+            !verifiesConstraints(UB.constraints, L.solutions[i-1].z, L.solutions[i].z)
         i += 1 
     end 
     return is_dominated

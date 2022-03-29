@@ -94,7 +94,7 @@ function parametricMethod(prob::_MOMKP,           # Bi01KP instance
 
 	# Used to determine if the computation of the upper bound set is interrupted
 	a2             = sol.z[1:end] 
-	toBeTested     = [i for i in 1:length(L.nadirs)] 
+	toBeTested     = [i for i in 1:length(L.solutions)-1] 
 	is_interrupted = false 
 
 	iter = 1 
