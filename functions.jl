@@ -183,6 +183,7 @@ function setVariable(init::Initialisation,
 				if length(swaps) > 0 
 					push!(newTranspositions, Transposition(t.λ, swaps))
 				end
+
 			else
 
 				if !(var in t.pairs[1])
@@ -199,7 +200,7 @@ function setVariable(init::Initialisation,
 			newPos[init.seq[p]] = init.pos[init.seq[p]] - 1
 		end
 
-		return Initialisation(newTranspositions, newSeq, newPos)
+		return Initialisation(nothing, nothing, newTranspositions, newSeq, newPos)
 
 	elseif method == SIMPLEX 
 

@@ -59,8 +59,6 @@ function solveRecursion!(prob::_MOMKP,
     λ1 = x2.z[2] - x1.z[2]
     λ2 = x1.z[1] - x2.z[1]
 
-    @assert λ1 != 0 || λ2 != 0 
-
     # Fonction objectif pondérée 
     obj = weightedObjective(prob, λ1, λ2)
 

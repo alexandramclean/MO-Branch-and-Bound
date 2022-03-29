@@ -105,46 +105,10 @@ function maxRank(rank1::Vector{Int},
 end 
 
 # ----- LOCAL NADIR POINTS AND DOMINANCE TESTS ------------------------------- # 
-# Computes the local nadir points 
-function localNadirPoints(incumbentSet::Vector{Solution{T}}) where T<:Real
-
-    nadirs = Vector{Vector{Float64}}(undef, length(incumbentSet)-1)
-    for i in 1:length(incumbentSet)-1 
-        yl = incumbentSet[i].z
-        yr = incumbentSet[i+1].z 
-        nadirs[i] = [yl[1], yr[2]]
-    end 
-    return nadirs
-end 
-
-# Calcule les nadirs locaux décalés (hypothèse d'intégrité) à partir des 
-# points nadirs locaux
-function shiftedLocalNadirPoints(nadirs::Vector{Vector{T}}) where T<:Real
-
-    shiftedNadirs = Vector{Vector{Float64}}(undef, length(nadirs))
-    for i in 1:length(nadirs)
-        shiftedNadirs[i] = nadirs[i] + [1.,1.]
-    end 
-    return shiftedNadirs
-end 
-
-# Calcule les nadirs locaux décalés (hypothèse d'intégrité) à partir de 
-# l'ensemble bornant inférieur
-function shiftedLocalNadirPoints(incumbentSet::Vector{Solution{T}}
-                                ) where T<:Real
-
-    shiftedNadirs = Vector{Vector{Float64}}(undef, length(incumbentSet)-1)
-    for i in 1:length(incumbentSet)-1
-        yl = incumbentSet[i].z
-        yr = incumbentSet[i+1].z 
-        shiftedNadirs[i] = [yl[1], yr[2]] + [1.,1.]
-    end 
-    return shiftedNadirs
-end 
-
 # Returns true if the point y verifies all the constraints 
 function verifiesConstraints(constraints::Vector{Constraint}, 
-                             y::Vector{Float64})
+                             yl::Vector{Float64},
+                             yr::Vector{Float64})
             
     verif = true 
     i = 1 
@@ -153,7 +117,7 @@ function verifiesConstraints(constraints::Vector{Constraint},
         λ     = constraints[i].λ 
         point = constraints[i].point
         if λ != 1//1 && λ != 0//1 
-            verif = verif && λ*y[1] + (1-λ)*y[2] <= λ*point[1] + (1-λ)*point[2]
+            verif = verif && λ*yl[1] + (1-λ)*yr[2] <= λ*point[1] + (1-λ)*point[2]
         end 
         i    += 1 
     end 
@@ -163,15 +127,15 @@ end
 # Returns true if the upper bound set for a particular node is dominated by the 
 # lower bound set by using the constraints and shifted local nadir points 
 function isDominated(UB::DualBoundSet, 
-                     nadirPoints::Vector{Vector{T}}
+                     L::PrimalBoundSet{T}
                     ) where T<:Real
 
     is_dominated  = true 
-    i = 1 
+    i = 2 
 
     while is_dominated && i <= length(nadirPoints)
         is_dominated = is_dominated && 
-            !verifiesConstraints(UB.constraints, nadirPoints[i])
+            !verifiesConstraints(UB.constraints, L.solutions[i-1], L.solutions[i])
         i += 1 
     end 
     return is_dominated

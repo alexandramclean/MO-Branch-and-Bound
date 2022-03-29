@@ -87,104 +87,7 @@ function verify(yN::Union{Vector{Solution{T}}, Vector{Vector{T}}},
             deleteat!(yN, j)
         end 
     end 
-
-    return indLastDominated
 end
-
-# ----- LOCAL NADIR POINTS --------------------------------------------------- #
-# Retourne un tableau contenant les indices des points nadirs locaux 
-# correspondant au point yN.solutions[ind]
-function correspondingNadirPoints(yN::PrimalBoundSet{T},
-                                  ind::Int) where T<:Real 
-
-    if ind == 1
-        return [ind] 
-    elseif ind == length(yN.solutions)
-        return [ind-1]
-    else 
-        return [ind-1, ind]
-    end 
-end 
-
-function nadirs!(yN::PrimalBoundSet{T}, # Lower bound set 
-                 y::Solution{T},        # Solution that was added 
-                 ind::Int,              # Index of the solution that was added 
-                 indLastDominated::Int, # Index of the last (or first) point 
-                 # dominated by y
-                 opt::Optimisation) where T<:Real
-
-    if indLastDominated == 0 # No solutions were deleted 
-
-        if opt == MAX && ind < length(yN.solutions) && ind > 1 
-            # The local nadir corresponding to the points before and after ind
-            # needs to be deleted 
-            deleteat!(yN.nadirs, ind-1)
-
-            # Two new local nadir points 
-            yl = yN.solutions[ind-1]
-            yr = yN.solutions[ind+1]
-
-            insert!(yN.nadirs, ind-1, [yl.z[1]+1., y.z[2]+1.])
-            insert!(yN.nadirs, ind, [y.z[1]+1., yr.z[2]+1.])    
-
-        elseif ind == 1
-            # No local nadirs need to be deleted 
-            # A new local nadir is inserted at the start of the list 
-            yr = yN.solutions[ind+1]
-            insert!(yN.nadirs, 1, [y.z[1]+1., yr.z[2]+1.])
-
-        elseif ind == length(yN.solutions)
-            # The solution is inserted at the end of the list   
-            # No local nadirs need to be deleted 
-            # A new local nadir is inserted at the end of the list 
-            yl = yN.solutions[ind-1] 
-            insert!(yN.nadirs, length(yN.nadirs)+1, [yl.z[1]+1., y.z[2]+1.])      
-        end 
-    else # Some solutions have been deleted 
-
-        # The solutions between indLastDominated and ind-1 have been deleted
-        # The corresponding local nadir points are deleted 
-
-        if indLastDominated == length(yN.solutions)
-            finish = length(yN.nadirs)
-        else 
-            finish = ind-1
-        end 
-        if indLastDominated == 1
-            start = indLastDominated
-        else 
-            start = indLastDominated-1
-        end 
- 
-        correspondingNadirs = start:finish
-
-        if length(yN.nadirs) > 0 
-            for i in reverse(correspondingNadirs)
-                deleteat!(yN.nadirs, i)
-            end 
-        end 
-
-        # Add the new local nadir points 
-        if indLastDominated == 1
-            # A new local nadir is inserted at the start of the list 
-            yr = yN.solutions[indLastDominated+1]
-            insert!(yN.nadirs, 1, [y.z[1]+1., yr.z[2]+1.])
-
-        elseif indLastDominated == length(yN.solutions)
-            # A new local nadir is inserted at the end of the list
-            yl = yN.solutions[indLastDominated-1]
-            insert!(yN.nadirs, length(yN.nadirs)+1, [yl.z[1]+1., y.z[2]+1.])
-            
-        else 
-            # Two new local nadir points are inserted 
-            yl = yN.solutions[indLastDominated-1]
-            yr = yN.solutions[indLastDominated+1]
-
-            insert!(yN.nadirs, indLastDominated-1, [yl.z[1]+1., y.z[2]+1.])
-            insert!(yN.nadirs, indLastDominated, [y.z[1]+1., yr.z[2]+1.])
-        end 
-    end 
-end 
 
 # ----- ADD ------------------------------------------------------------------ #
 function addRec(yN::Union{Vector{Solution{T}}, Vector{Vector{T}}},
@@ -255,19 +158,7 @@ function add!(yN::Union{PrimalBoundSet{T}, Vector{Vector{T}}},
                 insert!(yN.solutions, ind, y)
 
                 # Elimination of the dominated points 
-                indLastDominated = verify(yN.solutions, y, ind, opt)
-
-                # Recalculer les nadirs locaux affectés
-                if length(yN.nadirs) == 0
-                    # Initialiser la liste des nadirs locaux 
-                    yN.nadirs = shiftedLocalNadirPoints(yN.solutions)
-                elseif length(yN.solutions) == 1 
-                    yN.nadirs = Vector{Float64}[] 
-                elseif opt == MIN 
-                    @timeit to "Nadirs" nadirs!(yN, y, ind, indLastDominated, opt)
-                else 
-                    @timeit to "Nadirs" nadirs!(yN, y, ind, indLastDominated, opt)
-                end 
+                verify(yN.solutions, y, ind, opt)
             end 
         end 
     else 
@@ -340,11 +231,3 @@ function afficher(yN)
         print("|\n")
     end
 end
-
-# Exemple 
-L = PrimalBoundSet{Float64}(
-    [Solution{Float64}(Rational{Int}[], [3., 9.], 0),
-     Solution{Float64}(Rational{Int}[], [6., 8.], 0),
-     Solution{Float64}(Rational{Int}[], [9., 6.], 0),
-     Solution{Float64}(Rational{Int}[], [10., 4.], 0)
-    ], [[3.,8.], [6.,6.], [9.,4.]])

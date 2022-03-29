@@ -31,7 +31,7 @@ function branch!(η::Node,
             η.status = INFEASIBILITY
         elseif length(L.solutions) > 1 
 
-            @timeit to "Dominance" is_dominated = isDominated(η.UB, L.nadirs)
+            @timeit to "Dominance" is_dominated = isDominated(η.UB, L)
 
             if !(L.solutions[end].z[1] < η.UB.points[1][1] 
                 # max z1 in L < max z1 in UB(η)
@@ -45,10 +45,10 @@ function branch!(η::Node,
         end
 
         for sol in Lη.solutions
-            @timeit to "Integer solutions" add!(L, sol)
+            @timeit to "Ordered List" add!(L, sol)
         end 
-    end 
-    @timeit to "solInit" add!(L, η.solInit)
+    end
+    @timeit to "Ordered List" add!(L, η.solInit)
 
     if verbose 
         println("\ndepth = ", depth)
@@ -66,31 +66,34 @@ function branch!(η::Node,
         if depth <= length(branchingVariables)
             # Set variable  
             var = branchingVariables[depth] 
-            @timeit to "setVar" newInit = setVariable(η.init, var, method)
+            #@timeit to "setVar" newInit = setVariable(η.init, var, method)
             verbose ? println("Variable ", var, " has been set") : nothing
 
             # var is set to 1
             if prob.W[1,var] <= η.solInit.ω_ 
                 if method == DICHOTOMIC
-                    solInit1 = Solution{Rational{Int}}(η.solInit.X[1:end], 
+                    @timeit to "solInit" solInit1 = Solution{Rational{Int}}(
+                                η.solInit.X[1:end], 
                                 η.solInit.z + prob.P[:,var],
                                 η.solInit.ω_ - prob.W[1,var])
+
                 else 
-                    solInit1 = Solution{Float64}(η.solInit.X[1:end], 
+                    @timeit to "solInit" solInit1 = Solution{Float64}(η.solInit.X[1:end], 
                                 η.solInit.z + prob.P[:,var],
                                 η.solInit.ω_ - prob.W[1,var])
                 end 
                 solInit1.X[var] = 1 
 
-                η1 = Node(DualBoundSet{Float64}(), newInit, solInit1, NOTPRUNED) 
+                η1 = Node(nothing, η.init, solInit1, NOTPRUNED) 
                 branch!(η1, prob, L, branchingVariables, depth+1, method, interrupt) 
+
             else 
-                η1 = Node(DualBoundSet{Float64}(), newInit, η.solInit, INFEASIBILITY)
+                η1 = Node(nothing, η.init, η.solInit, INFEASIBILITY)
                 branch!(η1, prob, L, branchingVariables, depth+1, method, interrupt)
             end
 
             # var is set to 0
-            η0 = Node(DualBoundSet{Float64}(), newInit, η.solInit, NOTPRUNED)
+            η0 = Node(nothing, η.init, η.solInit, NOTPRUNED)
             branch!(η0, prob, L, branchingVariables, depth+1, method, interrupt) 
  
         else 
@@ -102,7 +105,7 @@ end
 
 function branchAndBound(prob::_MOMKP, # Bi01KP instance
                         # Initial lower bound set 
-                        L::PrimalBoundSet=PrimalBoundSet{Float64}(), 
+                        #L::PrimalBoundSet{T}=PrimalBoundSet{Float64}(), 
                         # Method for computing the upper bound set 
                         method::Method=PARAMETRIC_LP,   
                         # The computation of the upper bound set can be interrupted              
