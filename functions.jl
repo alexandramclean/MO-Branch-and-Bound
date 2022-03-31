@@ -158,20 +158,69 @@ function removeFromSequence(seq::Vector{Int}, var::Int)
 	return newSeq 
 end 
 
+# Initial setvar 
+function initialSetvar(prob, init, method)
+	
+	if method == PARAMETRIC_LP 
+		transpInd = Vector{Int}[] 
+		for i in 1:length(init.transpositions) 
+			t = init.transpositions[i] 
+			push!(transpInd, append([i], 1:length(t.pairs)))
+		end 
+		
+		return SetVariables(Int[], Int[], transpInd, init.seq, init.pos)
+	end 
+end 
+
 # Remove a variable from the sequence and transpositions
 function setVariable(init::Initialisation,
+					 parent_setvar::SetVariables,
 					 var::Int,
+					 val::Int, 
 					 method::Method)
 
 	if method == PARAMETRIC_LP || method == PARAMETRIC_MT
 
-		newTranspositions = Transposition[]
-		newPos            = copy(init.pos)
+		#newTranspositions = Transposition[]
+		newTranspInd = Vector{Int}[] 
+		newPos       = copy(init.pos)
 
 		# The variable is removed from the set of transpositions
-		for t in init.transpositions
+		#for t in init.transpositions
+		for ind in [t[1] for t in parent_setvar.transpInd] 
+			t = init.transpositions[ind] 
 
-			if length(t.pairs) > 1	
+			transpInd = Int[] 
+
+			if length(t.pairs) > 1 
+
+				swaps = Int[] 
+				for indPair in parent_setvar.transpInd[ind][2:end]
+					if !(var in t.pairs[indPair])
+						push!(swaps, indPair)
+					end 
+				end 
+
+				if length(swaps) > 0 
+					# The index of the critical weights and its associated 
+					# pairs that do not contain var are inserted 
+					push!(transpInd, ind)
+					append!(transpInd, swaps)
+					push!(newTranspInd, transpInd)
+				end 
+			else 
+
+				if !(var in t.pairs[1])
+					# The index of the critical weight and its only associated
+					# pair are inserted 
+					push!(transpInd, ind) 
+					push!(transpInd, 1) 
+					push!(newTranspInd, transpInd)
+				end 
+			end 
+		end 
+
+			#=if length(t.pairs) > 1	
 
 				swaps = Tuple{Int,Int}[]
 				for pair in t.pairs 
@@ -189,20 +238,30 @@ function setVariable(init::Initialisation,
 				if !(var in t.pairs[1])
 					push!(newTranspositions, Transposition(t.λ, t.pairs))
 				end
-			end
-		end
+			end=#
 
 		# The variable is removed form the sequence 
-		newSeq = removeFromSequence(init.seq, var)
+		newSeq = removeFromSequence(parent_setvar.seq, var)
 
 		# The positions of items after var in the sequence are diminished by 1
-		for p in init.pos[var]+1:length(init.seq)
-			newPos[init.seq[p]] = init.pos[init.seq[p]] - 1
+		for p in parent_setvar.pos[var]+1:length(parent_setvar.seq)
+			newPos[parent_setvar.seq[p]] = 
+				parent_setvar.pos[parent_setvar.seq[p]] - 1
 		end
 
-		return Initialisation(nothing, nothing, newTranspositions, newSeq, newPos)
+		#return Initialisation(nothing, nothing, newTranspositions, newSeq, newPos)
+		if val == 0 
+			return SetVariables(parent_setvar.setToOne, 
+								append(parent_setvar.setToZero, [var]), 
+								newTranspInd, newSeq, newPos)
+		else 
+			return SetVariables(append(parent_setvar.setToOne, [var]),
+								parent_setvar.setToZero,
+								newTranspInd, newSeq, newPos)
+		end
 
-	elseif method == SIMPLEX 
+
+	#=elseif method == SIMPLEX 
 
 		n = length(init.r1) 
 
@@ -240,7 +299,7 @@ function setVariable(init::Initialisation,
 			end 
 		end 
 
-		return Initialisation(r1, r2, nothing, nothing, nothing)
+		return Initialisation(r1, r2, nothing, nothing, nothing)=#
 	end 
 end
 
@@ -262,10 +321,17 @@ function addBreakItem!(prob::_MOMKP,
 end
 
 # Computes the dantzig solution for a given sequence
-function dantzigSolution(prob::_MOMKP, seq::Vector{Int}, solInit::Solution)
+function dantzigSolution(prob::_MOMKP, 
+						 seq::Vector{Int}, 
+						 setvar::Union{Nothing,SetVariables}=nothing)
 
 	n   = size(prob.P)[2]
-	sol = Solution{Float64}(solInit.X[1:end], solInit.z[1:end], solInit.ω_)
+	sol = Solution{Float64}(prob)
+	if !(setvar === nothing)
+		for var in setvar.setToOne 
+			addItem!(prob, sol, var)
+		end 
+	end 
 	i   = 1
 
 	while i <= length(seq) && prob.W[1,seq[i]] <= sol.ω_
@@ -278,10 +344,12 @@ function dantzigSolution(prob::_MOMKP, seq::Vector{Int}, solInit::Solution)
 end
 
 # Builds a solution including the break item
-function buildSolution(prob::_MOMKP, seq::Vector{Int}, solInit::Solution)
+function buildSolution(prob::_MOMKP, 
+					   seq::Vector{Int}, 
+					   setvar::Union{Nothing,SetVariables}=nothing)
 
 	n      = size(prob.P)[2]
-	sol, s = dantzigSolution(prob, seq, solInit)
+	sol, s = dantzigSolution(prob, seq, setvar)
 
 	if sol.ω_ > 0 && s <= length(seq)
 		# Une fraction de l'objet s est insérée

@@ -9,6 +9,7 @@ include("martelloAndToth.jl")
 include("dichotomicMethod.jl")
 include("simplexAlgorithm.jl")
 include("branch-and-bound.jl")
+include("efficientSupportedSolutions.jl")
 include("vOptMomkp.jl")
 include("parsers.jl")
 include("parserMomkpPG.jl")
@@ -475,9 +476,9 @@ end
 # Tests the branch-and-bound algorithm on the instance in file fname 
 function testBranchAndBound(fname::String, 
 							ref::Vector{Vector{Float64}},
-							L::PrimalBoundSet{T}, 
 							method::Method=PARAMETRIC_LP,
-							interrupt::Bool=false) where T<:Real 
+							interrupt::Bool=false,
+							initialisation::Bool=true) where T<:Real 
 
 	println(basename(fname))
 
@@ -488,8 +489,19 @@ function testBranchAndBound(fname::String,
 		prob = readInstanceMOMKPformatZL(false, fname)
 	end
 
+	if initialisation 
+		@timeit to "Supported efficient" L = dichotomicMethod(prob) 
+	else 
+		if method == DICHOTOMIC 
+			L = PrimalBoundSet{Rational{Int}}()
+		else 
+			L = PrimalBoundSet{Float64}()
+		end 
+	end 
+
 	# Branch-and-bound 
-	@time L = branchAndBound(prob, L, method, interrupt)
+	@timeit to "Branch-and-bound" L = 
+		branchAndBound(prob, L, method, interrupt)
 
 	# Plot the obtained set of solutions 
 	plotYN(basename(fname), ref, L.solutions)
@@ -501,16 +513,31 @@ end
 # Tests the branch-and-bound algorithm on all instances in directory dir 
 function testInstancesBranchAndBound(dir::String, 
 									 method::Method=PARAMETRIC_LP,
-									 interrupt::Bool=false)
+									 interrupt::Bool=false,
+									 initialisation::Bool=true)
 
 	# Exemple didactique 
+	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
+	if initialisation 
+		L = dichotomicMethod(didactic) 
+	else 
+		if method == DICHOTOMIC 
+			L = PrimalBoundSet{Rational{Int}}()
+		else 
+			L = PrimalBoundSet{Float64}()
+		end 
+	end 
+
+	# Branch-and-bound 
+	L = branchAndBound(didactic, L, method, interrupt)
+
 	
 	files = readdir(dir*"dat/")
 	for fname in files 
 		# Get the reference set 
 		ref = readReferenceSet(dir*"res/ref_"*fname)
 
-		testBranchAndBound(dir*"dat/"*fname, ref, method, interrupt)
+		testBranchAndBound(dir*"dat/"*fname, ref, method, interrupt, initialisation)
 	end 
 
 end 

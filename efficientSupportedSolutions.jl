@@ -38,7 +38,7 @@ function getSolution(prob::_MOMKP, obj::Vector{Int64})
         maxZ += probCombo[i].p 
     end 
 
-    val::Int32 = comboJulia(probCombo, n, ω, maxZ)
+    val = comboJulia(probCombo, n, ω, maxZ)
     sol = Solution{Rational{Int}}(prob) 
 
     for i in 1:n 

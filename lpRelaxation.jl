@@ -65,11 +65,44 @@ function swapWithItemNotInBag(prob::_MOMKP,
 	return sol, s
 end
 
+# There are multiple identical critical weights 
+function identicalCriticalWeights(prob::_MOMKP,
+								  seq::Vector{Int},
+								  pos::Vector{Int},
+								  pairs::Vector{Tuple{Int,Int}},
+								  sol::Solution{Float64},
+								  s::Int)
+
+	# Positions corresponding to each transposition
+	positions = [(min(pos[i], pos[j]), max(pos[i], pos[j])) 
+		for (i,j) in pairs]
+	sort!(positions)
+
+	# Identification of the modified subsequences
+	subsequences = identifySubsequences(positions)
+
+	for (start,finish) in subsequences
+
+		# The subsequence is reversed 
+		seq[start:finish] = seq[finish:-1:start]
+
+		if start <= s && finish >= s # The solution is modified
+			sol, s = reoptSolution(prob, seq, start, finish, sol)
+			if sol.ω_ > 0
+				addBreakItem!(prob, sol, seq[s])
+			end
+		end
+
+		updatePositions!(seq, pos, start, finish)
+	end 
+	return sol, s 
+end 
+
 # Computes the LP relaxation using the parametric method 
 function parametricMethod(prob::_MOMKP,           # Bi01KP instance
 						  L::PrimalBoundSet{T},   # Lower bound set 
 						  init::Initialisation,   # seq, pos, transpositions
-						  solInit::Solution{T},   # Initial solution 
+						  setvar::SetVariables,   # 
 						  interrupt::Bool = false # The computation of the 
 						  # upper bound set can be interrupted
 						 ) where T<:Real
@@ -94,48 +127,27 @@ function parametricMethod(prob::_MOMKP,           # Bi01KP instance
 
 	# Used to determine if the computation of the upper bound set is interrupted
 	a2             = sol.z[1:end] 
-	toBeTested     = [i for i in 1:length(L.solutions)-1] 
+	toBeTested     = [i for i in 2:length(L.solutions)] 
 	is_interrupted = false 
 
 	iter = 1 
-	while !is_interrupted && iter <= length(init.transpositions)
+	while !is_interrupted && iter <= length(setvar.transpInd)
+
+		ind = setvar.transpInd[iter]
+
+		λ = init.transpositions[ind].λ 
+		pairs = init.transpositions[ind].pairs[setvar.transpInd[iter][2:end]]
 
 		# Multiple identical critical weights
-		if length(init.transpositions[iter].pairs) > 1
+		if length(pairs) > 1
 
 			numberCasesIdenticalWeights += 1
 
-			# Positions corresponding to each transposition
-			positions = [(min(pos[i], pos[j]), max(pos[i], pos[j])) 
-						for (i,j) in init.transpositions[iter].pairs]
-			sort!(positions)
-			
-			# Identification of the modified subsequences
-			subsequences = identifySubsequences(positions)
-			
-			for (start,finish) in subsequences
-					
-				# The subsequence is reversed 
-				seq[start:finish] = seq[finish:-1:start]
-					
-				if start <= s && finish >= s # The solution is modified
-					sol, s = reoptSolution(prob, seq, start, finish, sol)
-					if sol.ω_ > 0
-						addBreakItem!(prob, sol, seq[s])
-					end
-				end
-					
-				updatePositions!(seq, pos, start, finish)
-			end 
-
-			if s <= length(seq)
-				updateBoundSets!(UB, Lη, init.transpositions[iter].λ, sol, seq[s]) 
-			else 
-				updateBoundSets!(UB, Lη, init.transpositions[iter].λ, sol, seq[s-1]) 
-			end 			
+			sol, s = identicalCriticalWeights(prob, seq, pos, 
+						pairs, sol, s)			
 		else
 
-			(i,j) = init.transpositions[iter].pairs[1]
+			(i,j) = pairs[1]
 			k = min(pos[i], pos[j])
 
 			if k == s-1   # Swap items s-1 and s
@@ -151,13 +163,13 @@ function parametricMethod(prob::_MOMKP,           # Bi01KP instance
 			# Update the sequence and positions
 			tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
 			seq[pos[i]] = i ; seq[pos[j]] = j
-
-			if s <= length(seq)
-				updateBoundSets!(UB, Lη, init.transpositions[iter].λ, sol, seq[s])
-			else 
-				updateBoundSets!(UB, Lη, init.transpositions[iter].λ, sol, seq[s-1]) 
-			end 
 		end
+
+		if s <= length(seq)
+			updateBoundSets!(UB, Lη, λ, sol, seq[s]) 
+		else 
+			updateBoundSets!(UB, Lη, λ, sol, seq[s-1]) 
+		end 
 
 		if interrupt 
 			# The new constraint 
@@ -167,7 +179,7 @@ function parametricMethod(prob::_MOMKP,           # Bi01KP instance
 			for i in toBeTested
 				if i != 0
 					# Does the local nadir point verify the new constraint ?
-					nadir = L.nadirs[i]
+					nadir = [L.solutions[i-1][1]+1., L.solutions[i][2]+1.]
 
 					if λ*nadir[1] + (1-λ)*nadir[2] <= λ*a1[1] + (1-λ)*a1[2] 
 						# Can the computation be interrupted ? 
