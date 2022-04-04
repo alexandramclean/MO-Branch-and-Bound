@@ -445,17 +445,18 @@ function compareUBS(fname::String, nIter::Int)
 	for iter in 1:nIter 
 
 		# Parametric methods 
-		L = Solution{Float64}[]
+		L = PrimalBoundSet{Float64}() 
 		@timeit to "Parametric methods" begin 
 			@timeit to "Initialisation" init = initialisation(prob, PARAMETRIC_LP) 
+			@timeit to "setvar" setvar = initialSetvar(prob, init, PARAMETRIC_LP)
 			@timeit to "LP Relaxation" _ = 
-				parametricMethod(prob, L, init, Solution{Float64}(prob))
-			@timeit to "Martello and Toth" _ = 
-				martelloAndToth(prob, init, Solution{Float64}(prob))
+				parametricMethod(prob, L, init, setvar, false)
+			#=@timeit to "Martello and Toth" _ = 
+				martelloAndToth(prob, init, Solution{Float64}(prob))=#
 		end 
 
 		# Dichotomic method 
-		L = Solution{Rational{Int}}[]
+		L = PrimalBoundSet{Rational{Int}}()
 		@timeit to "Dichotomic method" begin 
 			@timeit to "Initialisation" initDicho = initialisation(prob, DICHOTOMIC)
 			@timeit to "Relaxation" _ = 
@@ -490,7 +491,8 @@ function testBranchAndBound(fname::String,
 	end
 
 	if initialisation 
-		@timeit to "Supported efficient" L = dichotomicMethod(prob) 
+		#@timeit to "Supported efficient" L = dichotomicMethod(prob) 
+		L = PrimalBoundSet(ref) 
 	else 
 		if method == DICHOTOMIC 
 			L = PrimalBoundSet{Rational{Int}}()

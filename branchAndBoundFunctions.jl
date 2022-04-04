@@ -192,10 +192,10 @@ function plotBoundSets(UB::DualBoundSet,
     plot(y_LBS1, y_LBS2, color="red", linewidth=0.75, marker="+",
         markersize=1.0, linestyle=":")
 
-    # display segments joining non-dominated points and their corners points
+    #= display segments joining non-dominated points and their corners points
     Env1,Env2 = computeCornerPointsLowerEnvelop(y_LBS1, y_LBS2)
     plot(Env1, Env2, color="black", linewidth=0.75, marker="+", markersize=1.0, 
-        linestyle=":")
+        linestyle=":")=#
 
     legend(bbox_to_anchor=[1,1], loc=0, borderaxespad=0, fontsize = "x-small")
 end 

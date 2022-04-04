@@ -165,7 +165,7 @@ function initialSetvar(prob, init, method)
 		transpInd = Vector{Int}[] 
 		for i in 1:length(init.transpositions) 
 			t = init.transpositions[i] 
-			push!(transpInd, append([i], 1:length(t.pairs)))
+			push!(transpInd, vcat([i], 1:length(t.pairs)))
 		end 
 		
 		return SetVariables(Int[], Int[], transpInd, init.seq, init.pos)
@@ -183,7 +183,7 @@ function setVariable(init::Initialisation,
 
 		#newTranspositions = Transposition[]
 		newTranspInd = Vector{Int}[] 
-		newPos       = copy(init.pos)
+		newPos       = copy(parent_setvar.pos)
 
 		# The variable is removed from the set of transpositions
 		#for t in init.transpositions
@@ -252,10 +252,10 @@ function setVariable(init::Initialisation,
 		#return Initialisation(nothing, nothing, newTranspositions, newSeq, newPos)
 		if val == 0 
 			return SetVariables(parent_setvar.setToOne, 
-								append(parent_setvar.setToZero, [var]), 
+								vcat(parent_setvar.setToZero, [var]), 
 								newTranspInd, newSeq, newPos)
 		else 
-			return SetVariables(append(parent_setvar.setToOne, [var]),
+			return SetVariables(vcat(parent_setvar.setToOne, [var]),
 								parent_setvar.setToZero,
 								newTranspInd, newSeq, newPos)
 		end

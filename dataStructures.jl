@@ -22,23 +22,21 @@ mutable struct Solution{T<:Real}
     X::Vector{Rational{Int}} # Vector of binary variables 
     z::Vector{T}             # Values for the objective functions 
     ω_::Int                  # Residual capacity 
-
-    Solution{Float64}(prob::_MOMKP) = Solution(zeros(Rational{Int}, size(prob.P)[2]), 
-                                    [0.,0.], prob.ω[1])
-    Solution{Rational{Int}}(prob::_MOMKP) = Solution(
-                                    zeros(Rational{Int}, size(prob.P)[2]), 
-                                    [0//1,0//1], prob.ω[1])
 end 
+
+Solution{Float64}(prob::_MOMKP) = Solution(zeros(Rational{Int}, size(prob.P)[2]), 
+                                    [0.,0.], prob.ω[1])
+Solution{Rational{Int}}(prob::_MOMKP) = Solution(zeros(Rational{Int}, 
+                                        size(prob.P)[2]), [0//1,0//1], prob.ω[1])
 
 # ----- TRANSPOSITIONS ------------------------------------------------------- #
 # Stores a critical weight λ and the corresponding transposition(s)
 struct Transposition
 	λ::Rational{Int}			  # Critical weight 
 	pairs::Vector{Tuple{Int,Int}} # List of pairs of items to swap 
-
-    Transposition(λ) = Transposition(λ,[])
-    Transposition(λ,pairs) = Transposition(λ,pairs)
 end
+
+Transposition(λ) = Transposition(λ,[])
 
 # Stores the transpositions and initial sequence and positions 
 struct Initialisation
@@ -73,18 +71,18 @@ end
 struct DualBoundSet{T} 
     points::Vector{Vector{T}}    
     constraints::Vector{Constraint}
-
-    DualBoundSet{Float64}() = DualBoundSet(Vector{Float64}[], Constraint[]) 
-    DualBoundSet{Rational{Int}}() = DualBoundSet(Vector{Rational{Int}}[], Constraint[])
 end
+
+DualBoundSet{Float64}() = DualBoundSet(Vector{Float64}[], Constraint[]) 
+    DualBoundSet{Rational{Int}}() = DualBoundSet(Vector{Rational{Int}}[], Constraint[])
 
 # Data structure representing the primal bound set (lower bound set in this case)
 mutable struct PrimalBoundSet{T}
     solutions::Vector{Solution{T}} # Vector of integer solutions 
-
-    PrimalBoundSet{Float64}() = PrimalBoundSet(Solution{Float64}[])
-    PrimalBoundSet{Rational{Int}}() = PrimalBoundSet(Solution{Rational{Int}}[])
 end 
+
+PrimalBoundSet{Float64}() = PrimalBoundSet(Solution{Float64}[])
+PrimalBoundSet{Rational{Int}}() = PrimalBoundSet(Solution{Rational{Int}}[])
 
 
 # ----- BRANCH-AND-BOUND ----------------------------------------------------- #
@@ -96,7 +94,7 @@ mutable struct Node
     #parent::Union{Node,Nothing}    # Parent node 
     #init::Initialisation           # Transpositions and initial sequence
     setvar::SetVariables              # Initialisation for the node 
-    #solInit::Solution              # Initial solution with set variables
+    solInit::Solution               # Initial solution with set variables
     # Indicates whether the node has been pruned and for what reason 
     status::Status                   
 end
