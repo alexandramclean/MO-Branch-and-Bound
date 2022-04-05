@@ -116,10 +116,10 @@ function verifiesConstraints(constraints::Vector{Constraint},
     while verif && i <= length(constraints)
         λ     = constraints[i].λ 
         point = constraints[i].point
-        if λ != 1//1 && λ != 0//1 
-            verif = verif && 
-                λ*(yl[1]+1.) + (1-λ)*(yr[2]+1.) <= λ*point[1] + (1-λ)*point[2]
-        end 
+
+        verif = verif && 
+            λ*(yl[1]+1.) + (1-λ)*(yr[2]+1.) <= λ*point[1] + (1-λ)*point[2]
+
         i    += 1 
     end 
     return verif 
