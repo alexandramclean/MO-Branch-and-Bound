@@ -11,50 +11,54 @@ include("lpRelaxation.jl")
 # Recursive branching function 
 function branch!(η::Node, 
                  prob::_MOMKP, 
-                 L::PrimalBoundSet{T}, 
+                 L::Vector{Solution{T}}, 
                  init::Initialisation, 
                  branchingVariables::Vector{Int}, 
                  depth::Int,
                  method::Method,
                  interrupt::Bool) where T<:Real
     
-    verbose = true 
+    verbose = false 
     graphic = false 
 
     # Upper bound and dominance test 
     if η.status == NOTPRUNED
         # Compute the upper bound set for η 
-        @timeit to "Upper bound" η.UB, Lη = 
-            parametricMethod(prob, L, init, η.setvar, interrupt) 
+        #@timeit to "Upper bound" η.UB, Lη = 
+        #    parametricMethod(prob, L, init, η.setvar) 
+
+        @timeit to "Upper bound" Lη, is_dominated = 
+            parametricLPrelaxation(prob, L, init, η.setvar, interrupt)
 
         # Compare with lower bound set and update status 
-        if length(η.UB.points) == 0 || η.UB.points == [[0.,0.]]
-            η.status = INFEASIBILITY
+        #if length(η.UB.points) == 0 || η.UB.points == [[0.,0.]]
+        #    η.status = INFEASIBILITY
 
-        elseif length(η.UB.points) == 1 
-            η.status = DOMINANCE 
+        #elseif length(η.UB.points) == 1 
+        #    η.status = DOMINANCE 
 
-        elseif length(L.solutions) > 1 
+        #else
+        if length(L) > 1 
 
-            @timeit to "Dominance" is_dominated = isDominated(η.UB, L)
+            #@timeit to "Dominance" is_dominated = isDominated(η.UB, L)
 
-            if is_dominated && 
+            if is_dominated #&& 
                 # La borne sup ne "dépasse" pas d'un côté ou de l'autre 
                 # de la borne inf 
                 # max z1 in L < max z1 in UB(η)
-                !(L.solutions[end].z[1] < η.UB.points[1][1] 
+                #!(L[end].z[1] < η.UB.points[1][1] 
                 # min z1 in UB(η) < min z1 in L
-                || η.UB.points[end][1] < L.solutions[1].z[1])
+                #|| η.UB.points[end][1] < L[1].z[1])
 
                 η.status = DOMINANCE 
-            else 
-                plotBoundSets(η.UB, L.solutions)
+            #else 
+                #plotBoundSets(η.UB, L.solutions)
             end
         end
 
         graphic ? plotBoundSets(η.UB, L.solutions) : nothing
 
-        for sol in Lη.solutions
+        for sol in Lη
             @timeit to "Ordered List" add!(L, sol)
         end 
     end
@@ -65,9 +69,7 @@ function branch!(η::Node,
     if verbose 
         println("\ndepth = ", depth)
         println("status : ", η.status)
-        println("L = ", [sol.z for sol in L.solutions])
-        typeof(η.UB) === Nothing ? nothing : println("UB = ", η.UB.points)
-        typeof(η.UB) === Nothing ? nothing : println("Constraints : ", η.UB.constraints)
+        println("L = ", [sol.z for sol in L])
         println("solInit.X = ", η.solInit.X)
         println("solInit.z = ", η.solInit.z)
         println("solInit.ω_ = ", η.solInit.ω_)
@@ -83,14 +85,6 @@ function branch!(η::Node,
 
             # var is set to 1
             setvar1 = setVariable(init, η.setvar, var, 1, method)  
-
-            #=if prob.W[1,var] <= solInit.ω_ 
-                η1 = Node(nothing, setvar1, NOTPRUNED)
-            else 
-                η1 = Node(nothing, setvar1, INFEASIBILITY)
-            end 
-            branch!(η1, prob, L, init, branchingVariables, depth+1, method, interrupt)
-            =# 
 
             if prob.W[1,var] <= η.solInit.ω_ 
                 if method == DICHOTOMIC
@@ -121,9 +115,7 @@ function branch!(η::Node,
                       η.solInit, 
                       NOTPRUNED)
             branch!(η0, prob, L, init, branchingVariables, depth+1, method, interrupt)
-            #η0 = Node(nothing, newInit, η.solInit, NOTPRUNED)
-            #branch!(η0, prob, L, branchingVariables, depth+1, method, interrupt) 
- 
+            
         else 
             η.status = MAXDEPTH
             verbose ? println("Max depth has been reached") : nothing
@@ -133,18 +125,16 @@ end
 
 function branchAndBound(prob::_MOMKP, # Bi01KP instance
                         # Initial lower bound set 
-                        L::PrimalBoundSet{T}=PrimalBoundSet{Float64}(), 
+                        L::Vector{Solution{T}}=Vector{Solution{Float64}}(), 
                         # Method for computing the upper bound set 
                         method::Method=PARAMETRIC_LP,   
                         # The computation of the upper bound set can be interrupted              
                         interrupt::Bool=false) where T<:Real       
 
-    # Lower bound set and initial solution  
+    # Initial solution  
     if method == DICHOTOMIC
-        #L       = PrimalBoundSet{Rational{Int}}()
         solInit = Solution{Rational{Int}}(prob)
     else 
-        #L       = PrimalBoundSet{Float64}()
         solInit = Solution{Float64}(prob) 
     end 
 

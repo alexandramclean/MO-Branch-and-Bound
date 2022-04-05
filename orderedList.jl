@@ -138,47 +138,23 @@ function addRec(yN::Union{Vector{Solution{T}}, Vector{Vector{T}}},
     end
 end
 
-function add!(yN::Union{PrimalBoundSet{T}, Vector{Vector{T}}}, 
+function add!(yN::Union{Vector{Solution{T}}, Vector{Vector{T}}}, 
               y::Union{Solution{T},Vector{T}}, 
               opt::Optimisation=MAX) where T<:Real
 
-    if typeof(yN) == PrimalBoundSet{Float64} || 
-        typeof(yN) == PrimalBoundSet{Rational{Int}}
+    # Search for the position of y 
+    if length(yN) == 0
+        insert!(yN, 1, y)
 
-        #! Affichage
-        #println("\nAdding ", y.z)
+    else
+        ind = addRec(yN, y, 1, length(yN), opt)
+        if ind > 0 
+            insert!(yN, ind, y)
 
-        # Search for the position of y 
-        if length(yN.solutions) == 0
-            insert!(yN.solutions, 1, y)
-
-        else
-            ind = addRec(yN.solutions, y, 1, length(yN.solutions), opt)
-            if ind > 0 
-                insert!(yN.solutions, ind, y)
-
-                # Elimination of the dominated points 
-                verify(yN.solutions, y, ind, opt)
-            end 
+            # Elimination of the dominated points 
+            verify(yN, y, ind, opt)
         end 
-    else 
-        # Search for the position of y 
-        if length(yN) == 0
-            insert!(yN, 1, y)
-            #afficher(yN)
-        else
-            ind = addRec(yN, y, 1, length(yN), opt)
-            if ind > 0 
-                insert!(yN, ind, y)
-                #afficher(yN)
-
-                # Elimination of the dominated points
-                #println("Verification : ")
-                verify(yN, y, ind, opt)
-            end
-            #afficher(yN)
-        end
-    end
+    end 
 end
 
 # ----- AFFICHER ------------------------------------------------------------- #
