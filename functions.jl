@@ -220,26 +220,6 @@ function setVariable(init::Initialisation,
 			end 
 		end 
 
-			#=if length(t.pairs) > 1	
-
-				swaps = Tuple{Int,Int}[]
-				for pair in t.pairs 
-					if !(var in pair) 
-						push!(swaps, pair)
-					end
-				end
-
-				if length(swaps) > 0 
-					push!(newTranspositions, Transposition(t.λ, swaps))
-				end
-
-			else
-
-				if !(var in t.pairs[1])
-					push!(newTranspositions, Transposition(t.λ, t.pairs))
-				end
-			end=#
-
 		# The variable is removed form the sequence 
 		newSeq = removeFromSequence(parent_setvar.seq, var)
 
@@ -401,15 +381,15 @@ function reoptSolution(prob::_MOMKP,
 end
 
 # Returns true if the solution is integer 
-function isInteger(sol::Solution, breakItem::Int)
+function isInteger(sol::Solution{T}, breakItem::Int) where T<:Real
 	return (sol.X[breakItem] == 0 || sol.X[breakItem] == 1)
 end
 
 # Returns true if the solution is integer 
-function isInteger(sol::Solution)
+function isInteger(sol::Solution{T}) where T<:Real 
 	is_integer = true 
 	for i in 1:length(sol.X)
-		is_integer = is_integer && !(sol.X[i] > 0 && sol.X[i] < 1)
+		is_integer = is_integer && (sol.X[i] == 0 || sol.X[i] == 1)
 	end 
 	return is_integer
 end

@@ -12,8 +12,6 @@ include("branch-and-bound.jl")
 include("efficientSupportedSolutions.jl")
 include("vOptMomkp.jl")
 include("parsers.jl")
-include("parserMomkpPG.jl")
-include("parserMomkpZL.jl")
 include("displayGraphic.jl")
 
 using TimerOutputs

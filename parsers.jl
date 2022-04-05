@@ -4,6 +4,9 @@
 #         Parsers                                                              #
 ################################################################################
 
+include("parserMomkpPG.jl")
+include("parserMomkpZL.jl")
+
 # Function for parsing a file containing a reference set
 function readReferenceSet(fname::String)
 
