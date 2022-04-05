@@ -100,11 +100,8 @@ end
 
 # Computes the LP relaxation using the parametric method 
 function parametricMethod(prob::_MOMKP,           # Bi01KP instance
-						  L::PrimalBoundSet{T},   # Lower bound set 
 						  init::Initialisation,   # seq, pos, transpositions
 						  setvar::SetVariables,   # 
-						  interrupt::Bool = false # The computation of the 
-						  # upper bound set can be interrupted
 						 ) where T<:Real
 
 	# Creates copies of the sequence and positions as they will be modified 
@@ -114,7 +111,9 @@ function parametricMethod(prob::_MOMKP,           # Bi01KP instance
 	# Builds the initial solution
 	sol, s = buildSolution(prob, seq, setvar)
 
+	# The upper bound set is stored 
 	UB = DualBoundSet{Float64}()
+	# Stores the integer solutions found during the computation of the UBS 
 	Lη = PrimalBoundSet{Float64}()
 
 	if s <= length(seq)
@@ -125,13 +124,8 @@ function parametricMethod(prob::_MOMKP,           # Bi01KP instance
 
 	numberCasesIdenticalWeights = 0
 
-	# Used to determine if the computation of the upper bound set is interrupted
-	a2             = sol.z[1:end] 
-	toBeTested     = [i for i in 2:length(L.solutions)] 
-	is_interrupted = false 
-
 	iter = 1 
-	while !is_interrupted && iter <= length(setvar.transpInd)
+	while iter <= length(setvar.transpInd)
 
 		# The first integer in the list is the index of the critical weight 
 		# The others are the indices of the corresponding pairs 
@@ -173,26 +167,149 @@ function parametricMethod(prob::_MOMKP,           # Bi01KP instance
 			updateBoundSets!(UB, Lη, λ, sol, seq[s-1]) 
 		end 
 
-		if interrupt 
-			# The new constraint 
-			λ  = UB.constraints[end].λ
-			a1 = UB.constraints[end].point 
+		iter += 1 
+	end
 
-			for i in toBeTested
-				if i != 0
-					# Does the local nadir point verify the new constraint ?
-					nadir = [L.solutions[i-1][1]+1., L.solutions[i][2]+1.]
+	# Add the last constraint : z2 <= sol.z[2]
+	push!(UB.constraints, Constraint(0//1, sol.z))
 
-					if λ*nadir[1] + (1-λ)*nadir[2] <= λ*a1[1] + (1-λ)*a1[2] 
-						# Can the computation be interrupted ? 
-						if nadir[1] <= a2[1] && nadir[2] <= a1[2] 
-							is_interrupted = true 
-						end 
-					else 
-						toBeTested[i] = 0 
-					end 
+	#println("\tNumber of cases of identical critical weights : ", numberCasesIdenticalWeights)
+	return UB, Lη
+end
+
+# Tests all the shifted local nadir points after a new constraint has been added
+# to determine whether the computation of the upper bound set can be interrupted 
+# Updates toBeTested by removing the local nadir points that do not verify 
+# the new constraint  
+function testLocalNadirPoints(L::Vector{Solution{Float64}},
+							  # The critical weight and points that define 
+							  # the new constraint 
+							  λ::Rational{Int},
+							  a1::Vector{Float64},
+							  a2::Vector{Float64},
+							  toBeTested::Vector{Int},
+							  numberNadirsLeft::Int, 
+							  interrupt::Bool)
+
+	is_interrupted = false 
+
+	for i in 1:length(toBeTested)
+		j = toBeTested[i] 
+		if j != 0
+			# Does the local nadir point verify the new constraint ?
+			nadir = [L[j-1].z[1]+1., L[j].z[2]+1.]
+
+			if λ*nadir[1] + (1-λ)*nadir[2] <= λ*a1[1] + (1-λ)*a1[2] 
+				# Can the computation be interrupted ? 
+				if interrupt && nadir[1] <= a2[1] && nadir[2] <= a1[2] 
+					is_interrupted = true 
 				end 
+			else 
+				toBeTested[i] = 0 
+				numberNadirsLeft -= 1 
 			end 
+		end 
+	end 
+	return is_interrupted, numberNadirsLeft
+end 
+
+# Computes the LP relaxation using the parametric method 
+# The upper bound set is not stored, a boolean is returned indicating whether 
+# it is dominated by the lower bound set L 
+# If the computation of the upper bound set is interrupted then it is not 
+# dominated by the lower bound set 
+function parametricLPrelaxation(prob::_MOMKP,           # Bi01KP instance
+						  	    L::Vector{Solution{T}}, # Lower bound set 
+						  	    init::Initialisation,   # seq, pos, transpositions
+						  	    setvar::SetVariables,   # 
+						  	    interrupt::Bool = false # The computation of the 
+						  	    # upper bound set can be interrupted
+						 	   ) where T<:Real
+
+	# Creates copies of the sequence and positions as they will be modified 
+	seq = setvar.seq[1:end] 
+	pos = setvar.pos[1:end] 
+
+	# Stores the integer solutions found during the computation of the UBS 
+	Lη = Vector{Solution{Float64}}() 
+
+	# Builds the initial solution
+	sol, s = buildSolution(prob, seq, setvar)
+
+	# If the solution is integer it is stored 
+	if s <= length(seq)
+		if isInteger(sol, seq[s])
+			add!(Lη, Solution(sol.X[1:end], sol.z[1:end], sol.ω_))
+		end 
+	elseif length(seq) > 0 
+		if isInteger(sol, seq[s-1])
+			add!(Lη, Solution(sol.X[1:end], sol.z[1:end], sol.ω_))
+		end 
+	end
+
+	numberCasesIdenticalWeights = 0
+
+	is_dominated = false 
+
+	# Used to determine if the computation of the upper bound set is interrupted
+	a2             = sol.z
+	toBeTested     = [i for i in 2:length(L)] 
+	nbNadirsLeft   = length(toBeTested)
+	is_interrupted = false 
+
+	iter = 1 
+	while !is_interrupted && iter <= length(setvar.transpInd)
+
+		# The first integer in the list is the index of the critical weight 
+		# The others are the indices of the corresponding pairs 
+		ind = setvar.transpInd[iter][1]
+
+		λ     = init.transpositions[ind].λ 
+		pairs = init.transpositions[ind].pairs[setvar.transpInd[iter][2:end]]
+
+		# Multiple identical critical weights
+		if length(pairs) > 1
+
+			numberCasesIdenticalWeights += 1
+
+			sol, s = identicalCriticalWeights(prob, seq, pos, 
+						pairs, sol, s)			
+		else
+
+			(i,j) = pairs[1]
+			k = min(pos[i], pos[j])
+
+			if k == s-1   # Swap items s-1 and s
+
+				sol, s = swapWithItemInBag(prob, seq, sol, s)
+
+			elseif k == s # Swap items s and s+1
+
+				sol, s = swapWithItemNotInBag(prob, seq, sol, s)
+				
+			end
+
+			# Update the sequence and positions
+			tmp = pos[i] ; pos[i] = pos[j] ; pos[j] = tmp
+			seq[pos[i]] = i ; seq[pos[j]] = j
+		end
+
+		# If the solution is integer it is stored 
+		if s <= length(seq)
+			if isInteger(sol, seq[s])
+				add!(Lη, Solution(sol.X[1:end], sol.z[1:end], sol.ω_))
+			end 
+		elseif length(seq) > 0 
+			if isInteger(sol, seq[s-1])
+				add!(Lη, Solution(sol.X[1:end], sol.z[1:end], sol.ω_))
+			end 
+		end
+
+		# The new constraint is defined by λ, a1 and a2 
+		a1 = sol.z
+		if a1 != a2 
+			is_interrupted, nbNadirsLeft = testLocalNadirPoints(L, λ, a1, a2, 
+				toBeTested, nbNadirsLeft, interrupt)
 			a2 = a1 
 		end 
 
@@ -200,10 +317,16 @@ function parametricMethod(prob::_MOMKP,           # Bi01KP instance
 	end
 
 	if !interrupt
-		# Add the last constraint : z2 <= sol.z[2]
-		push!(UB.constraints, Constraint(0//1, sol.z))
+		# Test the last constraint : z2 <= sol.z[2]
+		is_interrupted, nbNadirsLeft = testLocalNadirPoints(L, 0//1, sol.z, a2, 
+			toBeTested, nbNadirsLeft, interrupt)
 	end 
 
+	# The upper bound set is dominated if there are no shifted local nadir 
+	# points remaining that verify all the constraints 
+	is_dominated = (nbNadirsLeft == 0)
+
 	#println("\tNumber of cases of identical critical weights : ", numberCasesIdenticalWeights)
-	return UB, Lη
+	return Lη, is_dominated
 end
+
