@@ -18,17 +18,17 @@ function branch!(η::Node,
                  method::Method,
                  interrupt::Bool) where T<:Real
     
-    verbose = false 
+    verbose = false
     graphic = false 
 
     # Upper bound and dominance test 
     if η.status == NOTPRUNED
         # Compute the upper bound set for η 
-        #@timeit to "Upper bound" η.UB, Lη = 
-        #    parametricMethod(prob, L, init, η.setvar) 
+        @timeit to "Upper bound" η.UB, Lη = 
+            parametricMethod(prob, init, η.setvar) 
 
-        @timeit to "Upper bound" Lη, is_dominated = 
-            parametricLPrelaxation(prob, L, init, η.setvar, interrupt)
+        #@timeit to "Upper bound" Lη, is_dominated = 
+        #    parametricLPrelaxation(prob, L, init, η.setvar, interrupt)
 
         # Compare with lower bound set and update status 
         #if length(η.UB.points) == 0 || η.UB.points == [[0.,0.]]
@@ -40,23 +40,23 @@ function branch!(η::Node,
         #else
         if length(L) > 1 
 
-            #@timeit to "Dominance" is_dominated = isDominated(η.UB, L)
+            @timeit to "Dominance" is_dominated = isDominated(η.UB, L)
 
             if is_dominated #&& 
                 # La borne sup ne "dépasse" pas d'un côté ou de l'autre 
                 # de la borne inf 
                 # max z1 in L < max z1 in UB(η)
-                #!(L[end].z[1] < η.UB.points[1][1] 
+                #!(L[end].z[1] < η.UB.points[1][1]
                 # min z1 in UB(η) < min z1 in L
                 #|| η.UB.points[end][1] < L[1].z[1])
 
                 η.status = DOMINANCE 
             #else 
-                #plotBoundSets(η.UB, L.solutions)
+                plotBoundSets(η.UB, L)
             end
         end
 
-        graphic ? plotBoundSets(η.UB, L.solutions) : nothing
+        graphic ? plotBoundSets(η.UB, L) : nothing
 
         for sol in Lη
             @timeit to "Ordered List" add!(L, sol)
@@ -70,9 +70,10 @@ function branch!(η::Node,
         println("\ndepth = ", depth)
         println("status : ", η.status)
         println("L = ", [sol.z for sol in L])
-        println("solInit.X = ", η.solInit.X)
-        println("solInit.z = ", η.solInit.z)
-        println("solInit.ω_ = ", η.solInit.ω_)
+        #println("solInit.X = ", η.solInit.X)
+        #println("solInit.z = ", η.solInit.z)
+        #println("solInit.ω_ = ", η.solInit.ω_)
+        println(η.setvar)
     end     
 
     # Branching 
@@ -81,9 +82,9 @@ function branch!(η::Node,
         if depth <= length(branchingVariables)
             # Set variable  
             var = branchingVariables[depth] 
-            verbose ? println("Variable ", var, " has been set") : nothing
 
             # var is set to 1
+            verbose ? println(var, " is set to 1") : nothing
             setvar1 = setVariable(init, η.setvar, var, 1, method)  
 
             if prob.W[1,var] <= η.solInit.ω_ 
@@ -102,18 +103,23 @@ function branch!(η::Node,
                 solInit1.X[var] = 1
 
                 η1 = Node(nothing, setvar1, solInit1, NOTPRUNED) 
-                branch!(η1, prob, L, init, branchingVariables, depth+1, method, interrupt) 
-
             else 
+
                 η1 = Node(nothing, setvar1, η.solInit, INFEASIBILITY)
-                branch!(η1, prob, L, init, branchingVariables, depth+1, method, interrupt)
             end
+            branch!(η1, prob, L, init, branchingVariables, depth+1, method, interrupt)
 
             # var is set to 0
-            η0 = Node(nothing, 
-                      setVariable(init, η.setvar, var, 0, method),
-                      η.solInit, 
-                      NOTPRUNED)
+            verbose ? println(var, " is set to 0") : nothing
+            setvar0 = setVariable(init, η.setvar, var, 0, method)
+
+            if η.solInit.ω_ == 0
+                # There is no residual capacity, no new solutions can be 
+                # obtained in this branch 
+                η0 = Node(nothing, setvar0, η.solInit, INFEASIBILITY)
+            else 
+                η0 = Node(nothing, setvar0, η.solInit, NOTPRUNED)
+            end 
             branch!(η0, prob, L, init, branchingVariables, depth+1, method, interrupt)
             
         else 

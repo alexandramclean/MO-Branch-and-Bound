@@ -53,7 +53,7 @@ end
 
 # Calcul des solutions efficaces supportées par méthode dichotomique 
 function solveRecursion!(prob::_MOMKP,
-                         X_SE::PrimalBoundSet{Rational{Int}},
+                         X_SE::Vector{Solution{Rational{Int}}},
                          x1::Solution{Rational{Int}}, 
                          x2::Solution{Rational{Int}})
     # Calcul de la direction λ
@@ -76,7 +76,7 @@ end
 
 function dichotomicMethod(prob::_MOMKP)
 
-    X_SE = PrimalBoundSet{Rational{Int}}()
+    X_SE = Vector{Solution{Rational{Int}}}()
 
     # Calcul des solutions lexicographiquement optimales
     obj12 = weightedObjective(prob, 1, 0)
@@ -88,9 +88,9 @@ function dichotomicMethod(prob::_MOMKP)
     # Appel récursif
     solveRecursion!(prob, X_SE, x12, x21)
 
-    L = PrimalBoundSet{Float64}() 
-    for sol in X_SE.solutions 
-        push!(L.solutions, Solution{Float64}(sol.X, 
+    L = Vector{Solution{Float64}}() 
+    for sol in X_SE
+        push!(L, Solution{Float64}(sol.X, 
             [Float64(sol.z[1]), Float64(sol.z[2])], sol.ω_))
     end 
 

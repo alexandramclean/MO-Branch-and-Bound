@@ -162,9 +162,10 @@ function testInstancesMT(dir::String)
 	println("Exemple didactique")
 	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
 
-	L = PrimalBoundSet{Float64}()
-	init = initialisation(didactic, PARAMETRIC_LP)
-	_ = parametricMethod(didactic, L, init, Solution{Float64}(didactic)) 
+	init   = initialisation(didactic, PARAMETRIC_LP)
+	setvar = initialSetvar(didactic, init, PARAMETRIC_LP)
+
+	_ = parametricMethod(didactic, init, setvar) 
 	_ = martelloAndToth(didactic, init, Solution{Float64}(didactic))
 	
 	files = readdir(dir)

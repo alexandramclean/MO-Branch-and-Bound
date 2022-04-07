@@ -152,7 +152,7 @@ function removeFromSequence(seq::Vector{Int}, var::Int)
 	for i in 1:length(seq)
 		if seq[i] != var
 			newSeq[inser] = seq[i] 
-		inser += 1 
+			inser += 1 
 		end
 	end
 	return newSeq 
@@ -182,20 +182,24 @@ function setVariable(init::Initialisation,
 	if method == PARAMETRIC_LP || method == PARAMETRIC_MT
 
 		#newTranspositions = Transposition[]
-		newTranspInd = Vector{Int}[] 
+		newTranspInd = Vector{Vector{Int}}() 
 		newPos       = copy(parent_setvar.pos)
 
 		# The variable is removed from the set of transpositions
 		#for t in init.transpositions
-		for ind in [t[1] for t in parent_setvar.transpInd] 
+		#for ind in [t[1] for t in parent_setvar.transpInd]
+		for i in 1:length(parent_setvar.transpInd)
+
+			# Corresponding transposition 
+			ind = parent_setvar.transpInd[i][1]
 			t = init.transpositions[ind] 
 
-			transpInd = Int[] 
+			transpInd = Vector{Int}() 
 
 			if length(t.pairs) > 1 
 
 				swaps = Int[] 
-				for indPair in parent_setvar.transpInd[ind][2:end]
+				for indPair in parent_setvar.transpInd[i][2:end]
 					if !(var in t.pairs[indPair])
 						push!(swaps, indPair)
 					end 
@@ -486,7 +490,7 @@ end
 
 # -- Parametric method for LP relaxation 
 function updateBoundSets!(UB::DualBoundSet{Float64}, 
-						  L::PrimalBoundSet{Float64}, 
+						  L::Vector{Solution{Float64}}, 
 						  λ::Rational{Int}, 
 						  sol::Solution{Float64}, 
 						  breakItem::Int)

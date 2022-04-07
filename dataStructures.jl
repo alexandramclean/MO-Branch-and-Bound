@@ -28,6 +28,8 @@ Solution{Float64}(prob::_MOMKP) = Solution(zeros(Rational{Int}, size(prob.P)[2])
                                     [0.,0.], prob.ω[1])
 Solution{Rational{Int}}(prob::_MOMKP) = Solution(zeros(Rational{Int}, 
                                         size(prob.P)[2]), [0//1,0//1], prob.ω[1])
+                                
+Solution(t::Vector{Float64}) = Solution([0//1], t, 0)
 
 # ----- TRANSPOSITIONS ------------------------------------------------------- #
 # Stores a critical weight λ and the corresponding transposition(s)

@@ -114,7 +114,7 @@ function parametricMethod(prob::_MOMKP,           # Bi01KP instance
 	# The upper bound set is stored 
 	UB = DualBoundSet{Float64}()
 	# Stores the integer solutions found during the computation of the UBS 
-	Lη = PrimalBoundSet{Float64}()
+	Lη = Vector{Solution{Float64}}()
 
 	if s <= length(seq)
 		updateBoundSets!(UB, Lη, 1//1, sol, seq[s])
@@ -251,6 +251,9 @@ function parametricLPrelaxation(prob::_MOMKP,           # Bi01KP instance
 
 	is_dominated = false 
 
+	# First point 
+	firstPoint = sol.z[1:end]
+
 	# Used to determine if the computation of the upper bound set is interrupted
 	a2             = sol.z
 	toBeTested     = [i for i in 2:length(L)] 
@@ -306,25 +309,34 @@ function parametricLPrelaxation(prob::_MOMKP,           # Bi01KP instance
 		end
 
 		# The new constraint is defined by λ, a1 and a2 
-		a1 = sol.z
-		if a1 != a2 
-			is_interrupted, nbNadirsLeft = testLocalNadirPoints(L, λ, a1, a2, 
-				toBeTested, nbNadirsLeft, interrupt)
-			a2 = a1 
+		if length(L) > 0 
+			a1 = sol.z
+			if a1 != a2 
+				is_interrupted, nbNadirsLeft = testLocalNadirPoints(L, λ, 
+					a1, a2, toBeTested, nbNadirsLeft, interrupt)
+				a2 = a1 
+			end 
 		end 
 
 		iter += 1 
 	end
 
-	if !interrupt
+	if !interrupt && length(L) > 0
 		# Test the last constraint : z2 <= sol.z[2]
 		is_interrupted, nbNadirsLeft = testLocalNadirPoints(L, 0//1, sol.z, a2, 
 			toBeTested, nbNadirsLeft, interrupt)
 	end 
 
+	# Last point 
+	lastPoint = sol.z
+
 	# The upper bound set is dominated if there are no shifted local nadir 
 	# points remaining that verify all the constraints 
-	is_dominated = (nbNadirsLeft == 0)
+	if length(L) > 0
+		is_dominated = (nbNadirsLeft == 0) #&& 
+			#!(L[end].z[1] < firstPoint[1] || lastPoint[1] < L[1].z[1]) #||
+			#(firstPoint == lastPoint)
+	end 
 
 	#println("\tNumber of cases of identical critical weights : ", numberCasesIdenticalWeights)
 	return Lη, is_dominated

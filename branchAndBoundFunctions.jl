@@ -128,17 +128,17 @@ end
 # Returns true if the upper bound set for a particular node is dominated by the 
 # lower bound set by using the constraints and shifted local nadir points 
 function isDominated(UB::DualBoundSet, 
-                     L::PrimalBoundSet{T}
+                     L::Vector{Solution{T}}
                     ) where T<:Real
 
     is_not_dominated  = false
     i = 2 
 
-    while !is_not_dominated && i <= length(L.solutions)
+    while !is_not_dominated && i <= length(L)
         # If there is a shifter local nadir point that verifies the constraints
         # the node cannot be pruned 
         is_not_dominated = is_not_dominated || 
-            verifiesConstraints(UB.constraints, L.solutions[i-1].z, L.solutions[i].z)
+            verifiesConstraints(UB.constraints, L[i-1].z, L[i].z)
         i += 1 
     end 
     return !is_not_dominated

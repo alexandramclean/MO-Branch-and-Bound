@@ -6,6 +6,7 @@
 
 include("parserMomkpPG.jl")
 include("parserMomkpZL.jl")
+include("newDPKP.jl")
 
 # Function for parsing a file containing a reference set
 function readReferenceSet(fname::String)
@@ -22,4 +23,12 @@ function readReferenceSet(fname::String)
     end 
 
     return ref
+end 
+
+function readInstanceKP(fname::String)
+
+    prob = parseKP(fname)
+    return _MOMKP(transpose(hcat(prob.p1,prob.p2)), 
+                  reshape(prob.w, 1, :),
+                  [prob.Omega])
 end 
