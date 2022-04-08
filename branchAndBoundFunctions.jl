@@ -117,9 +117,10 @@ function verifiesConstraints(constraints::Vector{Constraint},
         λ     = constraints[i].λ 
         point = constraints[i].point
 
-        verif = verif && 
-            λ*(yl[1]+1.) + (1-λ)*(yr[2]+1.) <= λ*point[1] + (1-λ)*point[2]
-
+        if λ != 1//1
+            verif = verif && 
+                λ*(yl[1]+1.) + (1-λ)*(yr[2]+1.) <= λ*point[1] + (1-λ)*point[2]
+        end 
         i    += 1 
     end 
     return verif 
@@ -127,7 +128,7 @@ end
 
 # Returns true if the upper bound set for a particular node is dominated by the 
 # lower bound set by using the constraints and shifted local nadir points 
-function isDominated(UB::DualBoundSet, 
+function isDominated(constraints::Vector{Constraint}, 
                      L::Vector{Solution{T}}
                     ) where T<:Real
 
@@ -138,7 +139,7 @@ function isDominated(UB::DualBoundSet,
         # If there is a shifter local nadir point that verifies the constraints
         # the node cannot be pruned 
         is_not_dominated = is_not_dominated || 
-            verifiesConstraints(UB.constraints, L[i-1].z, L[i].z)
+            verifiesConstraints(constraints, L[i-1].z, L[i].z)
         i += 1 
     end 
     return !is_not_dominated

@@ -227,8 +227,8 @@ function parametricLPrelaxation(prob::_MOMKP,           # Bi01KP instance
 						 	   ) where T<:Real
 
 	# Creates copies of the sequence and positions as they will be modified 
-	seq = setvar.seq[1:end] 
-	pos = setvar.pos[1:end] 
+	seq::Vector{Int} = setvar.seq[1:end] 
+	pos::Vector{Int} = setvar.pos[1:end] 
 
 	# Stores the integer solutions found during the computation of the UBS 
 	Lη = Vector{Solution{Float64}}() 
@@ -333,9 +333,9 @@ function parametricLPrelaxation(prob::_MOMKP,           # Bi01KP instance
 	# The upper bound set is dominated if there are no shifted local nadir 
 	# points remaining that verify all the constraints 
 	if length(L) > 0
-		is_dominated = (nbNadirsLeft == 0) #&& 
-			#!(L[end].z[1] < firstPoint[1] || lastPoint[1] < L[1].z[1]) #||
-			#(firstPoint == lastPoint)
+		is_dominated = (nbNadirsLeft == 0) || #&& 
+			#!(L[end].z[1] < firstPoint[1] || lastPoint[1] < L[1].z[1])) ||
+			(firstPoint == lastPoint)
 	end 
 
 	#println("\tNumber of cases of identical critical weights : ", numberCasesIdenticalWeights)

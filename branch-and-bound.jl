@@ -21,12 +21,16 @@ function branch!(η::Node,
     verbose = false
     graphic = false 
 
+    minW = minimum(prob.W[1,:])
+
     # Upper bound and dominance test 
     if η.status == NOTPRUNED
         # Compute the upper bound set for η 
+        # -- Version that stores the upper bound set 
         @timeit to "Upper bound" η.UB, Lη = 
             parametricMethod(prob, init, η.setvar) 
 
+        # -- Version that does not store the upper bound set 
         #@timeit to "Upper bound" Lη, is_dominated = 
         #    parametricLPrelaxation(prob, L, init, η.setvar, interrupt)
 
@@ -34,25 +38,25 @@ function branch!(η::Node,
         #if length(η.UB.points) == 0 || η.UB.points == [[0.,0.]]
         #    η.status = INFEASIBILITY
 
-        #elseif length(η.UB.points) == 1 
-        #    η.status = DOMINANCE 
-
         #else
-        if length(L) > 1 
+        if length(η.UB.points) == 1 
+            η.status = DOMINANCE 
 
-            @timeit to "Dominance" is_dominated = isDominated(η.UB, L)
+        elseif length(L) > 1 
 
-            if is_dominated #&& 
+            @timeit to "Dominance" is_dominated = 
+                isDominated(η.UB.constraints, L)
+
+            if is_dominated &&
                 # La borne sup ne "dépasse" pas d'un côté ou de l'autre 
                 # de la borne inf 
                 # max z1 in L < max z1 in UB(η)
-                #!(L[end].z[1] < η.UB.points[1][1]
+                !(L[end].z[1] < η.UB.points[1][1]
                 # min z1 in UB(η) < min z1 in L
-                #|| η.UB.points[end][1] < L[1].z[1])
-
+                || η.UB.points[end][1] < L[1].z[1])
                 η.status = DOMINANCE 
             #else 
-                plotBoundSets(η.UB, L)
+                #plotBoundSets(η.UB, L)
             end
         end
 
@@ -67,7 +71,7 @@ function branch!(η::Node,
     @timeit to "Ordered List" add!(L, η.solInit)
 
     if verbose 
-        println("\ndepth = ", depth)
+        println("depth = ", depth)
         println("status : ", η.status)
         println("L = ", [sol.z for sol in L])
         #println("solInit.X = ", η.solInit.X)
@@ -84,7 +88,7 @@ function branch!(η::Node,
             var = branchingVariables[depth] 
 
             # var is set to 1
-            verbose ? println(var, " is set to 1") : nothing
+            verbose ? println("\n", var, " is set to 1") : nothing
             setvar1 = setVariable(init, η.setvar, var, 1, method)  
 
             if prob.W[1,var] <= η.solInit.ω_ 
@@ -103,25 +107,26 @@ function branch!(η::Node,
                 solInit1.X[var] = 1
 
                 η1 = Node(nothing, setvar1, solInit1, NOTPRUNED) 
+                branch!(η1, prob, L, init, branchingVariables, depth+1, 
+                    method, interrupt)
             else 
-
-                η1 = Node(nothing, setvar1, η.solInit, INFEASIBILITY)
+                verbose ? println("status : INFEASIBILITY") : nothing 
             end
-            branch!(η1, prob, L, init, branchingVariables, depth+1, method, interrupt)
-
+            
             # var is set to 0
-            verbose ? println(var, " is set to 0") : nothing
+            verbose ? println("\n", var, " is set to 0") : nothing
             setvar0 = setVariable(init, η.setvar, var, 0, method)
 
-            if η.solInit.ω_ == 0
-                # There is no residual capacity, no new solutions can be 
+            if η.solInit.ω_ < minW
+                # No items can be inserted, no new solutions can be 
                 # obtained in this branch 
-                η0 = Node(nothing, setvar0, η.solInit, INFEASIBILITY)
+                #η0 = Node(nothing, setvar0, η.solInit, INFEASIBILITY)
+                verbose ? println("status : INFEASIBILITY") : nothing 
             else 
                 η0 = Node(nothing, setvar0, η.solInit, NOTPRUNED)
+                branch!(η0, prob, L, init, branchingVariables, depth+1, 
+                    method, interrupt)
             end 
-            branch!(η0, prob, L, init, branchingVariables, depth+1, method, interrupt)
-            
         else 
             η.status = MAXDEPTH
             verbose ? println("Max depth has been reached") : nothing
