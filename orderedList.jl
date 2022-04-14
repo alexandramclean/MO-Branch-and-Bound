@@ -142,6 +142,12 @@ function add!(yN::Union{Vector{Solution{T}}, Vector{Vector{T}}},
               y::Union{Solution{T},Vector{T}}, 
               opt::Optimisation=MAX) where T<:Real
 
+    if typeof(y) == Solution{Float64} || typeof(y) == Solution{Rational{Int}}
+        y.z = [floor(y.z[1]), floor(y.z[2])]
+    else 
+        y = [floor(y[1]), floor(y[2])]
+    end 
+    
     # Search for the position of y 
     if length(yN) == 0
         insert!(yN, 1, y)
