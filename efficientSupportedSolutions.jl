@@ -79,11 +79,15 @@ function dichotomicMethod(prob::_MOMKP)
     X_SE = Vector{Solution{Rational{Int}}}()
 
     # Calcul des solutions lexicographiquement optimales
-    obj12 = weightedObjective(prob, 1, 0)
+    #obj12 = weightedObjective(prob, 1, 0)
+    obj12 = [1000*prob.P[1,i] + prob.P[2,i] for i in 1:size(prob.P)[2]]
     x12   = getSolution(prob, obj12)
+    add!(X_SE, x12)
 
-    obj21 = weightedObjective(prob, 0, 1)
+    #obj21 = weightedObjective(prob, 0, 1)
+    obj21 = [prob.P[1,i] + 1000*prob.P[2,i] for i in 1:size(prob.P)[2]]
     x21   = getSolution(prob, obj21)
+    add!(X_SE, x21)
     
     # Appel récursif
     solveRecursion!(prob, X_SE, x12, x21)
