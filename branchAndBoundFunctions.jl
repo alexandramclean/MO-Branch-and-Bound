@@ -113,15 +113,17 @@ function verifiesConstraints(constraints::Vector{Constraint},
     verif = true 
     i = 1 
 
+    # If a shifted local nadir point does not verify one of the constraints
+    # the algorithm stops 
     while verif && i <= length(constraints)
         λ     = constraints[i].λ 
         point = constraints[i].point
 
-        if λ != 1//1
+        if λ!= 1//1 && λ == 0//1
             verif = verif && 
                 λ*(yl[1]+1.) + (1-λ)*(yr[2]+1.) <= λ*point[1] + (1-λ)*point[2]
         end 
-        i    += 1 
+        i += 1 
     end 
     return verif 
 end 
@@ -145,31 +147,9 @@ function isDominated(constraints::Vector{Constraint},
     return !is_not_dominated
 end 
 
-# Returns true if the upper bound set for a particular node is dominated by the 
-# lower bound set by testing is each point in UB is at least weakly dominated by a 
-# point in L 
-function isDominated(UB::Vector{Vector{T}},
-                     L::Vector{Vector{T}}) where T<:Real 
-    
-    is_dominated = false
-
-    for i in 1:length(UB) 
-        is_weakly_dominated = false 
-        j = 1 
-        while !is_weakly_dominated && j <= length(L) 
-            is_weakly_dominated = is_weakly_dominated || dominates(L[j], UB[i])
-            j += 1 
-        end 
-        print(is_weakly_dominated)
-        is_dominated = is_dominated || is_weakly_dominated 
-    end 
-
-    return is_dominated 
-end 
-
 # ----- GRAPHIC FUNCTIONS ---------------------------------------------------- #
 # Plots the upper bound set for a node and the lower bound set 
-function plotBoundSets(UB::DualBoundSet, 
+function plotBoundSets(UB::Vector{Constraint}, 
                        L::Vector{Solution{T}}) where T<:Real
     # Setup
     randNumber = rand(1:1000)
@@ -180,8 +160,8 @@ function plotBoundSets(UB::DualBoundSet,
     PyPlot.title("Upper and lower bound sets")
 
     # Show the upper bound set 
-    y_UBS1 = [y[1] for y in UB.points] 
-    y_UBS2 = [y[2] for y in UB.points]
+    y_UBS1 = [y.point[1] for y in UB] 
+    y_UBS2 = [y.point[2] for y in UB]
     scatter(y_UBS1, y_UBS2, color="green", marker="+", label = "UB")
     plot(y_UBS1, y_UBS2, color="green", linewidth=0.75, marker="+",
         markersize=1.0, linestyle=":")
