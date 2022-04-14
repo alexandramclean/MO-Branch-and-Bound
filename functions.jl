@@ -9,6 +9,7 @@ include("orderedList.jl")
 
 # ----- DOMINANCE ------------------------------------------------------------ #
 # Returns true if x dominates y
+# -- x and y are points 
 function dominates(x, y, opt::Optimisation=MAX)
     if opt == MIN
         return ((x[1] <= y[1] && x[2] <  y[2])
@@ -21,6 +22,7 @@ function dominates(x, y, opt::Optimisation=MAX)
     end
 end
 
+# -- x and y are solutions 
 function dominates(x::Solution, y::Solution, opt::Optimisation=MAX)
     if opt == MIN
         return ((x.z[1] <= y.z[1] && x.z[2] <  y.z[2])
@@ -181,13 +183,10 @@ function setVariable(init::Initialisation,
 
 	if method == PARAMETRIC_LP || method == PARAMETRIC_MT
 
-		#newTranspositions = Transposition[]
 		newTranspInd = Vector{Vector{Int}}() 
 		newPos       = copy(parent_setvar.pos)
 
 		# The variable is removed from the set of transpositions
-		#for t in init.transpositions
-		#for ind in [t[1] for t in parent_setvar.transpInd]
 		for i in 1:length(parent_setvar.transpInd)
 
 			# Corresponding transposition 

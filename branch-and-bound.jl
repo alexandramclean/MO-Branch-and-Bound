@@ -35,28 +35,17 @@ function branch!(η::Node,
         #    parametricLPrelaxation(prob, L, init, η.setvar, interrupt)
 
         # Compare with lower bound set and update status 
-        #if length(η.UB.points) == 0 || η.UB.points == [[0.,0.]]
-        #    η.status = INFEASIBILITY
-
-        #else
-        if length(η.UB.points) == 1 
-            η.status = DOMINANCE 
+        if length(η.UB.constraints) <= 2 && length(Lη) == 1 
+            # The upper bound set is composed of a single feasible point 
+            η.status = OPTIMALITY
 
         elseif length(L) > 1 
 
             @timeit to "Dominance" is_dominated = 
                 isDominated(η.UB.constraints, L)
 
-            if is_dominated &&
-                # La borne sup ne "dépasse" pas d'un côté ou de l'autre 
-                # de la borne inf 
-                # max z1 in L < max z1 in UB(η)
-                !(L[end].z[1] < η.UB.points[1][1]
-                # min z1 in UB(η) < min z1 in L
-                || η.UB.points[end][1] < L[1].z[1])
+            if is_dominated 
                 η.status = DOMINANCE 
-            #else 
-                #plotBoundSets(η.UB, L)
             end
         end
 
@@ -120,7 +109,6 @@ function branch!(η::Node,
             if η.solInit.ω_ < minW
                 # No items can be inserted, no new solutions can be 
                 # obtained in this branch 
-                #η0 = Node(nothing, setvar0, η.solInit, INFEASIBILITY)
                 verbose ? println("status : INFEASIBILITY") : nothing 
             else 
                 η0 = Node(nothing, setvar0, η.solInit, NOTPRUNED)
