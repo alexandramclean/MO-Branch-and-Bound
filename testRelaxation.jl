@@ -63,9 +63,9 @@ function compareParametric_Dichotomic(name, prob, graphic=false)
 		println("Parametric method")
 		@timeit to "Parametric method" begin 
 			@timeit to "Initialisation" init = initialisation(prob, PARAMETRIC_LP)
-			Lparam = PrimalBoundSet{Float64}()
-			@timeit to "Relaxation" UBparam = 
-				parametricMethod(prob, Lparam, init, Solution{Float64}(prob))
+			@timeit to "Setvar" setvar = initialSetvar(prob, init, PARAMETRIC_LP)
+			@timeit to "Relaxation" UBparam, _ = 
+				parametricMethod(prob, init, setvar)
 		end 
 
 		println("Dichotomic method")
@@ -118,7 +118,8 @@ function testInstances(dir::String, graphic=false)
 
 	L = PrimalBoundSet{Float64}()
 	init = initialisation(didactic, PARAMETRIC_LP)
-	_ = parametricMethod(didactic, L, init, Solution{Float64}(didactic))
+	setvar = initialSetvar(didactic, init, PARAMETRIC_LP)
+	_ = parametricMethod(didactic, init, setvar)
 
 	L = PrimalBoundSet{Rational{Int}}()
 	initDicho = initialisation(didactic, DICHOTOMIC)
@@ -144,11 +145,11 @@ function compareLP_MT(prob::_MOMKP)
 	@timeit to "\nLP v. MT" begin 
 		# Initialisation
 		init = initialisation(prob, PARAMETRIC_LP)
-		L = PrimalBoundSet{Float64}()
+		setvar = initialSetvar(prob, init, PARAMETRIC_LP)
 
 		println("LP Relaxation")
 		@timeit to "LP Relaxation" UBparam = 
-			parametricMethod(prob, L, init, Solution{Float64}(prob))
+			parametricMethod(prob, init, setvar)
 		
 		println("Martello and Toth")
 		@timeit to "Martello and Toth" UB = 
