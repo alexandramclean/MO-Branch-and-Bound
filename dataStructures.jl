@@ -80,7 +80,7 @@ struct DualBoundSet{T}
 end
 
 DualBoundSet{Float64}() = DualBoundSet(Vector{Float64}[], Constraint[]) 
-    DualBoundSet{Rational{Int}}() = DualBoundSet(Vector{Rational{Int}}[], Constraint[])
+DualBoundSet{Rational{Int}}() = DualBoundSet(Vector{Rational{Int}}[], Constraint[])
 
 # Data structure representing the primal bound set (lower bound set in this case)
 mutable struct PrimalBoundSet{T}

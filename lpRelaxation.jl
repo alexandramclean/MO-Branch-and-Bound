@@ -302,6 +302,7 @@ function parametricLPrelaxation(prob::_MOMKP,           # Bi01KP instance
 			if isInteger(sol, seq[s])
 				add!(Lη, Solution(sol.X[1:end], sol.z[1:end], sol.ω_))
 			end 
+
 		elseif length(seq) > 0 
 			if isInteger(sol, seq[s-1])
 				add!(Lη, Solution(sol.X[1:end], sol.z[1:end], sol.ω_))

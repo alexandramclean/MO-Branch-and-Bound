@@ -71,9 +71,9 @@ function compareParametric_Dichotomic(name, prob, graphic=false)
 		println("Dichotomic method")
 		@timeit to "Dichotomic method" begin 
 			@timeit to "Initialisation" initDicho = initialisation(prob, DICHOTOMIC)
-			Ldicho = PrimalBoundSet{Rational{Int}}()
+			Ldicho = Vector{Solution{Rational{Int}}}()
 			@timeit to "Relaxation" UBdicho = 
-				dichotomicMethod(prob, Ldicho, initDicho, Solution{Rational{Int}}(prob))
+				dichotomicMethod(prob, Ldicho, initDicho)
 		end 
 	end 
 
@@ -92,8 +92,8 @@ function compareParametric_Dichotomic(name, prob, graphic=false)
 			markersize=1.0, linestyle=":")
 
 		# Show the points computed by the dichotomic method 
-		y_PN21 = [y[1] for y in UBdicho.points] 
-		y_PN22 = [y[2] for y in UBdicho.points]
+		y_PN21 = [y.point[1] for y in UBdicho] 
+		y_PN22 = [y.point[2] for y in UBdicho]
 		scatter(y_PN21, y_PN22, color="red", marker="+", label = "dichotomic")
 		plot(y_PN21, y_PN22, color="red", linewidth=0.75, marker="+",
 			markersize=1.0, linestyle=":")
@@ -121,9 +121,9 @@ function testInstances(dir::String, graphic=false)
 	setvar = initialSetvar(didactic, init, PARAMETRIC_LP)
 	_ = parametricMethod(didactic, init, setvar)
 
-	L = PrimalBoundSet{Rational{Int}}()
+	L = Vector{Solution{Rational{Int}}}()
 	initDicho = initialisation(didactic, DICHOTOMIC)
-	_ = dichotomicMethod(didactic, L, initDicho, Solution{Rational{Int}}(didactic))
+	_ = dichotomicMethod(didactic, L, initDicho)
 	
 	files = readdir(dir) 
 	for fname in files 

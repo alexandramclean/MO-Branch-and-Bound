@@ -21,7 +21,6 @@ function branch!(η::Node,
     verbose = false
     graphic = false 
 
-    # Upper bound and dominance test 
     # Compute the upper bound set for η 
     @timeit to "Upper bound" η.UB, Lη = 
         parametricMethod(prob, init, η.setvar) 
@@ -40,26 +39,30 @@ function branch!(η::Node,
         println("depth = ", depth)
         println("status : ", η.status)
         println("L = ", [sol.z for sol in L])
-        println("U(η) = ", [c.point for c in η.UB])
+        println("Lη = ", Lη)
+        #println("U(η) = ", [c.point for c in η.UB.constraints])
         println("solInit.X = ", η.solInit.X)
         println("solInit.z = ", η.solInit.z)
         println("solInit.ω_ = ", η.solInit.ω_)
-        println(η.setvar)
+        println("setvar = ", η.setvar)
     end     
 
     # Branching 
     if η.status == NOTPRUNED
+
+        verifyUBS(prob, η.setvar, η.UB.constraints)
         
         if depth <= length(branchingVariables)
             # Set variable  
             var = branchingVariables[depth] 
 
             # var is set to 1
-            verbose ? println("\n", var, " is set to 1") : nothing
-            setvar1 = setVariable(init, η.setvar, var, 1, method)  
+            verbose ? println("\n", var, " is set to 1") : nothing 
 
             if prob.W[1,var] <= η.solInit.ω_ 
                 # var can be assigned to 1 
+                setvar1 = setVariable(init, η.setvar, var, 1, method) 
+
                 if method == DICHOTOMIC
                     @timeit to "solInit" solInit1 = Solution{Rational{Int}}(
                                 η.solInit.X[1:end], 
@@ -83,11 +86,30 @@ function branch!(η::Node,
             
             # var is set to 0
             verbose ? println("\n", var, " is set to 0") : nothing
-            setvar0 = setVariable(init, η.setvar, var, 0, method)
 
-            η0 = Node(nothing, setvar0, η.solInit, NOTPRUNED)
-            branch!(η0, prob, L, init, branchingVariables, depth+1, 
-                method, interrupt)
+            # Smallest object weight among the variables that are not yet set 
+            freeVariables = Int[] 
+            for i in 1:size(prob.P)[2]
+                if !(i in η.setvar.setToOne || i in η.setvar.setToZero)
+                    push!(freeVariables, i)
+                end 
+            end 
+            weights = prob.W[1,:][freeVariables]
+            minW = minimum(weights)
+            println("min weight : ", minW)
+
+            if η.solInit.ω_ < minW 
+                # No more objects can be inserted so no new solutions will be
+                # obtained in this branch 
+                verbose ? println("status : INFEASIBILITY") : nothing 
+            else 
+                setvar0 = setVariable(init, η.setvar, var, 0, method)
+
+                η0 = Node(nothing, setvar0, η.solInit, NOTPRUNED)
+                branch!(η0, prob, L, init, branchingVariables, depth+1, 
+                    method, interrupt)
+            end 
+
         else 
             # There are no more variables to assign 
             η.status = MAXDEPTH
