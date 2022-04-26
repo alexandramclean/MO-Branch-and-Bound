@@ -43,33 +43,3 @@ function updatePositions!(seq::Vector{Int},
     end
 end
 
-# ----- INITIALISATION ------------------------------------------------------- #
-#= Computes the utilities, transpositions, initial sequence and positions 
-function initialisation(prob::_MOMKP)
-
-    #@timeit to "Initialisation" begin 
-
-        # Ratios and critical weights
-        #@timeit to "Ratios" begin 
-            r1, r2 = utilities(prob)
-        #end 
-        #@timeit to "Critical weights" begin
-            weights, pairs = criticalWeights(prob, r1, r2)
-        #end 
-
-        # Identical critical weights are grouped together 
-        #@timeit to "Transpositions" begin 
-            transpositions = transpositionPreprocessing(weights, pairs)
-        #end 
-
-        # Sort the ratios in lexicographically decreasing order according to (r1,r2) 
-        #@timeit to "Sequence" begin 
-            seq = sortperm(1000000*r1 + r2, rev=true) # Item sequence 
-        #end 
-        #@timeit to "Positions" begin
-            pos = sortperm(seq)          			  # Item positions
-        #end 
-	#end
-	return Initialisation(r1, r2, transpositions, seq, pos)
-end=#
-

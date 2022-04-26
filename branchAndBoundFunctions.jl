@@ -105,86 +105,51 @@ function maxRank(rank1::Vector{Int},
 end 
 
 # ----- LOCAL NADIR POINTS AND DOMINANCE TESTS ------------------------------- # 
-# Computes the local nadir points 
-function localNadirPoints(incumbentSet::Vector{Solution{T}}) where T<:Real
-
-    nadirs = Vector{Vector{Float64}}(undef, length(incumbentSet)-1)
-    for i in 1:length(incumbentSet)-1 
-        yl = incumbentSet[i].z
-        yr = incumbentSet[i+1].z 
-        nadirs[i] = [yl[1], yr[2]]
-    end 
-    return nadirs
-end 
-
-# Calcule les nadirs locaux décalés (hypothèse d'intégrité)
-function shiftedLocalNadirPoints(nadirs::Vector{Vector{Float64}})
-
-    shiftedNadirs = Vector{Vector{Float64}}(undef, length(nadirs))
-    for i in 1:length(nadirs)
-        shiftedNadirs[i] = nadirs[i] + [1.,1.]
-    end 
-    return shiftedNadirs
-end 
-
 # Returns true if the point y verifies all the constraints 
 function verifiesConstraints(constraints::Vector{Constraint}, 
-                             y::Vector{Float64})
+                             yl::Vector{Float64},
+                             yr::Vector{Float64})
             
     verif = true 
     i = 1 
 
+    # If a shifted local nadir point does not verify one of the constraints
+    # the algorithm stops 
     while verif && i <= length(constraints)
         λ     = constraints[i].λ 
         point = constraints[i].point
-        verif = verif && λ*y[1] + (1-λ)*y[2] <= λ*point[1] + (1-λ)*point[2]
-        i    += 1 
+
+        if λ!= 1//1
+            verif = verif && 
+                λ*(yl[1]+1.) + (1-λ)*(yr[2]+1.) <= λ*point[1] + (1-λ)*point[2]
+        end 
+        i += 1 
     end 
     return verif 
 end 
 
 # Returns true if the upper bound set for a particular node is dominated by the 
 # lower bound set by using the constraints and shifted local nadir points 
-function isDominated(UB::DualBoundSet, 
-                     nadirPoints::Vector{Vector{T}}
+function isDominated(constraints::Vector{Constraint}, 
+                     L::Vector{Solution{T}}
                     ) where T<:Real
 
-    is_dominated  = true 
-    i = 1 
+    is_not_dominated  = false
+    i = 2 
 
-    while is_dominated && i <= length(nadirPoints)
-        is_dominated = is_dominated && 
-            !verifiesConstraints(UB.constraints[2:end-1], nadirPoints[i])
+    while !is_not_dominated && i <= length(L)
+        # If there is a shifter local nadir point that verifies the constraints
+        # the node cannot be pruned 
+        is_not_dominated = is_not_dominated || 
+            verifiesConstraints(constraints, L[i-1].z, L[i].z)
         i += 1 
     end 
-    return is_dominated
-end 
-
-# Returns true if the upper bound set for a particular node is dominated by the 
-# lower bound set by testing is each point in UB is at least weakly dominated by a 
-# point in L 
-function isDominated(UB::Vector{Vector{T}},
-                     L::Vector{Vector{T}}) where T<:Real 
-    
-    is_dominated = false
-
-    for i in 1:length(UB) 
-        is_weakly_dominated = false 
-        j = 1 
-        while !is_weakly_dominated && j <= length(L) 
-            is_weakly_dominated = is_weakly_dominated || dominates(L[j], UB[i])
-            j += 1 
-        end 
-        print(is_weakly_dominated)
-        is_dominated = is_dominated || is_weakly_dominated 
-    end 
-
-    return is_dominated 
+    return !is_not_dominated
 end 
 
 # ----- GRAPHIC FUNCTIONS ---------------------------------------------------- #
 # Plots the upper bound set for a node and the lower bound set 
-function plotBoundSets(UB::DualBoundSet, 
+function plotBoundSets(UB::Vector{Constraint}, 
                        L::Vector{Solution{T}}) where T<:Real
     # Setup
     randNumber = rand(1:1000)
@@ -195,8 +160,8 @@ function plotBoundSets(UB::DualBoundSet,
     PyPlot.title("Upper and lower bound sets")
 
     # Show the upper bound set 
-    y_UBS1 = [y[1] for y in UB.points] 
-    y_UBS2 = [y[2] for y in UB.points]
+    y_UBS1 = [y.point[1] for y in UB] 
+    y_UBS2 = [y.point[2] for y in UB]
     scatter(y_UBS1, y_UBS2, color="green", marker="+", label = "UB")
     plot(y_UBS1, y_UBS2, color="green", linewidth=0.75, marker="+",
         markersize=1.0, linestyle=":")
@@ -208,19 +173,20 @@ function plotBoundSets(UB::DualBoundSet,
     plot(y_LBS1, y_LBS2, color="red", linewidth=0.75, marker="+",
         markersize=1.0, linestyle=":")
 
-    # display segments joining non-dominated points and their corners points
+    #= display segments joining non-dominated points and their corners points
     Env1,Env2 = computeCornerPointsLowerEnvelop(y_LBS1, y_LBS2)
     plot(Env1, Env2, color="black", linewidth=0.75, marker="+", markersize=1.0, 
-        linestyle=":")
+        linestyle=":")=#
 
     legend(bbox_to_anchor=[1,1], loc=0, borderaxespad=0, fontsize = "x-small")
 end 
 
 # Plot the nondominated points obtained by vOpt and the branch-and-bound method 
-function plotYN(ref::Vector{Vector{Float64}}, 
+function plotYN(fname::String,
+                ref::Vector{Vector{Float64}}, 
                 L::Vector{Solution{T}}) where T<:Real
     # Setup
-    figure("Nondominated points",figsize=(6.5,5))
+    figure("Nondominated points "*fname,figsize=(6.5,5))
     xlabel(L"z^1(x)")
     ylabel(L"z^2(x)")
     PyPlot.title("Nondominated points")

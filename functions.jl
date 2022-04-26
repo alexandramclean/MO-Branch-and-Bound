@@ -9,6 +9,7 @@ include("orderedList.jl")
 
 # ----- DOMINANCE ------------------------------------------------------------ #
 # Returns true if x dominates y
+# -- x and y are points 
 function dominates(x, y, opt::Optimisation=MAX)
     if opt == MIN
         return ((x[1] <= y[1] && x[2] <  y[2])
@@ -21,6 +22,7 @@ function dominates(x, y, opt::Optimisation=MAX)
     end
 end
 
+# -- x and y are solutions 
 function dominates(x::Solution, y::Solution, opt::Optimisation=MAX)
     if opt == MIN
         return ((x.z[1] <= y.z[1] && x.z[2] <  y.z[2])
@@ -37,15 +39,7 @@ end
 # Computes the utilities (profit-to-weight ratios) for both objective functions
 function utilities(prob::_MOMKP)
 
-	p, n = size(prob.P)
-
-	#=ratios = Matrix{Rational{Int}}(undef, p, n)
-	for k in 1:p 
-		for j in 1:n 
-			ratios[k,j] = prob.P[k,j]//prob.W[1,j]
-		end 
-	end 
-	return ratios=#
+	n = size(prob.P)[2]
 
 	r1 = [prob.P[1,j]//prob.W[1,j] for j in 1:n]
 	r2 = [prob.P[2,j]//prob.W[1,j] for j in 1:n]
@@ -136,7 +130,7 @@ function initialisation(prob::_MOMKP, method::Method)
 
 		if method == SIMPLEX 
 			
-			return Initialisation(nothing, nothing, nothing, seq, nothing)
+			return Initialisation(r1, r2, nothing, seq, nothing)
 
 		else # method == PARAMETRIC 
 
@@ -160,59 +154,135 @@ function removeFromSequence(seq::Vector{Int}, var::Int)
 	for i in 1:length(seq)
 		if seq[i] != var
 			newSeq[inser] = seq[i] 
-		inser += 1 
+			inser += 1 
 		end
 	end
 	return newSeq 
 end 
 
+# Initial setvar 
+function initialSetvar(prob, init, method)
+	
+	if method == PARAMETRIC_LP 
+		transpInd = Vector{Int}[] 
+		for i in 1:length(init.transpositions) 
+			t = init.transpositions[i] 
+			push!(transpInd, vcat([i], 1:length(t.pairs)))
+		end 
+		
+		return SetVariables(Int[], Int[], transpInd, init.seq, init.pos)
+	end 
+end 
+
 # Remove a variable from the sequence and transpositions
 function setVariable(init::Initialisation,
+					 parent_setvar::SetVariables,
 					 var::Int,
+					 val::Int, 
 					 method::Method)
 
 	if method == PARAMETRIC_LP || method == PARAMETRIC_MT
 
-		newTranspositions = Transposition[]
-		newPos            = copy(init.pos)
+		newTranspInd = Vector{Vector{Int}}() 
+		newPos       = copy(parent_setvar.pos)
 
 		# The variable is removed from the set of transpositions
-		for t in init.transpositions
+		for i in 1:length(parent_setvar.transpInd)
 
-			if length(t.pairs) > 1	
+			# Corresponding transposition 
+			ind = parent_setvar.transpInd[i][1]
+			t = init.transpositions[ind] 
 
-				swaps = Tuple{Int,Int}[]
-				for pair in t.pairs 
-					if !(var in pair) 
-						push!(swaps, pair)
-					end
-				end
+			transpInd = Vector{Int}() 
+
+			if length(t.pairs) > 1 
+
+				swaps = Int[] 
+				for indPair in parent_setvar.transpInd[i][2:end]
+					if !(var in t.pairs[indPair])
+						push!(swaps, indPair)
+					end 
+				end 
 
 				if length(swaps) > 0 
-					push!(newTranspositions, Transposition(t.λ, swaps))
-				end
-			else
+					# The index of the critical weights and its associated 
+					# pairs that do not contain var are inserted 
+					push!(transpInd, ind)
+					append!(transpInd, swaps)
+					push!(newTranspInd, transpInd)
+				end 
+			else 
 
 				if !(var in t.pairs[1])
-					push!(newTranspositions, Transposition(t.λ, t.pairs))
-				end
-			end
-		end
+					# The index of the critical weight and its only associated
+					# pair are inserted 
+					push!(transpInd, ind) 
+					push!(transpInd, 1) 
+					push!(newTranspInd, transpInd)
+				end 
+			end 
+		end 
 
 		# The variable is removed form the sequence 
-		newSeq = removeFromSequence(init.seq, var)
+		newSeq = removeFromSequence(parent_setvar.seq, var)
 
 		# The positions of items after var in the sequence are diminished by 1
-		for p in init.pos[var]+1:length(init.seq)
-			newPos[init.seq[p]] = init.pos[init.seq[p]] - 1
+		for p in parent_setvar.pos[var]+1:length(parent_setvar.seq)
+			newPos[parent_setvar.seq[p]] = 
+				parent_setvar.pos[parent_setvar.seq[p]] - 1
 		end
 
-		return Initialisation(newTranspositions, newSeq, newPos)
+		#return Initialisation(nothing, nothing, newTranspositions, newSeq, newPos)
+		if val == 0 
+			return SetVariables(parent_setvar.setToOne, 
+								vcat(parent_setvar.setToZero, [var]), 
+								newTranspInd, newSeq, newPos)
+		else 
+			return SetVariables(vcat(parent_setvar.setToOne, [var]),
+								parent_setvar.setToZero,
+								newTranspInd, newSeq, newPos)
+		end
 
-	elseif method == SIMPLEX 
+
+	#=elseif method == SIMPLEX 
+
+		n = length(init.r1) 
 
 		newSeq = removeFromSequence(init.seq, var)
-		return Initialisation(nothing, nothing, nothing, newSeq, nothing)
+
+		r1 = Vector{Rational{Int}}(undef, n)
+		r2 = Vector{Rational{Int}}(undef, n)
+
+		for i in 1:n
+			if i == var 
+				r1[i] = -1
+				r2[i] = -1 
+			else 
+				r1[i] = init.r1[i] 
+				r2[i] = init.r2[i] 
+			end 
+		end 
+
+		return Initialisation(r1, r2, nothing, newSeq, nothing)
+
+	elseif method == DICHOTOMIC 
+
+		n = length(init.r1) 
+
+		r1 = Vector{Rational{Int}}(undef, n)
+		r2 = Vector{Rational{Int}}(undef, n)
+
+		for i in 1:n
+			if i == var 
+				r1[i] = -1
+				r2[i] = -1 
+			else 
+				r1[i] = init.r1[i] 
+				r2[i] = init.r2[i] 
+			end 
+		end 
+
+		return Initialisation(r1, r2, nothing, nothing, nothing)=#
 	end 
 end
 
@@ -222,7 +292,6 @@ function addItem!(prob::_MOMKP, sol::Solution, item::Int)
 	sol.X[item] = 1
 	sol.z      += prob.P[:,item]
 	sol.ω_     -= prob.W[1,item]
-	@assert sol.ω_ >= 0 "Negative capacity addItem"
 end
 
 # Add a break item to a solution
@@ -235,11 +304,17 @@ function addBreakItem!(prob::_MOMKP,
 end
 
 # Computes the dantzig solution for a given sequence
-function dantzigSolution(prob::_MOMKP, seq::Vector{Int}, solInit::Solution)
+function dantzigSolution(prob::_MOMKP, 
+						 seq::Vector{Int}, 
+						 setvar::Union{Nothing,SetVariables}=nothing)
 
 	n   = size(prob.P)[2]
-	ω_  = prob.ω[1]
-	sol = Solution{Float64}(solInit.X[1:end], solInit.z[1:end], solInit.ω_)
+	sol = Solution{Float64}(prob)
+	if !(setvar === nothing)
+		for var in setvar.setToOne 
+			addItem!(prob, sol, var)
+		end 
+	end 
 	i   = 1
 
 	while i <= length(seq) && prob.W[1,seq[i]] <= sol.ω_
@@ -248,23 +323,21 @@ function dantzigSolution(prob::_MOMKP, seq::Vector{Int}, solInit::Solution)
 		i += 1
 	end
 
-	@assert sol.ω_ >= 0 "Negative capacity dantzigSolution"
-
 	return sol, i
 end
 
 # Builds a solution including the break item
-function buildSolution(prob::_MOMKP, seq::Vector{Int}, solInit::Solution)
+function buildSolution(prob::_MOMKP, 
+					   seq::Vector{Int}, 
+					   setvar::Union{Nothing,SetVariables}=nothing)
 
 	n      = size(prob.P)[2]
-	sol, s = dantzigSolution(prob, seq, solInit)
+	sol, s = dantzigSolution(prob, seq, setvar)
 
 	if sol.ω_ > 0 && s <= length(seq)
 		# Une fraction de l'objet s est insérée
 		addBreakItem!(prob, sol, seq[s])
 	end
-
-	@assert sol.ω_ >= 0 "Negative capacity buildSolution"
 
 	return sol, s
 end
@@ -306,22 +379,20 @@ function reoptSolution(prob::_MOMKP,
 		addItem!(prob, sol, seq[pos])
 		pos += 1
 	end
-
-	@assert sol.ω_ >= 0 "Negative capacity reoptSolution"
 	
 	return sol, pos
 end
 
 # Returns true if the solution is integer 
-function isInteger(sol::Solution, breakItem::Int)
+function isInteger(sol::Solution{T}, breakItem::Int) where T<:Real
 	return (sol.X[breakItem] == 0 || sol.X[breakItem] == 1)
 end
 
 # Returns true if the solution is integer 
-function isInteger(sol::Solution)
+function isInteger(sol::Solution{T}) where T<:Real 
 	is_integer = true 
 	for i in 1:length(sol.X)
-		is_integer = is_integer && !(sol.X[i] > 0 && sol.X[i] < 1)
+		is_integer = is_integer && (sol.X[i] == 0 || sol.X[i] == 1)
 	end 
 	return is_integer
 end
@@ -427,8 +498,6 @@ function updateBoundSets!(UB::DualBoundSet{Float64},
         push!(UB.points, sol.z) 
 		push!(UB.constraints, Constraint(λ, sol.z))
         if isInteger(sol, breakItem) 
-			#println("\nL = ", [sol.z for sol in L])
-			#println("Adding ", sol.z)
             add!(L, Solution(sol.X[1:end], sol.z[1:end], sol.ω_)) 
         end 
     end 
@@ -447,28 +516,43 @@ end
 
 # -- Dichotomic method 
 function updateBoundSets!(UB::DualBoundSet{Rational{Int}},  
-						  L::Vector{Solution{Rational{Int}}},
+						  L::PrimalBoundSet{Rational{Int}},
+						  λ::Rational{Int}, 
 						  sol::Solution{Rational{Int}}, 
 						  breakItem::Int)
 
 	if !identicalToPrevious(UB, sol)
 		add!(UB.points, sol.z) 
+		push!(UB.constraints, Constraint(λ, sol.z))
 		if isInteger(sol, breakItem) 
-			add!(L, Solution(sol.X[1:end], sol.z[1:end], sol.ω_)) 
+			add!(L.solutions, Solution(sol.X[1:end], sol.z[1:end], sol.ω_)) 
 		end 
 	end 
 end
 
 # -- Simplex algorithm 
 function updateBoundSets!(UB::DualBoundSet{Float64},  
-						  L::Vector{Solution{Float64}},
+						  L::PrimalBoundSet{Float64},
 						  sol::Solution{Float64}, 
 						  breakItem::Int)
 
 	if !identicalToPrevious(UB, sol)
 		push!(UB.points, sol.z) 
+
+		# Constraint 
+		if length(UB.constraints) == 0 
+			@assert length(UB.points) == 1 "There are no constraints because the 
+			first point has just been added"
+			push!(UB.constraints, Constraint(1//1, sol.z))
+		else 
+			λ1 = abs(sol.z[2] - UB.points[end][2])
+			λ2 = abs(sol.z[1] - UB.points[end][1])
+			λ  = λ1/(λ1 + λ2)
+			push!(UB.constraints, Constraint(λ, sol.z))
+		end 
+
 		if isInteger(sol, breakItem) 
-			add!(L, Solution(sol.X[1:end], sol.z[1:end], sol.ω_)) 
+			add!(L.solutions, Solution(sol.X[1:end], sol.z[1:end], sol.ω_)) 
 		end 
 	end 
 end

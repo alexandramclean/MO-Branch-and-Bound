@@ -69,18 +69,21 @@ function verify(yN::Union{Vector{Solution{T}}, Vector{Vector{T}}},
                 ind::Int64,
                 opt::Optimisation=MAX) where T<:Real
                 
+    indLastDominated = 0
+
     # If y dominates any points it dominates its immediate successor 
     # (or predecessor if opt == MAX)
     if opt == MIN && ind < length(yN) && dominates(y, yN[ind+1], opt) 
         indLastDominated = lastDominatedPoint(yN, y, ind+1, length(yN), opt)
-        #println("Last dominated point : ", indLastDominated)
+
         for j in indLastDominated:-1:ind+1
             deleteat!(yN, j)
         end
     elseif opt == MAX && ind > 1 && dominates(y, yN[ind-1], opt)
-        indFirstDominated = lastDominatedPoint(yN, y, 1, ind-1, opt)
+        # First dominated point
+        indLastDominated = lastDominatedPoint(yN, y, 1, ind-1, opt)
 
-        for j in ind-1:-1:indFirstDominated
+        for j in ind-1:-1:indLastDominated
             deleteat!(yN, j)
         end 
     end 
@@ -138,27 +141,26 @@ end
 function add!(yN::Union{Vector{Solution{T}}, Vector{Vector{T}}}, 
               y::Union{Solution{T},Vector{T}}, 
               opt::Optimisation=MAX) where T<:Real
-    #! Affichage
-    #println("Adding ", y)
 
+    if typeof(y) == Solution{Float64} || typeof(y) == Solution{Rational{Int}}
+        y.z = [floor(y.z[1]), floor(y.z[2])]
+    else 
+        y = [floor(y[1]), floor(y[2])]
+    end 
+    
     # Search for the position of y 
     if length(yN) == 0
         insert!(yN, 1, y)
-        #afficher(yN)
+
     else
-        #println("length = ", length(yN))
         ind = addRec(yN, y, 1, length(yN), opt)
-        #println("ind = ", ind)
         if ind > 0 
             insert!(yN, ind, y)
-            #afficher(yN)
 
-            # Elimination of the dominated points
-            #println("Verification : ")
+            # Elimination of the dominated points 
             verify(yN, y, ind, opt)
-        end
-        #afficher(yN)
-    end
+        end 
+    end 
 end
 
 # ----- AFFICHER ------------------------------------------------------------- #

@@ -24,12 +24,12 @@ mutable struct Solution{T<:Real}
     ω_::Int                  # Residual capacity 
 end 
 
-# Constructors 
 Solution{Float64}(prob::_MOMKP) = Solution(zeros(Rational{Int}, size(prob.P)[2]), 
                                     [0.,0.], prob.ω[1])
-Solution{Rational{Int}}(prob::_MOMKP) = Solution(
-                                    zeros(Rational{Int}, size(prob.P)[2]), 
-                                    [0//1,0//1], prob.ω[1])
+Solution{Rational{Int}}(prob::_MOMKP) = Solution(zeros(Rational{Int}, 
+                                        size(prob.P)[2]), [0//1,0//1], prob.ω[1])
+                                
+Solution(t::Vector{Float64}) = Solution([0//1], t, 0)
 
 # ----- TRANSPOSITIONS ------------------------------------------------------- #
 # Stores a critical weight λ and the corresponding transposition(s)
@@ -38,24 +38,31 @@ struct Transposition
 	pairs::Vector{Tuple{Int,Int}} # List of pairs of items to swap 
 end
 
-# Constructors 
 Transposition(λ) = Transposition(λ,[])
 
 # Stores the transpositions and initial sequence and positions 
 struct Initialisation
-    r1::Union{Vector{Rational{Int}},Nothing}             # Utilities for z1 
-    r2::Union{Vector{Rational{Int}},Nothing}             # Utilities for z2
-    transpositions::Union{Vector{Transposition},Nothing} # Critical weights and transpositions
-    seq::Union{Vector{Int},Nothing}                      # Initial sequence 
-    pos::Union{Vector{Int},Nothing}                      # Positions in the sequence
+    r1::Union{Vector{Rational{Int}},Nothing} # Utilities for z1 
+    r2::Union{Vector{Rational{Int}},Nothing} # Utilities for z2
+    # Critical weights and transpositions
+    transpositions::Union{Vector{Transposition},Nothing} 
+    seq::Union{Vector{Int},Nothing}          # Initial sequence 
+    pos::Union{Vector{Int},Nothing}          # Positions in the sequence
 end 
-Initialisation(transpositions::Vector{Transposition}, 
-               seq::Vector{Int}, 
-               pos::Vector{Int}) = 
-    Initialisation(nothing, nothing, transpositions, seq, pos) 
+
+# Structure containing the list of variables that have been set as well as 
+# the index of the remaining transpositions 
+struct SetVariables 
+    setToOne::Vector{Int}          # List of variables set to one 
+    setToZero::Vector{Int}         # List of variables set to zero 
+    # Index of remaining transpositions (for the parametric method)
+    transpInd::Union{Vector{Vector{Int}},Nothing}  
+    seq::Vector{Int}               # Initial sequence with set variables
+    pos::Vector{Int}               # Positions of the objects in the sequence 
+end 
 
 # ----- BOUND SETS ----------------------------------------------------------- #
-# Data structure of a constraint generated whilst computing the upper bound set
+# Data structure of a constraint generated while computing the upper bound set
 struct Constraint 
 	λ::Union{Rational{Int},Float64} # Critical weight
 	point::Vector{Float64}          # Associated point (u1,u2)
@@ -68,15 +75,17 @@ struct DualBoundSet{T}
     constraints::Vector{Constraint}
 end
 
-# Constructors 
 DualBoundSet{Float64}() = DualBoundSet(Vector{Float64}[], Constraint[]) 
-DualBoundSet{Rational{Int}}() = DualBoundSet(Vector{Rational{Int}}[], Constraint[])
+    DualBoundSet{Rational{Int}}() = DualBoundSet(Vector{Rational{Int}}[], Constraint[])
 
-# Data structure representing the incumbent set (lower bound set in this case)
+# Data structure representing the primal bound set (lower bound set in this case)
 mutable struct PrimalBoundSet{T}
-    L::Vector{Solution{T}}    # Vector of integer solutions 
-    nadirs::Vector{Vector{T}} # Local nadir points
+    solutions::Vector{Solution{T}} # Vector of integer solutions 
 end 
+
+PrimalBoundSet{Float64}() = PrimalBoundSet(Solution{Float64}[])
+PrimalBoundSet{Rational{Int}}() = PrimalBoundSet(Solution{Rational{Int}}[])
+
 
 # ----- BRANCH-AND-BOUND ----------------------------------------------------- #
 @enum Status DOMINANCE OPTIMALITY INFEASIBILITY NOTPRUNED MAXDEPTH
@@ -84,9 +93,10 @@ end
 # Data structure representing a node in a branch-and-bound algorithm
 mutable struct Node 
     UB::Union{DualBoundSet,Nothing} # Upper bound set for the node
-    parent::Union{Node,Nothing}     # Parent node 
-    init::Initialisation            # Transpositions and initial sequence
+    #parent::Union{Node,Nothing}    # Parent node 
+    #init::Initialisation           # Transpositions and initial sequence
+    setvar::SetVariables              # Initialisation for the node 
     solInit::Solution               # Initial solution with set variables
-    status::Status                  # Indicates whether the node has been pruned 
-                                    # and for what reason
+    # Indicates whether the node has been pruned and for what reason 
+    status::Status                   
 end
