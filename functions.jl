@@ -176,10 +176,10 @@ end
 
 # Remove a variable from the sequence and transpositions
 function setVariable(init::Initialisation,
-					 parent_setvar::SetVariables,
-					 var::Int,
-					 val::Int, 
-					 method::Method)
+					 parent_setvar::SetVariables, # From the parent node
+					 var::Int,					  # Variable to set 
+					 val::Int, 					  # Value to set it to
+					 method::Method)			  # Method for computing the UBS
 
 	if method == PARAMETRIC_LP || method == PARAMETRIC_MT
 
@@ -385,14 +385,14 @@ end
 
 # Returns true if the solution is integer 
 function isInteger(sol::Solution{T}, breakItem::Int) where T<:Real
-	return (sol.X[breakItem] == 0 || sol.X[breakItem] == 1)
+	return (sol.X[breakItem] == 0//1 || sol.X[breakItem] == 1//1)
 end
 
 # Returns true if the solution is integer 
 function isInteger(sol::Solution{T}) where T<:Real 
 	is_integer = true 
 	for i in 1:length(sol.X)
-		is_integer = is_integer && (sol.X[i] == 0 || sol.X[i] == 1)
+		is_integer = is_integer && (sol.X[i] == 0//1 || sol.X[i] == 1//1)
 	end 
 	return is_integer
 end
@@ -475,8 +475,9 @@ end
 
 # ----- BOUND SETs ----------------------------------------------------------- #
 # Returns true if sol is identical to the most recent solution in UB 
-function identicalToPrevious(UB::DualBoundSet, sol::Solution{T}) where T<:Real
-    return length(UB.points) > 0 && UB.points[end] == sol.z 
+function identicalToPrevious(UB::Vector{Constraint}, 
+							 sol::Solution{T}) where T<:Real
+    return length(UB) > 0 && UB[end].point == sol.z 
 end 
 
 function identicalToPrevious(UB::DualBoundSet, y::Vector{Float64})
@@ -494,7 +495,7 @@ function updateBoundSets!(UB::DualBoundSet{Float64},
 						  sol::Solution{Float64}, 
 						  breakItem::Int)
     
-    if !identicalToPrevious(UB, sol)
+    if !identicalToPrevious(UB.constraints, sol)
         push!(UB.points, sol.z) 
 		push!(UB.constraints, Constraint(λ, sol.z))
         if isInteger(sol, breakItem) 
@@ -515,18 +516,15 @@ function updateBoundSet!(UB::DualBoundSet{Float64},
 end 
 
 # -- Dichotomic method 
-function updateBoundSets!(UB::DualBoundSet{Rational{Int}},  
-						  L::PrimalBoundSet{Rational{Int}},
+function updateBoundSets!(UB::Vector{Constraint},  
+						  L::Vector{Solution{Rational{Int}}},
 						  λ::Rational{Int}, 
 						  sol::Solution{Rational{Int}}, 
 						  breakItem::Int)
 
-	if !identicalToPrevious(UB, sol)
-		add!(UB.points, sol.z) 
-		push!(UB.constraints, Constraint(λ, sol.z))
-		if isInteger(sol, breakItem) 
-			add!(L.solutions, Solution(sol.X[1:end], sol.z[1:end], sol.ω_)) 
-		end 
+	push!(UB, Constraint(λ, sol.z))
+	if isInteger(sol, breakItem) 
+		add!(L, Solution(copy(sol.X), copy(sol.z), sol.ω_)) 
 	end 
 end
 

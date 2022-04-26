@@ -9,11 +9,12 @@ include("functions.jl")
 # Builds a solution including the break item for a given sequence
 function buildSolutionDicho(prob::_MOMKP, 
 							init::Initialisation, 
-							solInit::Solution{Rational{Int}},
+							#solInit::Solution{Rational{Int}},
 							seq::Vector{Int})
 
 	n   = size(prob.P)[2]
-	sol = Solution{Rational{Int}}(solInit.X[1:end], solInit.z[1:end], solInit.ω_)
+	#sol = Solution{Rational{Int}}(copy(solInit.X), copy(solInit.z), solInit.ω_)
+	sol = Solution{Rational{Int}}(prob)
 	i   = 1
 
 	while i <= n && prob.W[1,seq[i]] <= sol.ω_ && init.r1[i] >= 0 
@@ -40,7 +41,7 @@ end
 # Returns the solution maximising the weighted objective defined by λ1 and λ2
 function solveWeightedSum(prob::_MOMKP,
 						  init::Initialisation,
-						  solInit::Solution{Rational{Int}},
+						  #solInit::Solution{Rational{Int}},
 						  λ1::Union{Int,Rational{Int}},
 						  λ2::Union{Int,Rational{Int}})
 
@@ -49,41 +50,41 @@ function solveWeightedSum(prob::_MOMKP,
 	r_λ = Vector{Rational{Int}}(undef, n)
 	for i in 1:n 
 		if init.r1[i] == -1 && init.r2[i] == -1 
-			r_λ[i] = -1
+			r_λ[i] = -1
 		else 
 			r_λ[i] = obj[i]//prob.W[1,i]
 		end 
 	end 
 	seq  = sortperm(r_λ, rev=true)
-	x, s = buildSolutionDicho(prob, init, solInit, seq)
+	x, s = buildSolutionDicho(prob, init, seq)
 	return x, seq[s]
 end
 
 # Returns the lexicographically optimal solutions
 function lexicographicSolutions!(prob::_MOMKP,
-								 UB::DualBoundSet{Rational{Int}},
-								 L::PrimalBoundSet{Rational{Int}},
-								 init::Initialisation,
-								 solInit::Solution{Rational{Int}})
+								 UB::Vector{Constraint},
+								 L::Vector{Solution{Rational{Int}}},
+								 init::Initialisation)
+								 #solInit::Solution{Rational{Int}})
 	
 	# Lexicographically optimal solution for z^(1,2) 
 	seq12  = sortperm(1000000*init.r1 + init.r2, rev=true) 
-	x12, s = buildSolutionDicho(prob, init, solInit, seq12)
+	x12, s = buildSolutionDicho(prob, init, seq12)
 	updateBoundSets!(UB, L, 1//1, x12, seq12[s])
 	
 	# Lexicographically optimal solution for z^(2,1) 
 	seq21  = sortperm(init.r1 + 1000000*init.r2, rev=true) 
-	x21, s = buildSolutionDicho(prob, init, solInit, seq21) 
+	x21, s = buildSolutionDicho(prob, init, seq21) 
 	updateBoundSets!(UB, L, 0//1, x21, seq21[s])
 
 	return x12, x21
 end
 
 function solveRecursion!(prob::_MOMKP,
-						 UB::DualBoundSet{Rational{Int}},
-						 L::PrimalBoundSet{Rational{Int}},
+						 UB::Vector{Constraint},
+						 L::Vector{Solution{Rational{Int}}},
 						 init::Initialisation,
-						 solInit::Solution{Rational{Int}},
+						 #solInit::Solution{Rational{Int}},
 						 x1::Solution{Rational{Int}}, 
 						 x2::Solution{Rational{Int}})
 	# Calcul de la direction λ
@@ -93,31 +94,31 @@ function solveRecursion!(prob::_MOMKP,
 	@assert λ1 != 0 || λ2 != 0 
 
 	# Calcul de la solution
-	x, breakItem = solveWeightedSum(prob, init, solInit, λ1, λ2)
+	x, breakItem = solveWeightedSum(prob, init, λ1, λ2)
 	updateBoundSets!(UB, L, λ1//(λ1 + λ2), x, breakItem)
 
 	# Si le point n'est pas sur le segment z(x1)z(x2) on continue la recherche
 	if λ1*x.z[1] + λ2*x.z[2] > λ1*x1.z[1] + λ2*x1.z[2]
-		solveRecursion!(prob, UB, L, init, solInit, x1, x)
-		solveRecursion!(prob, UB, L, init, solInit, x, x2)
+		solveRecursion!(prob, UB, L, init, x1, x)
+		solveRecursion!(prob, UB, L, init, x, x2)
 	end
 end
 
 function dichotomicMethod(prob::_MOMKP,
-						  L::PrimalBoundSet{Rational{Int}},
-						  init::Initialisation,
-						  solInit::Solution{Rational{Int}})
+						  L::Vector{Solution{Rational{Int}}},
+						  init::Initialisation)
+						  #solInit::Solution{Rational{Int}})
 
 	n = size(prob.P)[2]
 
 	# Upper bound set 
-	UB = DualBoundSet{Rational{Int}}()
+	UB = Vector{Constraint}()
 
 	# Calcul des solutions lexicographiquement optimales
-	x12, x21 = lexicographicSolutions!(prob, UB, L, init, solInit) 	
+	x12, x21 = lexicographicSolutions!(prob, UB, L, init) 	
 
 	# Appel récursif
-	solveRecursion!(prob, UB, L, init, solInit, x12, x21)
+	solveRecursion!(prob, UB, L, init, x12, x21)
 
 	return UB
 end
