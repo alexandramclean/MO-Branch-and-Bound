@@ -21,40 +21,17 @@ function branch!(η::Node,
     verbose = false
     graphic = false 
 
-    minW = minimum(prob.W[1,:])
-
     # Upper bound and dominance test 
-    if η.status == NOTPRUNED
-        # Compute the upper bound set for η 
-        # -- Version that stores the upper bound set 
-        @timeit to "Upper bound" η.UB, Lη = 
-            parametricMethod(prob, init, η.setvar) 
+    # Compute the upper bound set for η 
+    @timeit to "Upper bound" η.UB, Lη = 
+        parametricMethod(prob, init, η.setvar) 
 
-        # -- Version that does not store the upper bound set 
-        #@timeit to "Upper bound" Lη, is_dominated = 
-        #    parametricLPrelaxation(prob, L, init, η.setvar, interrupt)
+    # Pruning 
+    η.status = prune(η, L, Lη)
 
-        # Compare with lower bound set and update status 
-        if length(η.UB.constraints) <= 2 && length(Lη) == 1 
-            # The upper bound set is composed of a single feasible point 
-            η.status = OPTIMALITY
-
-        elseif length(L) > 1 
-
-            @timeit to "Dominance" is_dominated = 
-                isDominated(η.UB.constraints, L)
-
-            if is_dominated 
-                η.status = DOMINANCE 
-            end
-        end
-
-        graphic ? plotBoundSets(η.UB, L) : nothing
-
-        for sol in Lη
-            @timeit to "Ordered List" add!(L, sol)
-        end 
-    end
+    for sol in Lη
+        @timeit to "Ordered List" add!(L, sol)
+    end 
 
     #solInit = initialSolution(prob, η.setvar)
     @timeit to "Ordered List" add!(L, η.solInit)
@@ -63,9 +40,10 @@ function branch!(η::Node,
         println("depth = ", depth)
         println("status : ", η.status)
         println("L = ", [sol.z for sol in L])
-        #println("solInit.X = ", η.solInit.X)
-        #println("solInit.z = ", η.solInit.z)
-        #println("solInit.ω_ = ", η.solInit.ω_)
+        println("U(η) = ", [c.point for c in η.UB])
+        println("solInit.X = ", η.solInit.X)
+        println("solInit.z = ", η.solInit.z)
+        println("solInit.ω_ = ", η.solInit.ω_)
         println(η.setvar)
     end     
 
@@ -81,6 +59,7 @@ function branch!(η::Node,
             setvar1 = setVariable(init, η.setvar, var, 1, method)  
 
             if prob.W[1,var] <= η.solInit.ω_ 
+                # var can be assigned to 1 
                 if method == DICHOTOMIC
                     @timeit to "solInit" solInit1 = Solution{Rational{Int}}(
                                 η.solInit.X[1:end], 
@@ -106,16 +85,11 @@ function branch!(η::Node,
             verbose ? println("\n", var, " is set to 0") : nothing
             setvar0 = setVariable(init, η.setvar, var, 0, method)
 
-            if η.solInit.ω_ < minW
-                # No items can be inserted, no new solutions can be 
-                # obtained in this branch 
-                verbose ? println("status : INFEASIBILITY") : nothing 
-            else 
-                η0 = Node(nothing, setvar0, η.solInit, NOTPRUNED)
-                branch!(η0, prob, L, init, branchingVariables, depth+1, 
-                    method, interrupt)
-            end 
+            η0 = Node(nothing, setvar0, η.solInit, NOTPRUNED)
+            branch!(η0, prob, L, init, branchingVariables, depth+1, 
+                method, interrupt)
         else 
+            # There are no more variables to assign 
             η.status = MAXDEPTH
             verbose ? println("Max depth has been reached") : nothing
         end 
@@ -138,10 +112,9 @@ function branchAndBound(prob::_MOMKP, # Bi01KP instance
     end 
 
     # Root node 
-    @timeit to "Initialisation" init = initialisation(prob, method)
+    @timeit to "Initialisation" init   = initialisation(prob, method)
     @timeit to "Initial setvar" setvar = initialSetvar(prob, init, method)
-    rootNode = 
-        Node(nothing, setvar, Solution{Float64}(prob), NOTPRUNED)
+    rootNode = Node(nothing, setvar, solInit, NOTPRUNED)
 
     # Computes the ranks for each variable 
     rank1, rank2 = ranks(init.r1, init.r2)

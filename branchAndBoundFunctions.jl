@@ -147,6 +147,58 @@ function isDominated(constraints::Vector{Constraint},
     return !is_not_dominated
 end 
 
+# ----- PRUNING -------------------------------------------------------------- #
+# Determines whether a node is pruned 
+function prune(η::Node,                # Node 
+               L::Vector{Solution{T}},    # Lower bound set 
+               # Integer solutions obtained while commputing the upper bound set
+               Lη::Vector{Solution{T}}) where T<:Real  
+
+    UB = η.UB.constraints 
+    
+    # Infeasibility 
+    if UB[1].point == [0.,0.]
+        return INFEASIBILITY
+    end 
+
+    # Optimality : The upper bound is a single, feasible point 
+    if length(UB) <= 2 && length(Lη) == 1 && UB[1].point == Lη[1].z 
+        return OPTIMALITY
+    end 
+
+    # Dominance 
+    isDominated = true 
+
+    if length(L) > 1 
+        for i in 2:length(L)
+
+            # Local nadir point 
+            nadir = [L[i-1].z[1], L[i].z[2]] 
+            
+            iter = 1
+            nadirInUpper = true 
+
+            while iter <= length(UB) && nadirInUpper
+                lhs = UB[iter].λ * nadir[1] + (1 - UB[iter].λ) * nadir[2]
+                rhs = UB[iter].λ * UB[iter].point[1] + 
+                        (1 - UB[iter].λ) * UB[iter].point[2]
+                nadirInUpper = nadirInUpper && lhs <= rhs 
+                iter += 1 
+            end 
+
+            isDominated = isDominated && !nadirInUpper 
+        end 
+
+        if isDominated 
+            return DOMINANCE 
+        else 
+            return NOTPRUNED
+        end
+    else 
+        return NOTPRUNED
+    end 
+end 
+
 # ----- GRAPHIC FUNCTIONS ---------------------------------------------------- #
 # Plots the upper bound set for a node and the lower bound set 
 function plotBoundSets(UB::Vector{Constraint}, 

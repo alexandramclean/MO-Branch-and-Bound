@@ -16,6 +16,10 @@ struct _MOMKP
     ω  :: Vector{Int} # capacity of knapsacks, i=1..m
 end
 
+function didacticInstance()
+    return _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11]) 
+end 
+
 # ----- SOLUTIONS ------------------------------------------------------------ #
 # Data structure of a solution that can contain fractions of an object
 mutable struct Solution{T<:Real} 
