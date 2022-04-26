@@ -150,16 +150,11 @@ end
 # ----- PRUNING -------------------------------------------------------------- #
 # Determines whether a node is pruned 
 function prune(η::Node,                # Node 
-               L::Vector{Solution{T}},    # Lower bound set 
+               L::Vector{Solution{T}}, # Lower bound set 
                # Integer solutions obtained while commputing the upper bound set
                Lη::Vector{Solution{T}}) where T<:Real  
 
     UB = η.UB.constraints 
-    
-    # Infeasibility 
-    if UB[1].point == [0.,0.]
-        return INFEASIBILITY
-    end 
 
     # Optimality : The upper bound is a single, feasible point 
     if length(UB) <= 2 && length(Lη) == 1 && UB[1].point == Lη[1].z 
@@ -260,3 +255,58 @@ function plotYN(fname::String,
     legend(bbox_to_anchor=[1,1], loc=0, borderaxespad=0, fontsize = "x-small")
 end 
         
+# ----- VERIFICATION --------------------------------------------------------- #
+using DataStructures
+
+# Verifies that the upper bound set obtained by the parametric method is correct
+# by comparing it to that obtained by the dichotomic method 
+function verifyUBS(prob::_MOMKP, setvar::SetVariables, UB::Vector{Constraint})
+
+    n::Int = size(prob.P)[2]
+    nbSetVariables = length(setvar.setToOne) + length(setvar.setToZero)
+    println("\nNumber of set variables : ", nbSetVariables)
+
+    # Sum of the objective function values for the variables that have been
+    # set to one 
+    sumZ::Vector{Float64} = [0.,0.]
+
+    # Residual capacity 
+    ω_::Int = prob.ω[1]
+    
+    # Create a new variable containing the subproblem 
+    newP = Matrix{Int}(undef, 2, n - nbSetVariables)
+    newW = Matrix{Int}(undef, 1, n - nbSetVariables)
+
+    inser = 1 
+    for i in 1:n 
+        if !(i in setvar.setToOne || i in setvar.setToZero)
+            # The variable is added to the new subproblem
+            newP[1,inser] = prob.P[1,i]
+            newP[2,inser] = prob.P[2,i]
+            newW[1,inser] = prob.W[1,i]
+            inser += 1 
+
+        elseif i in setvar.setToOne 
+            sumZ += prob.P[:,i]
+            ω_   -= prob.W[1,i]
+        end 
+    end 
+
+    subProb = _MOMKP(newP, newW, [ω_])
+    println(subProb)
+    println("setvar : ", setvar)
+
+    # Compute the upper bound set with the dichotomic method 
+    init = initialisation(subProb, DICHOTOMIC)
+    L    = Vector{Solution{Rational{Int}}}() 
+
+    UBdicho::Vector{Constraint} = dichotomicMethod(subProb, L, init)
+
+    paramPoints = OrderedSet([c.point for c in UB])
+    dichoPoints = OrderedSet(sort([c.point + sumZ for c in UBdicho],rev=true))
+
+    if paramPoints != dichoPoints 
+        println("Parametric : ", paramPoints)
+        println("Dichotomic : ", dichoPoints, "\n")
+    end 
+end 
