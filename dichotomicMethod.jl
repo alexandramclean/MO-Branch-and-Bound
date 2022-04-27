@@ -63,26 +63,26 @@ end
 # Returns the lexicographically optimal solutions
 function lexicographicSolutions!(prob::_MOMKP,
 								 UB::Vector{Constraint},
-								 L::Vector{Solution{Rational{Int}}},
+								 Lη::Vector{Solution{Rational{Int}}},
 								 init::Initialisation)
 								 #solInit::Solution{Rational{Int}})
 	
 	# Lexicographically optimal solution for z^(1,2) 
 	seq12  = sortperm(1000000*init.r1 + init.r2, rev=true) 
 	x12, s = buildSolutionDicho(prob, init, seq12)
-	updateBoundSets!(UB, L, 1//1, x12, seq12[s])
+	updateBoundSets!(UB, Lη, 1//1, x12, seq12[s])
 	
 	# Lexicographically optimal solution for z^(2,1) 
 	seq21  = sortperm(init.r1 + 1000000*init.r2, rev=true) 
 	x21, s = buildSolutionDicho(prob, init, seq21) 
-	updateBoundSets!(UB, L, 0//1, x21, seq21[s])
+	updateBoundSets!(UB, Lη, 0//1, x21, seq21[s])
 
 	return x12, x21
 end
 
 function solveRecursion!(prob::_MOMKP,
 						 UB::Vector{Constraint},
-						 L::Vector{Solution{Rational{Int}}},
+						 Lη::Vector{Solution{Rational{Int}}},
 						 init::Initialisation,
 						 #solInit::Solution{Rational{Int}},
 						 x1::Solution{Rational{Int}}, 
@@ -95,30 +95,34 @@ function solveRecursion!(prob::_MOMKP,
 
 	# Calcul de la solution
 	x, breakItem = solveWeightedSum(prob, init, λ1, λ2)
-	updateBoundSets!(UB, L, λ1//(λ1 + λ2), x, breakItem)
+	println("x = ", x)
+	updateBoundSets!(UB, Lη, λ1//(λ1 + λ2), x, breakItem)
 
 	# Si le point n'est pas sur le segment z(x1)z(x2) on continue la recherche
 	if λ1*x.z[1] + λ2*x.z[2] > λ1*x1.z[1] + λ2*x1.z[2]
-		solveRecursion!(prob, UB, L, init, x1, x)
-		solveRecursion!(prob, UB, L, init, x, x2)
+		solveRecursion!(prob, UB, Lη, init, x1, x)
+		solveRecursion!(prob, UB, Lη, init, x, x2)
 	end
 end
 
-function dichotomicMethod(prob::_MOMKP,
-						  L::Vector{Solution{Rational{Int}}},
-						  init::Initialisation)
-						  #solInit::Solution{Rational{Int}})
+function dichotomicMethod(prob::_MOMKP, 		# Bi01KP instance 
+						  init::Initialisation) # Utilities 
 
 	n = size(prob.P)[2]
 
 	# Upper bound set 
 	UB = Vector{Constraint}()
 
+	# Inetger solutions obtained during the computation of the UBS 
+	Lη = Vector{Solution{Rational{Int}}}()
+
 	# Calcul des solutions lexicographiquement optimales
-	x12, x21 = lexicographicSolutions!(prob, UB, L, init) 	
+	x12, x21 = lexicographicSolutions!(prob, UB, Lη, init) 	
+	println("x12 = ", x12)
+	println("x21 = ", x21)
 
 	# Appel récursif
-	solveRecursion!(prob, UB, L, init, x12, x21)
+	solveRecursion!(prob, UB, Lη, init, x12, x21)
 
 	return UB
 end

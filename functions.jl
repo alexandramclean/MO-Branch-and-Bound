@@ -421,7 +421,7 @@ end
 function groupEquivalentItems(prob::_MOMKP)
 
     n      = size(prob.P)[2]
-    r1, r2 = ratios(prob) 
+    r1, r2 = utilities(prob) 
     P1     = Int[] 
     P2     = Int[] 
     W      = Int[] 

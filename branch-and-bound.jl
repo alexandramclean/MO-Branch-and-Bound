@@ -50,7 +50,7 @@ function branch!(η::Node,
     # Branching 
     if η.status == NOTPRUNED
 
-        verifyUBS(prob, η.setvar, η.UB.constraints)
+        #verifyUBS(prob, η.setvar, η.UB.constraints)
         
         if depth <= length(branchingVariables)
             # Set variable  
@@ -87,28 +87,11 @@ function branch!(η::Node,
             # var is set to 0
             verbose ? println("\n", var, " is set to 0") : nothing
 
-            # Smallest object weight among the variables that are not yet set 
-            freeVariables = Int[] 
-            for i in 1:size(prob.P)[2]
-                if !(i in η.setvar.setToOne || i in η.setvar.setToZero)
-                    push!(freeVariables, i)
-                end 
-            end 
-            weights = prob.W[1,:][freeVariables]
-            minW = minimum(weights)
-            println("min weight : ", minW)
+            setvar0 = setVariable(init, η.setvar, var, 0, method)
 
-            if η.solInit.ω_ < minW 
-                # No more objects can be inserted so no new solutions will be
-                # obtained in this branch 
-                verbose ? println("status : INFEASIBILITY") : nothing 
-            else 
-                setvar0 = setVariable(init, η.setvar, var, 0, method)
-
-                η0 = Node(nothing, setvar0, η.solInit, NOTPRUNED)
-                branch!(η0, prob, L, init, branchingVariables, depth+1, 
-                    method, interrupt)
-            end 
+            η0 = Node(nothing, setvar0, η.solInit, NOTPRUNED)
+            branch!(η0, prob, L, init, branchingVariables, depth+1, 
+                method, interrupt)
 
         else 
             # There are no more variables to assign 

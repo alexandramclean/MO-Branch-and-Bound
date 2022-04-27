@@ -36,6 +36,7 @@ function computeReferenceSets(dir::String)
 
 		# Transform the multi-dimensional problem into a mono-dimensional problem
 		prob = multiToMonoDimensional(prob)
+		prob = groupEquivalentItems(prob)
 
 		# Solve the problem with vOpt
 		start = time() 
@@ -43,7 +44,7 @@ function computeReferenceSets(dir::String)
 		elapsed = time() - start 
 
 		# Write in a file 
-		open(dir*"res/ref_"*fname, "w") do io 
+		open(dir*"resGrouped/ref_"*fname, "w") do io 
 			write(io, fname*"\n")
 			write(io, string(elapsed))
 			for y in ref 
@@ -490,14 +491,15 @@ function testBranchAndBound(fname::String,
 		prob = readInstanceMOMKPformatZL(false, fname)
 	end
 
+	prob = groupEquivalentItems(prob) 
+
 	if initialisation 
-		#@timeit to "Supported efficient" L = dichotomicMethod(prob) 
-		L = PrimalBoundSet(ref) 
+		@timeit to "Supported efficient" L = dichotomicMethod(prob) 
 	else 
 		if method == DICHOTOMIC 
-			L = PrimalBoundSet{Rational{Int}}()
+			L = Vector{Solution{Rational{Int}}}()
 		else 
-			L = PrimalBoundSet{Float64}()
+			L = Vector{Solution{Float64}}()
 		end 
 	end 
 
@@ -506,10 +508,11 @@ function testBranchAndBound(fname::String,
 		branchAndBound(prob, L, method, interrupt)
 
 	# Plot the obtained set of solutions 
-	plotYN(basename(fname), ref, L.solutions)
+	#plotYN(basename(fname), ref, L.solutions)
 
-	@assert ref == [sol.z for sol in L.solutions] "The solutions obtained by the 
-	branch-and-bound algorithm must be identical to those in the reference set"
+	if !(ref == [sol.z for sol in L])
+		println("The solutions obtained by the branch-and-bound algorithm must be identical to those in the reference set")
+	end
 end 
 
 # Tests the branch-and-bound algorithm on all instances in directory dir 
@@ -537,7 +540,7 @@ function testInstancesBranchAndBound(dir::String,
 	files = readdir(dir*"dat/")
 	for fname in files 
 		# Get the reference set 
-		ref = readReferenceSet(dir*"res/ref_"*fname)
+		ref = readReferenceSet(dir*"resGrouped/ref_"*fname)
 
 		testBranchAndBound(dir*"dat/"*fname, ref, method, interrupt, initialisation)
 	end 
