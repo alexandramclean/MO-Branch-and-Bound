@@ -21,6 +21,9 @@ function branch!(η::Node,
     verbose = false
     graphic = false 
 
+    correctSolInit = verifySetvar(prob, η.setvar, η.solInit)
+    @assert correctSolInit "The initial solution and list of set variables are not coherent"
+
     # Compute the upper bound set for η 
     @timeit to "Upper bound" η.UB, Lη = 
         parametricMethod(prob, init, η.setvar) 
@@ -125,7 +128,7 @@ function branchAndBound(prob::_MOMKP, # Bi01KP instance
     rank1, rank2 = ranks(init.r1, init.r2)
     # Branching strategy 
     branchingVariables = sumRank(rank1, rank2, INCREASING)
-    println("Branching strategy : ", branchingVariables)
+    #println("Branching strategy : ", branchingVariables)
 
     # Recursive branching function 
     branch!(rootNode, prob, L, init, branchingVariables, 1, method, interrupt)

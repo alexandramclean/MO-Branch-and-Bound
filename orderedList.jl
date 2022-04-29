@@ -144,6 +144,15 @@ function add!(yN::Union{Vector{Solution{T}}, Vector{Vector{T}}},
 
     if typeof(y) == Solution{Float64} || typeof(y) == Solution{Rational{Int}}
         y.z = [floor(y.z[1]), floor(y.z[2])]
+        isPoint = (
+            (y.z[1] >= 523. && y.z[1] < 524. && 
+            y.z[2] >= 3332. && y.z[2] < 3333.) ||
+            (y.z[1] >= 545. && y.z[1] < 546. && 
+            y.z[2] >= 3323. && y.z[2] < 3324.)
+        )
+        if isPoint
+            println("ALERTE")
+        end 
     else 
         y = [floor(y[1]), floor(y[2])]
     end 

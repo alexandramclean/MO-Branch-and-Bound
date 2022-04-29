@@ -254,6 +254,17 @@ function plotYN(fname::String,
 
     legend(bbox_to_anchor=[1,1], loc=0, borderaxespad=0, fontsize = "x-small")
 end 
+
+# Plot two upper bound sets
+function plotUBS(ubdicho::Vector{Vector{Float64}}, 
+                 ubparam::Vector{Vector{Float64}})
+
+    fig = figure("Comparaison EBS dichotomique vs paramétrique", figsize=(6.5,5))
+    plot([y[1] for y in ubdicho], [y[2] for y in ubdicho], color="green",
+        linewidth=.75, marker="+", markersize=10., linestyle=":")
+    plot([y[1] for y in ubparam], [y[2] for y in ubparam], color="red",
+        linewidth=.75, marker="+", markersize=10., linestyle=":")
+end 
         
 # ----- VERIFICATION --------------------------------------------------------- #
 using DataStructures
@@ -300,13 +311,40 @@ function verifyUBS(prob::_MOMKP, setvar::SetVariables, UB::Vector{Constraint})
     init = initialisation(subProb, DICHOTOMIC)
     L    = Vector{Solution{Rational{Int}}}() 
 
-    UBdicho::Vector{Constraint} = dichotomicMethod(subProb, L, init)
+    UBdicho::Vector{Constraint} = dichotomicMethod(subProb, init)
 
     paramPoints = OrderedSet([c.point for c in UB])
     dichoPoints = OrderedSet(sort([c.point + sumZ for c in UBdicho],rev=true))
 
     if paramPoints != dichoPoints 
+        paramPoints = [y for y in paramPoints]
+        dichoPoints = [y for y in dichoPoints]
         println("Parametric : ", paramPoints)
         println("Dichotomic : ", dichoPoints, "\n")
+        plotUBS(dichoPoints, paramPoints)
     end 
 end 
+
+# Verifies that the initial solution and the lists of set variables are coherent
+function verifySetvar(prob::_MOMKP,
+                      setvar::SetVariables,
+                      solInit::Solution{Float64})
+
+    n = size(prob.P)[2]
+
+    X  = zeros(Rational{Int},n)
+    z  = [0.,0.]
+    ω_ = prob.ω[1] 
+
+    for i in 1:n 
+        if i in setvar.setToOne
+            X[i] = 1//1 
+            z   += prob.P[:,i]
+            ω_  -= prob.W[1,i]
+        end 
+    end 
+
+    return X == solInit.X && z == solInit.z && ω_ == solInit.ω_ 
+end 
+
+

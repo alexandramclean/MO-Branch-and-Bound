@@ -87,12 +87,15 @@ function transpositionPreprocessing(weights::Vector{Rational{Int}},
 									pairs::Vector{Tuple{Int,Int}})
 
 	transpositions = Transposition[]
+	nbIdenticalCriticalWeights = 0
 
 	iter = 1
 	while iter <= length(weights)
 
 		# There are multiple identical critical weights λ
 		if iter < length(weights) && weights[iter] == weights[iter+1]
+
+			nbIdenticalCriticalWeights += 1 
 
 			transp = Transposition(weights[iter])
 
@@ -113,6 +116,7 @@ function transpositionPreprocessing(weights::Vector{Rational{Int}},
 		end
 	end
 
+	println("Number of identical critical weights : ", nbIdenticalCriticalWeights)
 	return transpositions
 end
 

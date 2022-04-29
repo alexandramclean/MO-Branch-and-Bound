@@ -482,7 +482,7 @@ function testBranchAndBound(fname::String,
 							interrupt::Bool=false,
 							initialisation::Bool=true) where T<:Real 
 
-	println(basename(fname))
+	println("\n", basename(fname))
 
 	# Read the instance in the file 
 	if fname[length(fname)-3:length(fname)] == ".DAT"
@@ -491,7 +491,7 @@ function testBranchAndBound(fname::String,
 		prob = readInstanceMOMKPformatZL(false, fname)
 	end
 
-	prob = groupEquivalentItems(prob) 
+	#prob = groupEquivalentItems(prob) 
 
 	if initialisation 
 		@timeit to "Supported efficient" L = dichotomicMethod(prob) 
@@ -527,22 +527,20 @@ function testInstancesBranchAndBound(dir::String,
 		L = dichotomicMethod(didactic) 
 	else 
 		if method == DICHOTOMIC 
-			L = PrimalBoundSet{Rational{Int}}()
+			L = Vector{Solution{Rational{Int}}}()
 		else 
-			L = PrimalBoundSet{Float64}()
+			L = Vector{Solution{Float64}}()
 		end 
 	end 
 
 	# Branch-and-bound 
 	L = branchAndBound(didactic, L, method, interrupt)
 
-	
 	files = readdir(dir*"dat/")
 	for fname in files 
 		# Get the reference set 
-		ref = readReferenceSet(dir*"resGrouped/ref_"*fname)
+		ref = readReferenceSet(dir*"res/ref_"*fname)
 
 		testBranchAndBound(dir*"dat/"*fname, ref, method, interrupt, initialisation)
 	end 
-
 end 

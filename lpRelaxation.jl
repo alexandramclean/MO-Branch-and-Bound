@@ -67,8 +67,11 @@ end
 
 # There are multiple identical critical weights 
 function identicalCriticalWeights(prob::_MOMKP,
+								  UB::DualBoundSet{Float64},
+								  Lη::Vector{Solution{Float64}},
 								  seq::Vector{Int},
 								  pos::Vector{Int},
+								  λ::Rational{Int},
 								  pairs::Vector{Tuple{Int,Int}},
 								  sol::Solution{Float64},
 								  s::Int)
@@ -94,6 +97,12 @@ function identicalCriticalWeights(prob::_MOMKP,
 		end
 
 		updatePositions!(seq, pos, start, finish)
+
+		if s <= length(seq)
+			updateBoundSets!(UB, Lη, λ, sol, seq[s]) 
+		else 
+			updateBoundSets!(UB, Lη, λ, sol, seq[s-1]) 
+		end 
 	end 
 	return sol, s 
 end 
@@ -139,8 +148,8 @@ function parametricMethod(prob::_MOMKP,           # Bi01KP instance
 
 			numberCasesIdenticalWeights += 1
 
-			sol, s = identicalCriticalWeights(prob, seq, pos, 
-						pairs, sol, s)			
+			sol, s = identicalCriticalWeights(prob, UB, Lη, seq, pos, 
+						λ, pairs, sol, s)			
 		else
 
 			(i,j) = pairs[1]
