@@ -18,8 +18,9 @@ using TimerOutputs
 const to = TimerOutput()
 
 # ----- REFERENCE SETS ------------------------------------------------------- #
-# Compute reference sets for all files in the specified folder 
-function computeReferenceSets(dir::String)
+# Compute reference sets for all files in the specified folder and stores them 
+# in a format readable by the readReferenceSet function 
+function computeReferenceSets(dir::String, groupEquivItems::Bool=false)
 
 	files = readdir(dir*"dat/")
 
@@ -40,7 +41,7 @@ function computeReferenceSets(dir::String)
 
 		# Transform the multi-dimensional problem into a mono-dimensional problem
 		prob = multiToMonoDimensional(prob)
-		#prob = groupEquivalentItems(prob)
+		groupEquivItems ? prob = groupEquivalentItems(prob) : nothing 
 
 		# Solve the problem with vOpt
 		start = time() 
@@ -48,7 +49,13 @@ function computeReferenceSets(dir::String)
 		elapsed = time() - start 
 
 		# Write in a file 
-		open(dir*"res/ref_"*fname, "w") do io 
+		if groupEquivItems
+			resFile = dir*"resGrouped/ref_"*fname 
+		else 
+			resFile = dir*"res/ref_"*fname 
+		end 
+
+		open(groupEquivItems, "w") do io 
 			write(io, fname*"\n")
 			write(io, string(elapsed))
 			for y in ref 
@@ -76,9 +83,8 @@ function compareParametric_Dichotomic(name, prob, graphic=false)
 		println("Dichotomic method")
 		@timeit to "Dichotomic method" begin 
 			@timeit to "Initialisation" initDicho = initialisation(prob, DICHOTOMIC)
-			Ldicho = Vector{Solution{Rational{Int}}}()
 			@timeit to "Relaxation" UBdicho = 
-				dichotomicMethod(prob, Ldicho, initDicho)
+				dichotomicMethod(prob, initDicho)
 		end 
 	end 
 
@@ -97,19 +103,11 @@ function compareParametric_Dichotomic(name, prob, graphic=false)
 			markersize=1.0, linestyle=":")
 
 		# Show the points computed by the dichotomic method 
-		y_PN21 = [y.point[1] for y in UBdicho] 
-		y_PN22 = [y.point[2] for y in UBdicho]
+		y_PN21 = sort([y.point[1] for y in UBdicho]) 
+		y_PN22 = sort([y.point[2] for y in UBdicho],rev=true)
 		scatter(y_PN21, y_PN22, color="red", marker="+", label = "dichotomic")
 		plot(y_PN21, y_PN22, color="red", linewidth=0.75, marker="+",
 			markersize=1.0, linestyle=":")
-
-		#= Show the non-dominated points
-		if ref != Nothing
-			y_N1 = [y[1] for y in ref] ; y_N2 = [y[2] for y in ref]
-			scatter(y_N1, y_N2, color="black", marker="+", label = "vOpt")
-			plot(y_N1, y_N2, color="black", linewidth=0.75, marker="+",
-				markersize=1.0, linestyle=":")
-		end=#
 
     	legend(bbox_to_anchor=[1,1], loc=0, borderaxespad=0, fontsize = "x-small")
     end 
@@ -119,29 +117,30 @@ end
 function testInstances(dir::String, graphic=false) 
 
 	println("Exemple didactique")
-	didactic  = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
+	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
 
-	L = PrimalBoundSet{Float64}()
-	init = initialisation(didactic, PARAMETRIC_LP)
+	init   = initialisation(didactic, PARAMETRIC_LP)
 	setvar = initialSetvar(didactic, init, PARAMETRIC_LP)
 	_ = parametricMethod(didactic, init, setvar)
 
-	L = Vector{Solution{Rational{Int}}}()
 	initDicho = initialisation(didactic, DICHOTOMIC)
-	_ = dichotomicMethod(didactic, L, initDicho)
+	_ = dichotomicMethod(didactic, initDicho)
 	
-	files = readdir(dir) 
+	files = readdir(dir*"dat/") 
 	for fname in files 
 		println("\n", fname) 
 		if fname[length(fname)-3:length(fname)] == ".DAT"
-			prob = readInstanceMOMKPformatPG(false, dir*fname)
+			prob = readInstanceMOMKPformatPG(false, dir*"dat/"*fname)
+		elseif fname[length(fname)-3:length(fname)] == ".dat"
+			prob = readInstanceKP(dir*"dat/"*fname)
 		else
-			prob = readInstanceMOMKPformatZL(false, dir*fname)
+			prob = readInstanceMOMKPformatZL(false, dir*"dat/"*fname)
 		end
 	
 		compareParametric_Dichotomic(fname, prob, graphic)
 	end	
 end 
+
 
 # ----- MARTELLO AND TOTH ---------------------------------------------------- #
 # Compare CPU times for the LP relaxation and the Martello and Toth upper bound
@@ -189,157 +188,8 @@ function testInstancesMT(dir::String)
 end
 
 # ----- SETTING VARIABLES ---------------------------------------------------- #
-# Compare CPU times for the initialisation and setVariable functions 
-function compareInit_SetVar(prob::_MOMKP)
+# TODO : Compare CPU times for the initialisation and setVariable functions 
 
-	@timeit to "\nCompare init and setVar" begin 
-		@timeit to "Initialisation" init = initialisation(prob, PARAMETRIC_LP)
-
-		var = rand(1:size(prob.P)[2])
-		@timeit to "Set variable" newInit = setVariable(init, var, PARAMETRIC_LP)
-	end
-end 
-
-# Calls compareInit_SetVar on all files in directory dir 
-function testInstancesInit_SetVar(dir::String)
-
-	println("Exemple didactique")
-	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
-	init = initialisation(didactic, PARAMETRIC_LP) 
-	_ = setVariable(init, rand(1:6), PARAMETRIC_LP)
-	
-	files = readdir(dir)
-	for fname in files
-		println("\n", fname)
-		
-		if fname[length(fname)-3:length(fname)] == ".DAT"
-			prob = readInstanceMOMKPformatPG(false, dir*fname)
-		else
-			prob = readInstanceMOMKPformatZL(false, dir*fname)
-		end
-		compareInit_SetVar(prob)
-	end
-	
-end
-
-# Compute the upper bound set with a variable set to 0 or 1 with the parametric,
-# dichotomic, and simplex methods 
-function compareSetVar(fname::String, 
-					   var::Union{Int,Nothing} = nothing, 
-					   val::Union{Int,Nothing} = nothing)
-
-	println(basename(fname))
-
-	# Read the instance in the file  
-	if fname[length(fname)-3:length(fname)] == ".DAT"
-		prob = readInstanceMOMKPformatPG(false, fname)
-	else
-		prob = readInstanceMOMKPformatZL(false, fname)
-	end
-
-	n = size(prob.P)[2]
-
-	if var === nothing
-		# Generate a random variable 
-		var = rand(1:n)
-	end 
-
-	if val === nothing 
-		# Generate a random value 
-		val = rand(0:1)
-	end 
-
-	@assert var >= 1 && var <= n "The variable you are trying to set doesn't exist"
-	@assert val == 0 || val == 1 "Variables can only be set to 0 or 1"
-
-	println("(", var, ",", val, ")")
-	# Initialisaiton
-	init = initialisation(prob, PARAMETRIC_LP)
-
-	# Variable setting 
-	newInit = setVariable(init, var, PARAMETRIC_LP)
-
-	# Parametric method 
-	L = PrimalBoundSet{Float64}() 
-
-	solInit = Solution{Float64}(prob)
-	solInit.X[var] = val 
-	solInit.z     += val*prob.P[:,var]
-	if val == 1 
-		solInit.ω_ -= prob.W[1,var]
-	end 
-
-	UBparam = parametricMethod(prob, L, newInit, solInit)
-
-	# Dichotomic method 
-	L = PrimalBoundSet{Rational{Int}}() 
-
-	# Variable setting 
-	newInit = setVariable(init, var, DICHOTOMIC)	
-
-	solInit = Solution{Rational{Int}}(prob)
-	solInit.X[var] = val 
-	solInit.z     += val*prob.P[:,var]
-	if val == 1 
-		solInit.ω_ -= prob.W[1,var]
-	end 
-
-	UBdicho = dichotomicMethod(prob, L, newInit, solInit)	
-
-	# Simplex method 
-	L = PrimalBoundSet{Float64}()
-
-	# Variable setting 
-	newInit = setVariable(init, var, SIMPLEX)
-
-	solInit = Solution{Float64}(prob)
-	solInit.X[var] = val 
-	solInit.z     += val*prob.P[:,var]
-	if val == 1 
-		solInit.ω_ -= prob.W[1,var]
-	end 
-
-	UBsimplex = simplex(prob, L, newInit, solInit)
-	
-	# Setup
-	figure("Variable setting | "*basename(fname),figsize=(6.5,5))
-	xlabel(L"z^1(x)")
-	ylabel(L"z^2(x)")
-	PyPlot.title("Parametric, dichotomic, and simplex methods | "*basename(fname))
-
-	# Show the points computed by the parametric method 
-	y_PN11 = [y[1] for y in UBparam.points] 
-	y_PN12 = [y[2] for y in UBparam.points]
-	scatter(y_PN11, y_PN12, color="black", marker="o", label = "parametric")
-	plot(y_PN11, y_PN12, color="black", linewidth=0.75, marker="o",
-		markersize=1.0, linestyle=":")
-
-	# Show the points computed by the dichotomic method 
-	y_PN21 = [y[1] for y in UBdicho.points] 
-	y_PN22 = [y[2] for y in UBdicho.points]
-	scatter(y_PN21, y_PN22, color="red", marker="*", label = "dichotomic")
-	plot(y_PN21, y_PN22, color="red", linewidth=0.75, marker="*",
-		markersize=1.0, linestyle=":")
-
-	# Show the points computed by the simplex algorithm 
-	y_PN31 = [y[1] for y in UBsimplex.points] 
-	y_PN32 = [y[2] for y in UBsimplex.points]
-	scatter(y_PN31, y_PN32, color="green", marker="+", label = "simplex")
-	plot(y_PN31, y_PN32, color="green", linewidth=0.75, marker="+",
-		markersize=1.0, linestyle=":")
-
-
-	legend(bbox_to_anchor=[1,1], loc=0, borderaxespad=0, fontsize = "x-small")
-end 
-
-function testInstancesSetVar(dir::String)
-
-	files = readdir(dir)
-
-	for fname in files 
-		compareSetVar(dir*fname)
-	end 
-end 
 
 # ----- SIMPLEX ALGORITHM ---------------------------------------------------- #
 # Compares the parametric method and the simplex algorithm for computing the 
@@ -351,18 +201,15 @@ function compareParametric_Simplex(prob::_MOMKP, fname::String, graphic=false)
 	@timeit to "\nParametric v. Simplex" begin 
 		println("Parametric method")
 		@timeit to "Parametric method" begin 
-			@timeit to "Initialisation" init = initialisation(prob, PARAMETRIC_LP)
-			L = PrimalBoundSet{Float64}()
-			@timeit to "Relaxation" UBparam = 
-				parametricMethod(prob, L, init, Solution{Float64}(prob))
+			@timeit to "Initialisation" init   = initialisation(prob, PARAMETRIC_LP)
+			@timeit to "Initial setvar" setvar = initialSetvar(prob, init, PARAMETRIC_LP)
+			@timeit to "LP Relaxation" UBparam, _ = parametricMethod(prob, init, setvar)
 		end 
 
 		println("Simplex algorithm")
 		@timeit to "Simplex algorithm" begin 
 			@timeit to "Initialisaiton" initSimplex = initialisation(prob, SIMPLEX)
-			L = PrimalBoundSet{Float64}()
-			@timeit to "Relaxation" UBsimplex = 
-				simplex(prob, L, initSimplex, Solution{Float64}(prob))
+			@timeit to "LP Relaxation" UBsimplex, _ = simplex(prob, initSimplex, setvar)
 		end 
 	end 
 
@@ -397,13 +244,12 @@ function testInstancesSimplex(dir::String, graphic=false)
 	println("Exemple didactique")
 	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
 
-	L = PrimalBoundSet{Float64}()
-	init = initialisation(didactic, PARAMETRIC_LP)
-	_ = parametricMethod(didactic, L, init, Solution{Float64}(didactic))
+	init   = initialisation(didactic, PARAMETRIC_LP)
+	setvar = initialSetvar(didactic, init, PARAMETRIC_LP)
+	_ = parametricMethod(didactic, init, setvar)
 
-	L = PrimalBoundSet{Float64}()
 	initSimplex = initialisation(didactic, SIMPLEX)
-	_ = simplex(didactic, L, initSimplex, Solution{Float64}(didactic))
+	_ = simplex(didactic, initSimplex, setvar)
 	
 	files = readdir(dir)
 	for fname in files
@@ -426,20 +272,17 @@ function compareUBS(fname::String, nIter::Int)
 	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
 
 	# Parametric methods 
-	init = initialisation(didactic, PARAMETRIC_LP)
-	L = PrimalBoundSet{Float64}()
-	_ = parametricMethod(didactic, L, init, Solution{Float64}(didactic))
-	_ = martelloAndToth(didactic, init, Solution{Float64}(didactic)) 
+	init   = initialisation(didactic, PARAMETRIC_LP)
+	setvar = initialSetvar(didactic, init, PARAMETRIC_LP)
+	_ = parametricMethod(didactic, init, setvar)
 
 	# Dichotomic method 
 	initDicho = initialisation(didactic, DICHOTOMIC)
-	L = PrimalBoundSet{Rational{Int}}()
-	_ = dichotomicMethod(didactic, L, initDicho, Solution{Rational{Int}}(didactic))
+	_ = dichotomicMethod(didactic, initDicho)
 	
 	# Simplex algorithm 
 	initSimplex = initialisation(didactic, SIMPLEX) 
-	L = PrimalBoundSet{Float64}()
-	_ = simplex(didactic, L, initSimplex, Solution{Float64}(didactic))
+	_ = simplex(didactic, initSimplex, setvar)
 
 	if fname[length(fname)-3:length(fname)] == ".DAT"
 		prob = readInstanceMOMKPformatPG(false, fname)
@@ -450,30 +293,27 @@ function compareUBS(fname::String, nIter::Int)
 	for iter in 1:nIter 
 
 		# Parametric methods 
-		L = PrimalBoundSet{Float64}() 
 		@timeit to "Parametric methods" begin 
 			@timeit to "Initialisation" init = initialisation(prob, PARAMETRIC_LP) 
 			@timeit to "setvar" setvar = initialSetvar(prob, init, PARAMETRIC_LP)
 			@timeit to "LP Relaxation" _ = 
-				parametricMethod(prob, L, init, setvar, false)
+				parametricMethod(prob, init, setvar)
 			#=@timeit to "Martello and Toth" _ = 
 				martelloAndToth(prob, init, Solution{Float64}(prob))=#
 		end 
 
 		# Dichotomic method 
-		L = PrimalBoundSet{Rational{Int}}()
 		@timeit to "Dichotomic method" begin 
 			@timeit to "Initialisation" initDicho = initialisation(prob, DICHOTOMIC)
 			@timeit to "Relaxation" _ = 
-				dichotomicMethod(prob, L, initDicho, Solution{Rational{Int}}(prob))
+				dichotomicMethod(prob, initDicho)
 		end 
 
 		# Simplex algorithm 
-		L = PrimalBoundSet{Float64}()
 		@timeit to "Simplex" begin 
 			@timeit to "Initialisaiton" initSimplex = initialisation(prob, SIMPLEX)
 			@timeit to "Relaxation" _ = 
-				simplex(prob, L, initSimplex, Solution{Float64}(prob)) 
+				simplex(prob, initSimplex, setvar) 
 		end 
 	end 
 end 

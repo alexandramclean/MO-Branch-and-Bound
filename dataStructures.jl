@@ -68,8 +68,10 @@ end
 # ----- BOUND SETS ----------------------------------------------------------- #
 # Data structure of a constraint generated while computing the upper bound set
 struct Constraint 
-	λ::Union{Rational{Int},Float64} # Critical weight
-	point::Vector{Float64}          # Associated point (u1,u2)
+    # Critical weight
+	λ::Union{Rational{Int},Float64} 
+    # Associated point (u1,u2)
+	point::Union{Vector{Rational{Int}},Vector{Float64}} 
 end
 # The associated constraint is λz1 + (1-λ)z2 <= λu1 + (1-λ)u2
 
@@ -79,16 +81,8 @@ struct DualBoundSet{T}
     constraints::Vector{Constraint}
 end
 
-DualBoundSet{Float64}() = DualBoundSet(Vector{Float64}[], Constraint[]) 
+DualBoundSet{Float64}()       = DualBoundSet(Vector{Float64}[], Constraint[]) 
 DualBoundSet{Rational{Int}}() = DualBoundSet(Vector{Rational{Int}}[], Constraint[])
-
-# Data structure representing the primal bound set (lower bound set in this case)
-mutable struct PrimalBoundSet{T}
-    solutions::Vector{Solution{T}} # Vector of integer solutions 
-end 
-
-PrimalBoundSet{Float64}() = PrimalBoundSet(Solution{Float64}[])
-PrimalBoundSet{Rational{Int}}() = PrimalBoundSet(Solution{Rational{Int}}[])
 
 
 # ----- BRANCH-AND-BOUND ----------------------------------------------------- #
@@ -97,9 +91,8 @@ PrimalBoundSet{Rational{Int}}() = PrimalBoundSet(Solution{Rational{Int}}[])
 # Data structure representing a node in a branch-and-bound algorithm
 mutable struct Node 
     UB::Union{DualBoundSet,Nothing} # Upper bound set for the node
-    #parent::Union{Node,Nothing}    # Parent node 
     #init::Initialisation           # Transpositions and initial sequence
-    setvar::SetVariables              # Initialisation for the node 
+    setvar::SetVariables            # Initialisation for the node 
     solInit::Solution               # Initial solution with set variables
     # Indicates whether the node has been pruned and for what reason 
     status::Status                   

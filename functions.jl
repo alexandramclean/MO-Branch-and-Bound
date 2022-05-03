@@ -116,7 +116,7 @@ function transpositionPreprocessing(weights::Vector{Rational{Int}},
 		end
 	end
 
-	println("Number of identical critical weights : ", nbIdenticalCriticalWeights)
+	#println("Number of identical critical weights : ", nbIdenticalCriticalWeights)
 	return transpositions
 end
 
@@ -165,7 +165,9 @@ function removeFromSequence(seq::Vector{Int}, var::Int)
 end 
 
 # Initial setvar 
-function initialSetvar(prob, init, method)
+function initialSetvar(prob::_MOMKP, 
+					   init::Initialisation, 
+					   method::Method)
 	
 	if method == PARAMETRIC_LP 
 		transpInd = Vector{Int}[] 
@@ -292,7 +294,9 @@ end
 
 # ----- SOLUTIONS ------------------------------------------------------------ #
 # Add an item to a solution
-function addItem!(prob::_MOMKP, sol::Solution, item::Int)
+function addItem!(prob::_MOMKP, 
+				  sol::Solution, 
+				  item::Int) 
 	sol.X[item] = 1
 	sol.z      += prob.P[:,item]
 	sol.ω_     -= prob.W[1,item]
@@ -351,7 +355,7 @@ function reoptSolution(prob::_MOMKP,
 					   seq::Vector{Int},
 					   start::Int,
 					   finish::Int, 
-					   sol::Solution)
+					   sol::Solution) 
 
 	# The items between start and finish in the sequence are removed 
 	pos = finish 
@@ -388,12 +392,12 @@ function reoptSolution(prob::_MOMKP,
 end
 
 # Returns true if the solution is integer 
-function isInteger(sol::Solution{T}, breakItem::Int) where T<:Real
+function isInteger(sol::Solution, breakItem::Int)
 	return (sol.X[breakItem] == 0//1 || sol.X[breakItem] == 1//1)
 end
 
 # Returns true if the solution is integer 
-function isInteger(sol::Solution{T}) where T<:Real 
+function isInteger(sol::Solution) 
 	is_integer = true 
 	for i in 1:length(sol.X)
 		is_integer = is_integer && (sol.X[i] == 0//1 || sol.X[i] == 1//1)
@@ -402,7 +406,7 @@ function isInteger(sol::Solution{T}) where T<:Real
 end
 
 # Verifies the values for the objective function and the residual capacity
-function verifySolution(prob::_MOMKP, sol::Solution{T}) where T<:Real 
+function verifySolution(prob::_MOMKP, sol::Solution) 
     objValue = [0,0]
     residualCapacity = prob.ω[1] 
 
@@ -480,7 +484,7 @@ end
 # ----- BOUND SETs ----------------------------------------------------------- #
 # Returns true if sol is identical to the most recent solution in UB 
 function identicalToPrevious(UB::Vector{Constraint}, 
-							 sol::Solution{T}) where T<:Real
+							 sol::Solution) 
     return length(UB) > 0 && UB[end].point == sol.z 
 end 
 
@@ -534,11 +538,11 @@ end
 
 # -- Simplex algorithm 
 function updateBoundSets!(UB::DualBoundSet{Float64},  
-						  L::PrimalBoundSet{Float64},
+						  L::Vector{Solution{Float64}},
 						  sol::Solution{Float64}, 
 						  breakItem::Int)
 
-	if !identicalToPrevious(UB, sol)
+	if !identicalToPrevious(UB, sol.z)
 		push!(UB.points, sol.z) 
 
 		# Constraint 
@@ -554,7 +558,7 @@ function updateBoundSets!(UB::DualBoundSet{Float64},
 		end 
 
 		if isInteger(sol, breakItem) 
-			add!(L.solutions, Solution(sol.X[1:end], sol.z[1:end], sol.ω_)) 
+			add!(L, Solution(copy(sol.X), copy(sol.z), sol.ω_)) 
 		end 
 	end 
 end

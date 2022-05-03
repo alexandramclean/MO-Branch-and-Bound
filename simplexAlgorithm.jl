@@ -53,18 +53,18 @@ end
 
 # Simplex algorithm 
 function simplex(prob::_MOMKP, 
-                 L::PrimalBoundSet{T}, 
                  init::Initialisation, 
-                 solInit::Solution{T}) where T<:Real
+                 setvar::SetVariables)
 
     upperBound = DualBoundSet{Float64}() 
 
     # Lexicographically optimal solution for the first objective function 
-    sol, s = buildSolution(prob, init.seq, solInit) 
+    sol, s = buildSolution(prob, init.seq, setvar) 
 
     # The critical objet constitutes an efficient basic variable 
     c = init.seq[s] 
 
+    L = Vector{Solution{Float64}}()
     updateBoundSets!(upperBound, L, sol, c)
     
     costs::Matrix{Rational{Int}} = reducedCosts(prob, init, c)
@@ -75,6 +75,7 @@ function simplex(prob::_MOMKP,
 
     while !stop 
 
+        # Cost ratios and candidate list
         costRatios::Vector{Rational{Int}} = 
             [costs[2,j]//costs[1,j] for j in candidates]
         perm = sortperm(costRatios)
@@ -158,5 +159,5 @@ function simplex(prob::_MOMKP,
         stop       = (length(candidates) == 0)
     end 
         
-    return upperBound
+    return upperBound, L
 end

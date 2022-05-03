@@ -16,9 +16,9 @@ function branch!(η::Node,
                  branchingVariables::Vector{Int}, 
                  depth::Int,
                  method::Method,
-                 interrupt::Bool) where T<:Real
+                 interrupt::Bool) where T<:Real 
     
-    verbose = true
+    verbose = false
     graphic = false 
 
     correctSolInit = verifySetvar(prob, η.setvar, η.solInit)
@@ -54,7 +54,7 @@ function branch!(η::Node,
     # Branching 
     if η.status == NOTPRUNED
 
-        verifyUBS(prob, η.setvar, η.UB.constraints)
+        #verifyUBS(prob, η.setvar, η.UB.constraints)
         
         if depth <= length(branchingVariables)
             # Set variable  
@@ -111,7 +111,7 @@ function branchAndBound(prob::_MOMKP, # Bi01KP instance
                         # Method for computing the upper bound set 
                         method::Method=PARAMETRIC_LP,   
                         # The computation of the upper bound set can be interrupted              
-                        interrupt::Bool=false) where T<:Real       
+                        interrupt::Bool=false) where T<:Real
 
     # Initial solution  
     if method == DICHOTOMIC
