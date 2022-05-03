@@ -95,7 +95,6 @@ function solveRecursion!(prob::_MOMKP,
 
 	# Calcul de la solution
 	x, breakItem = solveWeightedSum(prob, init, λ1, λ2)
-	println("x = ", x)
 	updateBoundSets!(UB, Lη, λ1//(λ1 + λ2), x, breakItem)
 
 	# Si le point n'est pas sur le segment z(x1)z(x2) on continue la recherche
@@ -118,8 +117,6 @@ function dichotomicMethod(prob::_MOMKP, 		# Bi01KP instance
 
 	# Calcul des solutions lexicographiquement optimales
 	x12, x21 = lexicographicSolutions!(prob, UB, Lη, init) 	
-	println("x12 = ", x12)
-	println("x21 = ", x21)
 
 	# Appel récursif
 	solveRecursion!(prob, UB, Lη, init, x12, x21)
