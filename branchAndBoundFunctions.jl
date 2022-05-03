@@ -149,6 +149,8 @@ end
 
 # ----- PRUNING -------------------------------------------------------------- #
 # Determines whether a node is pruned 
+# -- Note : The case in which the subproblem is infeasible is managed in the 
+# branch-and-bound algorithm 
 function prune(η::Node,                # Node 
                L::Vector{Solution{T}}, # Lower bound set 
                # Integer solutions obtained while commputing the upper bound set
@@ -347,4 +349,32 @@ function verifySetvar(prob::_MOMKP,
     return X == solInit.X && z == solInit.z && ω_ == solInit.ω_ 
 end 
 
+# Prints whether the instance contains equivalent items for each instance in 
+# the given directory 
+function containsEquivalentItems(dir::String)
+
+    files = readdir(dir*"dat/")
+
+	for fname in files 
+
+		println("\n", fname)
+
+		# Read the instance in the file 
+		if fname[length(fname)-3:length(fname)] == ".DAT"
+			prob = readInstanceMOMKPformatPG(false, dir*"dat/"*fname)
+
+		elseif fname[length(fname)-3:length(fname)] == ".dat"
+			prob = readInstanceKP(dir*"dat/"*fname)
+
+		else
+			prob = readInstanceMOMKPformatZL(false, dir*"dat/"*fname)
+		end
+
+		newProb = groupEquivalentItems(prob)
+
+        n1 = size(prob.P)[2]
+        n2 = size(newProb.P)[2] 
+        println("Contains equivalent items : ", !(n1 == n2))
+	end 
+end  
 

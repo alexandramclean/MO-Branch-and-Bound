@@ -18,11 +18,12 @@ function branch!(η::Node,
                  method::Method,
                  interrupt::Bool) where T<:Real
     
-    verbose = false
+    verbose = true
     graphic = false 
 
     correctSolInit = verifySetvar(prob, η.setvar, η.solInit)
-    @assert correctSolInit "The initial solution and list of set variables are not coherent"
+    @assert correctSolInit "The initial solution and list of set variables are 
+    not coherent"
 
     # Compute the upper bound set for η 
     @timeit to "Upper bound" η.UB, Lη = 
@@ -53,7 +54,7 @@ function branch!(η::Node,
     # Branching 
     if η.status == NOTPRUNED
 
-        #verifyUBS(prob, η.setvar, η.UB.constraints)
+        verifyUBS(prob, η.setvar, η.UB.constraints)
         
         if depth <= length(branchingVariables)
             # Set variable  
