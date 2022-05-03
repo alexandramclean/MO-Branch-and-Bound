@@ -30,13 +30,17 @@ function computeReferenceSets(dir::String)
 		# Read the instance in the file 
 		if fname[length(fname)-3:length(fname)] == ".DAT"
 			prob = readInstanceMOMKPformatPG(false, dir*"dat/"*fname)
+
+		elseif fname[length(fname)-3:length(fname)] == ".dat"
+			prob = readInstanceKP(dir*"dat/"*fname)
+
 		else
 			prob = readInstanceMOMKPformatZL(false, dir*"dat/"*fname)
 		end
 
 		# Transform the multi-dimensional problem into a mono-dimensional problem
 		prob = multiToMonoDimensional(prob)
-		prob = groupEquivalentItems(prob)
+		#prob = groupEquivalentItems(prob)
 
 		# Solve the problem with vOpt
 		start = time() 
@@ -44,7 +48,7 @@ function computeReferenceSets(dir::String)
 		elapsed = time() - start 
 
 		# Write in a file 
-		open(dir*"resGrouped/ref_"*fname, "w") do io 
+		open(dir*"res/ref_"*fname, "w") do io 
 			write(io, fname*"\n")
 			write(io, string(elapsed))
 			for y in ref 
@@ -480,18 +484,24 @@ function testBranchAndBound(fname::String,
 							ref::Vector{Vector{Float64}},
 							method::Method=PARAMETRIC_LP,
 							interrupt::Bool=false,
-							initialisation::Bool=true) where T<:Real 
+							initialisation::Bool=true,
+							groupEquivItems::Bool=false
+						   ) where T<:Real 
 
 	println("\n", basename(fname))
 
 	# Read the instance in the file 
 	if fname[length(fname)-3:length(fname)] == ".DAT"
 		prob = readInstanceMOMKPformatPG(false, fname)
+
+	elseif fname[length(fname)-3:length(fname)] == ".dat"
+		prob = readInstanceKP(fname)
+
 	else
 		prob = readInstanceMOMKPformatZL(false, fname)
 	end
 
-	#prob = groupEquivalentItems(prob) 
+	groupEquivItems ? prob = groupEquivalentItems(prob) : nothing 
 
 	if initialisation 
 		@timeit to "Supported efficient" L = dichotomicMethod(prob) 
@@ -519,7 +529,9 @@ end
 function testInstancesBranchAndBound(dir::String, 
 									 method::Method=PARAMETRIC_LP,
 									 interrupt::Bool=false,
-									 initialisation::Bool=true)
+									 initialisation::Bool=true,
+									 groupEquivItems::Bool=false,
+									)
 
 	# Exemple didactique 
 	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
@@ -539,8 +551,13 @@ function testInstancesBranchAndBound(dir::String,
 	files = readdir(dir*"dat/")
 	for fname in files 
 		# Get the reference set 
-		ref = readReferenceSet(dir*"res/ref_"*fname)
+		if groupEquivItems
+			ref = readReferenceSet(dir*"resGrouped/ref_"*fname)
+		else 
+			ref = readReferenceSet(dir*"res/ref_"*fname)
+		end 
 
-		testBranchAndBound(dir*"dat/"*fname, ref, method, interrupt, initialisation)
+		testBranchAndBound(dir*"dat/"*fname, ref, method, interrupt, 
+			initialisation, groupEquivItems)
 	end 
 end 
