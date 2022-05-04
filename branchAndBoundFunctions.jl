@@ -173,17 +173,17 @@ function prune(η::Node,                # Node
             nadir = [L[i-1].z[1], L[i].z[2]] 
             
             iter = 1
-            nadirInUpper = true 
+            verifiesConstraints = true 
 
             while iter <= length(UB) && nadirInUpper
                 lhs = UB[iter].λ * nadir[1] + (1 - UB[iter].λ) * nadir[2]
                 rhs = UB[iter].λ * UB[iter].point[1] + 
                         (1 - UB[iter].λ) * UB[iter].point[2]
-                nadirInUpper = nadirInUpper && lhs <= rhs 
+                verifiesConstraints = verifiesConstraints && lhs <= rhs 
                 iter += 1 
             end 
 
-            isDominated = isDominated && !nadirInUpper 
+            isDominated = isDominated && !verifiesConstraints 
         end 
 
         if isDominated 
