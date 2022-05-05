@@ -18,20 +18,27 @@ function branch!(η::Node,
                  method::Method,
                  interrupt::Bool) where T<:Real 
     
-    verbose = false
+    verbose = true 
     graphic = false 
 
-    correctSolInit = verifySetvar(prob, η.setvar, η.solInit)
-    @assert correctSolInit "The initial solution and list of set variables are 
-    not coherent"
-
     # Compute the upper bound set for η 
-    @timeit to "Upper bound" η.UB, Lη = 
-        parametricMethod(prob, init, η.setvar) 
+    if interrupt 
+        @timeit to "Upper bound" Lη, η.status = 
+            parametricLPrelaxation(prob, L, init, η.setvar, true)
 
-    # Pruning 
-    η.status = prune(η, L, Lη)
+    else 
+        @timeit to "Upper bound" η.UB, Lη = 
+            parametricMethod(prob, init, η.setvar) 
 
+        # Pruning 
+        η.status = prune(η, L, Lη2)
+
+        #println(status2)
+        #@assert η.status == status2 "Coup dur"
+    end 
+   
+    # Adding any integer solutions found during the computation of the UBS
+    # to the incumbent set 
     for sol in Lη
         @timeit to "Ordered List" add!(L, sol)
     end 
@@ -123,13 +130,20 @@ function branchAndBound(prob::_MOMKP, # Bi01KP instance
     # Root node 
     @timeit to "Initialisation" init   = initialisation(prob, method)
     @timeit to "Initial setvar" setvar = initialSetvar(prob, init, method)
+
+    # Adding the lexicographically optimal solutions if none are provided 
+    if length(L) == 0
+        x12, x21 = lexicographicSolutions(prob)
+        add!(L, Solution{Float64}(x12))
+        add!(L, Solution{Float64}(x21))
+    end 
+
     rootNode = Node(nothing, setvar, solInit, NOTPRUNED)
 
     # Computes the ranks for each variable 
     rank1, rank2 = ranks(init.r1, init.r2)
     # Branching strategy 
     branchingVariables = sumRank(rank1, rank2, INCREASING)
-    #println("Branching strategy : ", branchingVariables)
 
     # Recursive branching function 
     branch!(rootNode, prob, L, init, branchingVariables, 1, method, interrupt)

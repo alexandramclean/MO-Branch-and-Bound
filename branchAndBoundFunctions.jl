@@ -170,12 +170,12 @@ function prune(η::Node,                # Node
         for i in 2:length(L)
 
             # Local nadir point 
-            nadir = [L[i-1].z[1], L[i].z[2]] 
+            nadir = [L[i-1].z[1]+1., L[i].z[2]+1.] 
             
             iter = 1
             verifiesConstraints = true 
 
-            while iter <= length(UB) && nadirInUpper
+            while iter <= length(UB) && verifiesConstraints
                 lhs = UB[iter].λ * nadir[1] + (1 - UB[iter].λ) * nadir[2]
                 rhs = UB[iter].λ * UB[iter].point[1] + 
                         (1 - UB[iter].λ) * UB[iter].point[2]
@@ -267,6 +267,23 @@ function plotUBS(ubdicho::Vector{Vector{Float64}},
     plot([y[1] for y in ubparam], [y[2] for y in ubparam], color="red",
         linewidth=.75, marker="+", markersize=10., linestyle=":")
 end 
+
+# ----- INITIALISATION ------------------------------------------------------- #
+# Returns the lexicographically optimal solutions
+function lexicographicSolutions(prob::_MOMKP)
+
+    n = size(prob.P)[2]
+	
+	# Lexicographically optimal solution for z^(1,2) 
+    obj12 = [1000000*prob.P[1,i] + prob.P[2,i] for i in 1:n]
+	x12   = getSolution(prob, obj12)
+	
+	# Lexicographically optimal solution for z^(2,1) 
+    obj21 = [prob.P[1,i] + 1000000*prob.P[2,i] for i in 1:n]
+	x21   = getSolution(prob, obj21)
+
+	return x12, x21
+end
         
 # ----- VERIFICATION --------------------------------------------------------- #
 using DataStructures
