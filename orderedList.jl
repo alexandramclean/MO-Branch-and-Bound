@@ -144,19 +144,6 @@ function add!(yN::Union{Vector{Solution{T}}, Vector{Vector{T}}},
 
     if typeof(y) == Solution{Float64} || typeof(y) == Solution{Rational{Int}}
         y.z = [floor(y.z[1]), floor(y.z[2])]
-        isPoint1 = (
-            (y.z[1] >= 523. && y.z[1] < 524. && 
-            y.z[2] >= 3332. && y.z[2] < 3333.)
-        )
-        isPoint2 = ((y.z[1] >= 529. && y.z[1] < 530. && 
-            y.z[2] >= 3323. && y.z[2] < 3324.)
-        )
-        if isPoint1
-            println("ALERTE ROUGE EN AFRIQUE NOIRE")
-        end 
-        if isPoint2
-            println("LE CAIRE NID D'ESPIONS")
-        end 
     else 
         y = [floor(y[1]), floor(y[2])]
     end 

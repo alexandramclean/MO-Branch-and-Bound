@@ -28,12 +28,17 @@ mutable struct Solution{T<:Real}
     ω_::Int                  # Residual capacity 
 end 
 
-Solution{Float64}(prob::_MOMKP) = Solution(zeros(Rational{Int}, size(prob.P)[2]), 
-                                    [0.,0.], prob.ω[1])
-Solution{Rational{Int}}(prob::_MOMKP) = Solution(zeros(Rational{Int}, 
-                                        size(prob.P)[2]), [0//1,0//1], prob.ω[1])
+# Creates an initial solution for prob with no set variables 
+Solution{Float64}(prob::_MOMKP) = 
+    Solution(zeros(Rational{Int}, size(prob.P)[2]), [0.,0.], prob.ω[1])
+Solution{Rational{Int}}(prob::_MOMKP) = 
+    Solution(zeros(Rational{Int}, size(prob.P)[2]), [0//1,0//1], prob.ω[1])
                                 
 Solution(t::Vector{Float64}) = Solution([0//1], t, 0)
+
+# Transform a solution of rational type to a solution of float type 
+Solution{Float64}(x::Solution{Rational{Int}}) = 
+    Solution(x.X, [Float64(i) for i in x.z], x.ω_)
 
 # ----- TRANSPOSITIONS ------------------------------------------------------- #
 # Stores a critical weight λ and the corresponding transposition(s)

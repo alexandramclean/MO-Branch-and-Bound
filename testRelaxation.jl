@@ -324,7 +324,7 @@ function testBranchAndBound(fname::String,
 							ref::Vector{Vector{Float64}},
 							method::Method=PARAMETRIC_LP,
 							interrupt::Bool=false,
-							initialisation::Bool=true,
+							initialisation::Bool=false,
 							groupEquivItems::Bool=false
 						   ) where T<:Real 
 
@@ -333,10 +333,8 @@ function testBranchAndBound(fname::String,
 	# Read the instance in the file 
 	if fname[length(fname)-3:length(fname)] == ".DAT"
 		prob = readInstanceMOMKPformatPG(false, fname)
-
 	elseif fname[length(fname)-3:length(fname)] == ".dat"
 		prob = readInstanceKP(fname)
-
 	else
 		prob = readInstanceMOMKPformatZL(false, fname)
 	end
@@ -354,11 +352,8 @@ function testBranchAndBound(fname::String,
 	end 
 
 	# Branch-and-bound 
-	@timeit to "Branch-and-bound" L = 
-		branchAndBound(prob, L, method, interrupt)
-
-	# Plot the obtained set of solutions 
-	#plotYN(basename(fname), ref, L.solutions)
+	#@timeit to "Branch-and-bound" 
+	@time L = branchAndBound(prob, L, method, interrupt)
 
 	if !(ref == [sol.z for sol in L])
 		println("The solutions obtained by the branch-and-bound algorithm must be identical to those in the reference set")
@@ -369,7 +364,7 @@ end
 function testInstancesBranchAndBound(dir::String, 
 									 method::Method=PARAMETRIC_LP,
 									 interrupt::Bool=false,
-									 initialisation::Bool=true,
+									 initialisation::Bool=false,
 									 groupEquivItems::Bool=false,
 									)
 
