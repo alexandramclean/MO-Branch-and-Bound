@@ -9,21 +9,22 @@ include("functions.jl")
 # Builds a solution including the break item for a given sequence
 function buildSolutionDicho(prob::_MOMKP, 
 							init::Initialisation, 
-							#solInit::Solution{Rational{Int}},
+							setvar::SetVariables,
 							seq::Vector{Int})
 
 	n   = size(prob.P)[2]
-	#sol = Solution{Rational{Int}}(copy(solInit.X), copy(solInit.z), solInit.ω_)
 	sol = Solution{Rational{Int}}(prob)
-	i   = 1
-
-	while i <= n && prob.W[1,seq[i]] <= sol.ω_ && init.r1[i] >= 0 
-		item = seq[i]
+	for item in setvar.setToOne
 		addItem!(prob, sol, item)
+	end 
+	i = 1
+
+	while i <= n && prob.W[1,seq[i]] <= sol.ω_ && init.r1[seq[i]] >= 0 
+		addItem!(prob, sol, seq[i])
 		i += 1
 	end
 
-	if sol.ω_ > 0 && init.r1[i] >= 0
+	if sol.ω_ > 0 && init.r1[seq[i]] >= 0
 		# A fraction of item s is inserted 
 		addBreakItem!(prob, sol, seq[i])
 	end
@@ -64,18 +65,26 @@ end
 function lexicographicSolutions!(prob::_MOMKP,
 								 UB::DualBoundSet{Rational{Int}},
 								 Lη::Vector{Solution{Rational{Int}}},
-								 init::Initialisation)
-								 #solInit::Solution{Rational{Int}})
+								 init::Initialisation,
+								 setvar::SetVariables)
+
+	println("\nLexicographic solutions \nUB = ", UB.points)
 	
 	# Lexicographically optimal solution for z^(1,2) 
 	seq12  = sortperm(1000000*init.r1 + init.r2, rev=true) 
-	x12, s = buildSolutionDicho(prob, init, seq12)
-	updateBoundSets!(UB, Lη, 1//1, x12, seq12[s])
+	x12, s = buildSolutionDicho(prob, init, setvar, seq12)
+	println("x12 : ", x12.z)
+	updateBoundSets!(UB, Lη, x12, seq12[s])
+	println("UB = ", UB.points)
 	
 	# Lexicographically optimal solution for z^(2,1) 
 	seq21  = sortperm(init.r1 + 1000000*init.r2, rev=true) 
-	x21, s = buildSolutionDicho(prob, init, seq21) 
-	updateBoundSets!(UB, Lη, 0//1, x21, seq21[s])
+	println(seq21)
+	x21, s = buildSolutionDicho(prob, init, setvar, seq21) 
+	println("x21 : ", x21.z)
+	updateBoundSets!(UB, Lη, x21, seq21[s])
+	println("UB = ", UB.points)
+	println()
 
 	return x12, x21
 end
@@ -84,7 +93,7 @@ function solveRecursion!(prob::_MOMKP,
 						 UB::DualBoundSet{Rational{Int}},
 						 Lη::Vector{Solution{Rational{Int}}},
 						 init::Initialisation,
-						 #solInit::Solution{Rational{Int}},
+						 setvar::SetVariables,
 						 x1::Solution{Rational{Int}}, 
 						 x2::Solution{Rational{Int}})
 	# Calcul de la direction λ
@@ -99,15 +108,14 @@ function solveRecursion!(prob::_MOMKP,
 
 	# Si le point n'est pas sur le segment z(x1)z(x2) on continue la recherche
 	if λ1*x.z[1] + λ2*x.z[2] > λ1*x1.z[1] + λ2*x1.z[2]
-		solveRecursion!(prob, UB, Lη, init, x1, x)
-		solveRecursion!(prob, UB, Lη, init, x, x2)
+		solveRecursion!(prob, UB, Lη, init, setvar, x1, x)
+		solveRecursion!(prob, UB, Lη, init, setvar, x, x2)
 	end
 end
 
 function dichotomicMethod(prob::_MOMKP, 		# Bi01KP instance 
-						  init::Initialisation) # Utilities 
-
-	n = size(prob.P)[2]
+						  init::Initialisation, # Utilities
+						  setvar::SetVariables) 
 
 	# Upper bound set 
 	UB = DualBoundSet{Rational{Int}}()
@@ -115,11 +123,11 @@ function dichotomicMethod(prob::_MOMKP, 		# Bi01KP instance
 	# Integer solutions obtained during the computation of the UBS 
 	Lη = Vector{Solution{Rational{Int}}}()
 
-	# Calcul des solutions lexicographiquement optimales
-	x12, x21 = lexicographicSolutions!(prob, UB, Lη, init) 	
+	x12, x21 = lexicographicSolutions!(prob, UB, Lη, init, setvar) 	
 
-	# Appel récursif
-	solveRecursion!(prob, UB, Lη, init, x12, x21)
+	solveRecursion!(prob, UB, Lη, init, setvar, x12, x21)
+
+	computeConstraints!(UB)
 
 	return UB, Lη
 end
