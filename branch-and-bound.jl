@@ -18,7 +18,7 @@ function branch!(η::Node,
                  method::Method,
                  interrupt::Bool) where T<:Real 
     
-    verbose = false
+    verbose = true
     graphic = false 
 
     # Compute the upper bound set for η 
@@ -31,7 +31,7 @@ function branch!(η::Node,
             parametricMethod(prob, init, η.setvar) 
 
     elseif method == DICHOTOMIC 
-        @timeit to "Upper bound" η.UB, Lη = dichotomicMethod(prob, init)
+        @timeit to "Upper bound" η.UB, Lη = dichotomicMethod(prob, init, η.setvar)
     
     else # Simplex algorithm 
         @timeit to "Upper bound" η.UB, Lη = simplex(prob, init, η.setvar)
@@ -54,6 +54,8 @@ function branch!(η::Node,
         println("status : ", η.status)
         println("L = ", [sol.z for sol in L])
         println("Lη = ", Lη)
+        println("U(η) = ", η.UB.points)
+        println("Constraints : ", η.UB.constraints)
         println("solInit.X = ", η.solInit.X)
         println("solInit.z = ", η.solInit.z)
         println("solInit.ω_ = ", η.solInit.ω_)
