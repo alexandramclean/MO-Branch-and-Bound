@@ -25,10 +25,25 @@ function readReferenceSet(fname::String)
     return ref
 end 
 
+# Function for parsing the files in directory "Instances KP/"
 function readInstanceKP(fname::String)
 
     prob = parseKP(fname)
     return _MOMKP(transpose(hcat(prob.p1,prob.p2)), 
                   reshape(prob.w, 1, :),
                   [prob.Omega])
+end 
+
+# Function that calls the right parser for a given file 
+function readInstance(fname::String)
+
+    if fname[length(fname)-3:length(fname)] == ".DAT"
+		prob = readInstanceMOMKPformatPG(false, fname)
+	elseif fname[length(fname)-3:length(fname)] == ".dat"
+		prob = readInstanceKP(fname)
+	else
+		prob = readInstanceMOMKPformatZL(false, fname)
+	end
+
+    return prob
 end 
