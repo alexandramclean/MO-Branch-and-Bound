@@ -20,6 +20,10 @@ function didacticInstance()
     return _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11]) 
 end 
 
+function example()
+    return _MOMKP([11 2 2 8 10 9 1 16 ; 2 7 7 8 4 1 3 4], [4 4 4 6 4 3 2 6], [13])
+end 
+
 # ----- SOLUTIONS ------------------------------------------------------------ #
 # Data structure of a solution that can contain fractions of an object
 mutable struct Solution{T<:Real} 
