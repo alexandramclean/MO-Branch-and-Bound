@@ -169,7 +169,7 @@ function add!(yN::Union{Vector{Solution{T}}, Vector{Vector{T}}},
     # The ordered list contains solutions 
     if typeof(y) == Solution{Float64} || typeof(y) == Solution{Rational{Int}}
         #! Should not be needed 
-        y.z = [floor(y.z[1]), floor(y.z[2])]
+        #y.z = [floor(y.z[1]), floor(y.z[2])]
 
         # Search for the position of y 
         if length(yN) == 0
@@ -185,15 +185,26 @@ function add!(yN::Union{Vector{Solution{T}}, Vector{Vector{T}}},
                 verify(yN, y, ind, opt)
             end 
         end 
-
-
     else 
         # The ordered list contains points 
         #! Should not be required 
-        y = [floor(y[1]), floor(y[2])]
+        #y = [floor(y[1]), floor(y[2])]
+
+        # Search for the position of y 
+        if length(yN) == 0
+            insert!(yN, 1, y)
+
+        else
+            # addRecc only accepts an array of points 
+            ind = addRec(yN, y, 1, length(yN), opt)
+            if ind > 0 
+                insert!(yN, ind, y)
+
+                # Elimination of the dominated points 
+                verify(yN, y, ind, opt)
+            end 
+        end 
     end 
-    
-    
 end
 
 # ----- PRINT ---------------------------------------------------------------- #
