@@ -487,8 +487,6 @@ function groupEquivalentItems(prob::_MOMKP)
     return _MOMKP(P, reshape(W, 1, length(W)), prob.ω)
 end 
 
-# TODO : tightness ratio 
-
 # Transforms a multi-dimensional instance into a mono-dimensional instance by 
 # only keep the first constraint 
 function multiToMonoDimensional(prob::_MOMKP)
@@ -517,7 +515,7 @@ end
 
 # -- Parametric method for LP relaxation 
 function updateBoundSets!(UB::DualBoundSet{Float64}, 
-						  L::Vector{Solution{Float64}}, 
+						  Lη::Vector{Solution{Float64}}, 
 						  λ::Rational{Int}, 
 						  sol::Solution{Float64}, 
 						  breakItem::Int)
@@ -526,7 +524,7 @@ function updateBoundSets!(UB::DualBoundSet{Float64},
         push!(UB.points, sol.z) 
 		push!(UB.constraints, Constraint(λ, sol.z))
         if isInteger(sol, breakItem) 
-            add!(L, Solution(sol.X[1:end], sol.z[1:end], sol.ω_)) 
+            add!(Lη, Solution(sol.X[1:end], sol.z[1:end], sol.ω_)) 
         end 
     end 
 end 
@@ -544,21 +542,20 @@ end
 
 # -- Dichotomic method 
 function updateBoundSets!(UB::DualBoundSet{Rational{Int}},  
-						  L::Vector{Solution{Rational{Int}}},
-						  λ::Rational{Int}, 
+						  Lη::Vector{Solution{Rational{Int}}},
 						  sol::Solution{Rational{Int}}, 
 						  breakItem::Int)
 
-	add!(UB.points, sol.z)
-	push!(UB.constraints, Constraint(λ, sol.z))
+	add!(UB.points, copy(sol.z))
+	#push!(UB.constraints, Constraint(λ, sol.z))
 	if isInteger(sol, breakItem) 
-		add!(L, Solution(copy(sol.X), copy(sol.z), sol.ω_)) 
+		add!(Lη, Solution(copy(sol.X), copy(sol.z), sol.ω_)) 
 	end 
 end
 
 # -- Simplex algorithm 
 function updateBoundSets!(UB::DualBoundSet{Float64},  
-						  L::Vector{Solution{Float64}},
+						  Lη::Vector{Solution{Float64}},
 						  sol::Solution{Float64}, 
 						  breakItem::Int)
 
@@ -578,7 +575,30 @@ function updateBoundSets!(UB::DualBoundSet{Float64},
 		end 
 
 		if isInteger(sol, breakItem) 
-			add!(L, Solution(copy(sol.X), copy(sol.z), sol.ω_)) 
+			add!(Lη, Solution(copy(sol.X), copy(sol.z), sol.ω_)) 
 		end 
 	end 
 end
+
+# Computes the constraints from a list of points 
+# (for the dichotomic method and the simplex algorithm)
+function computeConstraints!(UB::DualBoundSet)
+
+	# Constraints associated with the lexicographically optimal solutions 
+	push!(UB.constraints, Constraint(1//1, UB.points[end]))
+	push!(UB.constraints, Constraint(0//1, UB.points[1]))
+
+	# Constraints for each edge of the upper bound set 
+	for i in 2:length(UB.points) 
+		a2 = UB.points[i-1] 
+		a1 = UB.points[i]
+
+		λ1 = a1[2] - a2[2]
+		λ2 = a2[1] - a1[1] 
+
+		λ = λ1/(λ1 + λ2)
+
+		# Using a2 produces the same constraints as the parametric method
+		push!(UB.constraints, Constraint(λ, a2))
+	end 
+end 
