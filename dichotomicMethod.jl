@@ -62,7 +62,7 @@ end
 
 # Returns the lexicographically optimal solutions
 function lexicographicSolutions!(prob::_MOMKP,
-								 UB::Vector{Constraint},
+								 UB::DualBoundSet{Rational{Int}},
 								 Lη::Vector{Solution{Rational{Int}}},
 								 init::Initialisation)
 								 #solInit::Solution{Rational{Int}})
@@ -81,7 +81,7 @@ function lexicographicSolutions!(prob::_MOMKP,
 end
 
 function solveRecursion!(prob::_MOMKP,
-						 UB::Vector{Constraint},
+						 UB::DualBoundSet{Rational{Int}},
 						 Lη::Vector{Solution{Rational{Int}}},
 						 init::Initialisation,
 						 #solInit::Solution{Rational{Int}},
@@ -110,9 +110,9 @@ function dichotomicMethod(prob::_MOMKP, 		# Bi01KP instance
 	n = size(prob.P)[2]
 
 	# Upper bound set 
-	UB = Vector{Constraint}()
+	UB = DualBoundSet{Rational{Int}}()
 
-	# Inetger solutions obtained during the computation of the UBS 
+	# Integer solutions obtained during the computation of the UBS 
 	Lη = Vector{Solution{Rational{Int}}}()
 
 	# Calcul des solutions lexicographiquement optimales
@@ -121,5 +121,5 @@ function dichotomicMethod(prob::_MOMKP, 		# Bi01KP instance
 	# Appel récursif
 	solveRecursion!(prob, UB, Lη, init, x12, x21)
 
-	return UB
+	return UB, Lη
 end

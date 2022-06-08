@@ -64,8 +64,9 @@ function simplex(prob::_MOMKP,
     # The critical objet constitutes an efficient basic variable 
     c = init.seq[s] 
 
-    L = Vector{Solution{Float64}}()
-    updateBoundSets!(upperBound, L, sol, c)
+    # Integer solutions obtained during the compuation of the UBS
+    Lη = Vector{Solution{Float64}}()
+    updateBoundSets!(upperBound, Lη, sol, c)
     
     costs::Matrix{Rational{Int}} = reducedCosts(prob, init, c)
 
@@ -152,12 +153,12 @@ function simplex(prob::_MOMKP,
             end 
         end 
 
-        updateBoundSets!(upperBound, L, sol, c)
+        updateBoundSets!(upperBound, Lη, sol, c)
         
         costs      = reducedCosts(prob, init, c)
         candidates = candidateVariables(costs, sol)
         stop       = (length(candidates) == 0)
     end 
         
-    return upperBound, L
+    return upperBound, Lη
 end

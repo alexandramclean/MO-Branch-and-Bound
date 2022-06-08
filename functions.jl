@@ -177,12 +177,14 @@ function initialSetvar(prob::_MOMKP,
 		end 
 		
 		return SetVariables(Int[], Int[], transpInd, init.seq, init.pos)
+	else
+		return SetVariables(Int[], Int[], nothing, nothing, nothing)
 	end 
 end 
 
-# Remove a variable from the sequence and transpositions
+# Remove a variable from the initialisation data 
 function setVariable(init::Initialisation,
-					 parent_setvar::SetVariables, # From the parent node
+					 parent_setvar::SetVariables, 
 					 var::Int,					  # Variable to set 
 					 val::Int, 					  # Value to set it to
 					 method::Method)			  # Method for computing the UBS
@@ -238,7 +240,6 @@ function setVariable(init::Initialisation,
 				parent_setvar.pos[parent_setvar.seq[p]] - 1
 		end
 
-		#return Initialisation(nothing, nothing, newTranspositions, newSeq, newPos)
 		if val == 0 
 			return SetVariables(parent_setvar.setToOne, 
 								vcat(parent_setvar.setToZero, [var]), 
@@ -249,8 +250,26 @@ function setVariable(init::Initialisation,
 								newTranspInd, newSeq, newPos)
 		end
 
+	else # Dichotomic method and simplex algorithm
+		if val == 0 
+			return SetVariables(parent_setvar.setToOne, 
+								vcat(parent_setvar.setToZero, [var]), 
+								nothing, nothing, nothing)
+		else 
+			return SetVariables(vcat(parent_setvar.setToOne, [var]),
+								parent_setvar.setToZero,
+								nothing, nothing, nothing)
+		end
+	end 
+end
 
-	#=elseif method == SIMPLEX 
+# Remove a variable from the initialisation data (for the dichotomic method and 
+# the simplex algorithm)
+function setVariableInit(init::Initialisation, 
+						 var::Int, 
+						 method::Method)
+
+	if method == SIMPLEX 
 
 		n = length(init.r1) 
 
@@ -288,9 +307,9 @@ function setVariable(init::Initialisation,
 			end 
 		end 
 
-		return Initialisation(r1, r2, nothing, nothing, nothing)=#
+		return Initialisation(r1, r2, nothing, nothing, nothing)
 	end 
-end
+end 
 
 # ----- SOLUTIONS ------------------------------------------------------------ #
 # Add an item to a solution
@@ -524,13 +543,14 @@ function updateBoundSet!(UB::DualBoundSet{Float64},
 end 
 
 # -- Dichotomic method 
-function updateBoundSets!(UB::Vector{Constraint},  
+function updateBoundSets!(UB::DualBoundSet{Rational{Int}},  
 						  L::Vector{Solution{Rational{Int}}},
 						  λ::Rational{Int}, 
 						  sol::Solution{Rational{Int}}, 
 						  breakItem::Int)
 
-	push!(UB, Constraint(λ, sol.z))
+	add!(UB.points, sol.z)
+	push!(UB.constraints, Constraint(λ, sol.z))
 	if isInteger(sol, breakItem) 
 		add!(L, Solution(copy(sol.X), copy(sol.z), sol.ω_)) 
 	end 

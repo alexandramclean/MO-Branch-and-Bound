@@ -331,13 +331,7 @@ function testBranchAndBound(fname::String,
 	println("\n", basename(fname))
 
 	# Read the instance in the file 
-	if fname[length(fname)-3:length(fname)] == ".DAT"
-		prob = readInstanceMOMKPformatPG(false, fname)
-	elseif fname[length(fname)-3:length(fname)] == ".dat"
-		prob = readInstanceKP(fname)
-	else
-		prob = readInstanceMOMKPformatZL(false, fname)
-	end
+	prob = readInstance(fname)
 
 	groupEquivItems ? prob = groupEquivalentItems(prob) : nothing 
 

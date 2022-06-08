@@ -18,7 +18,7 @@ function branch!(η::Node,
                  method::Method,
                  interrupt::Bool) where T<:Real 
     
-    verbose = true 
+    verbose = false
     graphic = false 
 
     # Compute the upper bound set for η 
@@ -26,17 +26,20 @@ function branch!(η::Node,
         @timeit to "Upper bound" Lη, η.status = 
             parametricLPrelaxation(prob, L, init, η.setvar, true)
 
-    else 
+    elseif method == PARAMETRIC_LP 
         @timeit to "Upper bound" η.UB, Lη = 
             parametricMethod(prob, init, η.setvar) 
 
-        # Pruning 
-        η.status = prune(η, L, Lη2)
-
-        #println(status2)
-        #@assert η.status == status2 "Coup dur"
+    elseif method == DICHOTOMIC 
+        @timeit to "Upper bound" η.UB, Lη = dichotomicMethod(prob, init)
+    
+    else # Simplex algorithm 
+        @timeit to "Upper bound" η.UB, Lη = simplex(prob, init, η.setvar)
     end 
-   
+
+    # Pruning 
+    η.status = prune(η, L, Lη)
+
     # Adding any integer solutions found during the computation of the UBS
     # to the incumbent set 
     for sol in Lη
@@ -51,7 +54,6 @@ function branch!(η::Node,
         println("status : ", η.status)
         println("L = ", [sol.z for sol in L])
         println("Lη = ", Lη)
-        #println("U(η) = ", [c.point for c in η.UB.constraints])
         println("solInit.X = ", η.solInit.X)
         println("solInit.z = ", η.solInit.z)
         println("solInit.ω_ = ", η.solInit.ω_)
@@ -60,8 +62,6 @@ function branch!(η::Node,
 
     # Branching 
     if η.status == NOTPRUNED
-
-        #verifyUBS(prob, η.setvar, η.UB.constraints)
         
         if depth <= length(branchingVariables)
             # Set variable  
@@ -80,7 +80,7 @@ function branch!(η::Node,
                                 η.solInit.z + prob.P[:,var],
                                 η.solInit.ω_ - prob.W[1,var])
 
-                else 
+                else
                     @timeit to "solInit" solInit1 = Solution{Float64}(
                                 η.solInit.X[1:end], 
                                 η.solInit.z + prob.P[:,var],
@@ -89,8 +89,15 @@ function branch!(η::Node,
                 solInit1.X[var] = 1
 
                 η1 = Node(nothing, setvar1, solInit1, NOTPRUNED) 
-                branch!(η1, prob, L, init, branchingVariables, depth+1, 
+
+                if method == PARAMETRIC_LP || method == PARAMETRIC_MT
+                    branch!(η1, prob, L, init, branchingVariables, depth+1, 
                     method, interrupt)
+                else 
+                    init1 = setVariableInit(init, var, method)
+                    branch!(η1, prob, L, init1, branchingVariables, depth+1, 
+                    method, interrupt)
+                end 
             else 
                 verbose ? println("status : INFEASIBILITY") : nothing 
             end
@@ -101,8 +108,15 @@ function branch!(η::Node,
             setvar0 = setVariable(init, η.setvar, var, 0, method)
 
             η0 = Node(nothing, setvar0, η.solInit, NOTPRUNED)
-            branch!(η0, prob, L, init, branchingVariables, depth+1, 
+
+            if method == PARAMETRIC_LP || method == PARAMETRIC_MT
+                branch!(η0, prob, L, init, branchingVariables, depth+1, 
                 method, interrupt)
+            else 
+                init0 = setVariableInit(init, var, method)
+                branch!(η0, prob, L, init0, branchingVariables, depth+1, 
+                method, interrupt)
+            end 
 
         else 
             # There are no more variables to assign 
@@ -134,8 +148,14 @@ function branchAndBound(prob::_MOMKP, # Bi01KP instance
     # Adding the lexicographically optimal solutions if none are provided 
     if length(L) == 0
         x12, x21 = lexicographicSolutions(prob)
-        add!(L, Solution{Float64}(x12))
-        add!(L, Solution{Float64}(x21))
+
+        if method == DICHOTOMIC
+            add!(L, x12)
+            add!(L, x21)
+        else 
+            add!(L, Solution{Float64}(x12))
+            add!(L, Solution{Float64}(x21))
+        end 
     end 
 
     rootNode = Node(nothing, setvar, solInit, NOTPRUNED)

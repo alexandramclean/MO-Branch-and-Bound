@@ -64,10 +64,11 @@ end
 struct SetVariables 
     setToOne::Vector{Int}          # List of variables set to one 
     setToZero::Vector{Int}         # List of variables set to zero 
-    # Index of remaining transpositions (for the parametric method)
+    # Index of remaining transpositions + sequence and positions 
+    # (for the parametric method)
     transpInd::Union{Vector{Vector{Int}},Nothing}  
-    seq::Vector{Int}               # Initial sequence with set variables
-    pos::Vector{Int}               # Positions of the objects in the sequence 
+    seq::Union{Vector{Int},Nothing} # Initial sequence with set variables
+    pos::Union{Vector{Int},Nothing} # Positions of the objects in the sequence 
 end 
 
 # ----- BOUND SETS ----------------------------------------------------------- #
@@ -96,8 +97,7 @@ DualBoundSet{Rational{Int}}() = DualBoundSet(Vector{Rational{Int}}[], Constraint
 # Data structure representing a node in a branch-and-bound algorithm
 mutable struct Node 
     UB::Union{DualBoundSet,Nothing} # Upper bound set for the node
-    #init::Initialisation           # Transpositions and initial sequence
-    setvar::SetVariables            # Initialisation for the node 
+    setvar::Union{SetVariables,Initialisation} # Initialisation for the node 
     solInit::Solution               # Initial solution with set variables
     # Indicates whether the node has been pruned and for what reason 
     status::Status                   
