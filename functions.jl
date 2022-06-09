@@ -543,6 +543,7 @@ end
 # -- Dichotomic method 
 function updateBoundSets!(UB::DualBoundSet{Rational{Int}},  
 						  Lη::Vector{Solution{Rational{Int}}},
+						  λ::Rational{Int},
 						  sol::Solution{Rational{Int}}, 
 						  breakItem::Int)
 
@@ -562,7 +563,7 @@ function updateBoundSets!(UB::DualBoundSet{Float64},
 	if !identicalToPrevious(UB, sol.z)
 		push!(UB.points, sol.z) 
 
-		# Constraint 
+		#= Constraint 
 		if length(UB.constraints) == 0 
 			@assert length(UB.points) == 1 "There are no constraints because the 
 			first point has just been added"
@@ -572,7 +573,7 @@ function updateBoundSets!(UB::DualBoundSet{Float64},
 			λ2 = abs(sol.z[1] - UB.points[end][1])
 			λ  = λ1/(λ1 + λ2)
 			push!(UB.constraints, Constraint(λ, sol.z))
-		end 
+		end =#
 
 		if isInteger(sol, breakItem) 
 			add!(Lη, Solution(copy(sol.X), copy(sol.z), sol.ω_)) 
@@ -582,23 +583,43 @@ end
 
 # Computes the constraints from a list of points 
 # (for the dichotomic method and the simplex algorithm)
-function computeConstraints!(UB::DualBoundSet)
+function computeConstraints!(UB::DualBoundSet, method::Method)
 
-	# Constraints associated with the lexicographically optimal solutions 
-	push!(UB.constraints, Constraint(1//1, UB.points[end]))
-	push!(UB.constraints, Constraint(0//1, UB.points[1]))
+	if method == DICHOTOMIC
+		# Constraints associated with the lexicographically optimal solutions 
+		push!(UB.constraints, Constraint(1//1, UB.points[end]))
+		push!(UB.constraints, Constraint(0//1, UB.points[1]))
 
-	# Constraints for each edge of the upper bound set 
-	for i in 2:length(UB.points) 
-		a2 = UB.points[i-1] 
-		a1 = UB.points[i]
+		# Constraints for each edge of the upper bound set 
+		for i in 2:length(UB.points) 
+			a2 = UB.points[i-1] 
+			a1 = UB.points[i]
 
-		λ1 = a1[2] - a2[2]
-		λ2 = a2[1] - a1[1] 
+			λ1 = a1[2] - a2[2]
+			λ2 = a2[1] - a1[1] 
 
-		λ = λ1/(λ1 + λ2)
+			λ = λ1/(λ1 + λ2)
 
-		# Using a2 produces the same constraints as the parametric method
-		push!(UB.constraints, Constraint(λ, a2))
+			# Using a2 produces the same constraints as the parametric method
+			push!(UB.constraints, Constraint(λ, a2))
+		end 
+	else 
+		# Constraints associated with the lexicographically optimal solutions 
+		push!(UB.constraints, Constraint(1//1, UB.points[1]))
+		push!(UB.constraints, Constraint(0//1, UB.points[end]))
+
+		# Constraints for each edge of the upper bound set 
+		for i in 2:length(UB.points) 
+			a2 = UB.points[i] 
+			a1 = UB.points[i-1]
+
+			λ1 = a1[2] - a2[2]
+			λ2 = a2[1] - a1[1] 
+
+			λ = λ1/(λ1 + λ2)
+
+			# Using a2 produces the same constraints as the parametric method
+			push!(UB.constraints, Constraint(λ, a2))
+		end 
 	end 
 end 
