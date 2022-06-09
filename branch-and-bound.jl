@@ -18,7 +18,7 @@ function branch!(η::Node,
                  method::Method,
                  interrupt::Bool) where T<:Real 
     
-    verbose = true
+    verbose = false
     graphic = false 
 
     # Compute the upper bound set for η 
@@ -97,8 +97,12 @@ function branch!(η::Node,
                     method, interrupt)
                 else 
                     init1 = setVariableInit(init, var, method)
-                    branch!(η1, prob, L, init1, branchingVariables, depth+1, 
-                    method, interrupt)
+                    if length(init1.seq) > 0 
+                        branch!(η1, prob, L, init1, branchingVariables, depth+1, 
+                            method, interrupt)
+                    else 
+                        verbose ? println("status : INFEASIBILITY") : nothing 
+                    end 
                 end 
             else 
                 verbose ? println("status : INFEASIBILITY") : nothing 
@@ -116,8 +120,12 @@ function branch!(η::Node,
                 method, interrupt)
             else 
                 init0 = setVariableInit(init, var, method)
-                branch!(η0, prob, L, init0, branchingVariables, depth+1, 
-                method, interrupt)
+                if length(init0.seq) > 0 
+                    branch!(η0, prob, L, init0, branchingVariables, depth+1, 
+                        method, interrupt)
+                else 
+                    verbose ? println("status : INFEASIBILITY") : nothing 
+                end 
             end 
 
         else 
