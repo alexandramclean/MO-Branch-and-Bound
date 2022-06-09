@@ -62,7 +62,11 @@ function simplex(prob::_MOMKP,
     sol, s = buildSolution(prob, init.seq, setvar) 
 
     # The critical objet constitutes an efficient basic variable 
-    c = init.seq[s] 
+    if s <= length(init.seq)
+        c = init.seq[s]
+    else 
+        c = init.seq[s-1]
+    end  
 
     # Integer solutions obtained during the compuation of the UBS
     Lη = Vector{Solution{Float64}}()
@@ -160,5 +164,6 @@ function simplex(prob::_MOMKP,
         stop       = (length(candidates) == 0)
     end 
         
+    computeConstraints!(upperBound,SIMPLEX)
     return upperBound, Lη
 end

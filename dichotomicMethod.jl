@@ -42,7 +42,7 @@ end
 # Returns the solution maximising the weighted objective defined by λ1 and λ2
 function solveWeightedSum(prob::_MOMKP,
 						  init::Initialisation,
-						  #solInit::Solution{Rational{Int}},
+						  setvar::SetVariables,
 						  λ1::Union{Int,Rational{Int}},
 						  λ2::Union{Int,Rational{Int}})
 
@@ -57,7 +57,7 @@ function solveWeightedSum(prob::_MOMKP,
 		end 
 	end 
 	seq  = sortperm(r_λ, rev=true)
-	x, s = buildSolutionDicho(prob, init, seq)
+	x, s = buildSolutionDicho(prob, init, setvar, seq)
 	return x, seq[s]
 end
 
@@ -100,17 +100,18 @@ function solveRecursion!(prob::_MOMKP,
 	λ1 = x2.z[2] - x1.z[2]
 	λ2 = x1.z[1] - x2.z[1]
 
-	@assert λ1 != 0 || λ2 != 0 
+	if λ1 != 0 || λ2 != 0 
 
-	# Calcul de la solution
-	x, breakItem = solveWeightedSum(prob, init, λ1, λ2)
-	updateBoundSets!(UB, Lη, λ1//(λ1 + λ2), x, breakItem)
+		# Calcul de la solution
+		x, breakItem = solveWeightedSum(prob, init, setvar, λ1, λ2)
+		updateBoundSets!(UB, Lη, λ1//(λ1 + λ2), x, breakItem)
 
-	# Si le point n'est pas sur le segment z(x1)z(x2) on continue la recherche
-	if λ1*x.z[1] + λ2*x.z[2] > λ1*x1.z[1] + λ2*x1.z[2]
-		solveRecursion!(prob, UB, Lη, init, setvar, x1, x)
-		solveRecursion!(prob, UB, Lη, init, setvar, x, x2)
-	end
+		# Si le point n'est pas sur le segment z(x1)z(x2) on continue la recherche
+		if λ1*x.z[1] + λ2*x.z[2] > λ1*x1.z[1] + λ2*x1.z[2]
+			solveRecursion!(prob, UB, Lη, init, setvar, x1, x)
+			solveRecursion!(prob, UB, Lη, init, setvar, x, x2)
+		end
+	end 
 end
 
 function dichotomicMethod(prob::_MOMKP, 		# Bi01KP instance 
@@ -124,10 +125,8 @@ function dichotomicMethod(prob::_MOMKP, 		# Bi01KP instance
 	Lη = Vector{Solution{Rational{Int}}}()
 
 	x12, x21 = lexicographicSolutions!(prob, UB, Lη, init, setvar) 	
-
 	solveRecursion!(prob, UB, Lη, init, setvar, x12, x21)
-
-	computeConstraints!(UB)
+	computeConstraints!(UB,DICHOTOMIC)
 
 	return UB, Lη
 end
