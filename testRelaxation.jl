@@ -17,54 +17,6 @@ include("displayGraphic.jl")
 using TimerOutputs
 const to = TimerOutput()
 
-# ----- REFERENCE SETS ------------------------------------------------------- #
-# Compute reference sets for all files in the specified folder and stores them 
-# in a format readable by the readReferenceSet function 
-function computeReferenceSets(dir::String, groupEquivItems::Bool=false)
-
-	files = readdir(dir*"dat/")
-
-	for fname in files 
-
-		println("\n", fname)
-
-		# Read the instance in the file 
-		if fname[length(fname)-3:length(fname)] == ".DAT"
-			prob = readInstanceMOMKPformatPG(false, dir*"dat/"*fname)
-
-		elseif fname[length(fname)-3:length(fname)] == ".dat"
-			prob = readInstanceKP(dir*"dat/"*fname)
-
-		else
-			prob = readInstanceMOMKPformatZL(false, dir*"dat/"*fname)
-		end
-
-		# Transform the multi-dimensional problem into a mono-dimensional problem
-		prob = multiToMonoDimensional(prob)
-		groupEquivItems ? prob = groupEquivalentItems(prob) : nothing 
-
-		# Solve the problem with vOpt
-		start = time() 
-		ref, _ = vSolveBi01IP(GLPK.Optimizer, prob.P, prob.W, prob.ω)
-		elapsed = time() - start 
-
-		# Write in a file 
-		if groupEquivItems
-			resFile = dir*"resGrouped/ref_"*fname 
-		else 
-			resFile = dir*"res/ref_"*fname 
-		end 
-
-		open(groupEquivItems, "w") do io 
-			write(io, fname*"\n")
-			write(io, string(elapsed))
-			for y in ref 
-				write(io, "\n"*string(y[1])*" "*string(y[2]))
-			end 
-		end; 
-	end 
-end 
-
 # ----- DICHOTOMIC METHOD ---------------------------------------------------- #
 # Compares the parametric method and the dichotomic method for computing the 
 # LP relaxation of instance prob
@@ -249,7 +201,8 @@ function testInstancesSimplex(dir::String, graphic=false)
 	_ = parametricMethod(didactic, init, setvar)
 
 	initSimplex = initialisation(didactic, SIMPLEX)
-	_ = simplex(didactic, initSimplex, setvar)
+	setvarSimplex = initialSetvar(didactic, initSimplex, SIMPLEX)
+	_ = simplex(didactic, initSimplex, setvarSimplex)
 	
 	files = readdir(dir)
 	for fname in files
@@ -277,12 +230,14 @@ function compareUBS(fname::String, nIter::Int)
 	_ = parametricMethod(didactic, init, setvar)
 
 	# Dichotomic method 
-	initDicho = initialisation(didactic, DICHOTOMIC)
-	_ = dichotomicMethod(didactic, initDicho)
+	initDicho   = initialisation(didactic, DICHOTOMIC)
+	setvarDicho = initialSetvar(didactic, initDicho, DICHOTOMIC)
+	_ = dichotomicMethod(didactic, initDicho, setvarDicho)
 	
 	# Simplex algorithm 
-	initSimplex = initialisation(didactic, SIMPLEX) 
-	_ = simplex(didactic, initSimplex, setvar)
+	initSimplex   = initialisation(didactic, SIMPLEX) 
+	setvarSimplex = initialSetvar(didactic, initSimplex, SIMPLEX)
+	_ = simplex(didactic, initSimplex, setvarSimplex)
 
 	if fname[length(fname)-3:length(fname)] == ".DAT"
 		prob = readInstanceMOMKPformatPG(false, fname)
@@ -305,88 +260,18 @@ function compareUBS(fname::String, nIter::Int)
 		# Dichotomic method 
 		@timeit to "Dichotomic method" begin 
 			@timeit to "Initialisation" initDicho = initialisation(prob, DICHOTOMIC)
+			@timeit to "setvar" setvarDicho = initialSetvar(prob, initDicho, DICHOTOMIC)
 			@timeit to "Relaxation" _ = 
-				dichotomicMethod(prob, initDicho)
+				dichotomicMethod(prob, initDicho, setvarDicho)
 		end 
 
 		# Simplex algorithm 
 		@timeit to "Simplex" begin 
 			@timeit to "Initialisaiton" initSimplex = initialisation(prob, SIMPLEX)
+			@timeit to "setvar" setvarSimplex = initialSetvar(prob, initSimplex, SIMPLEX)
 			@timeit to "Relaxation" _ = 
-				simplex(prob, initSimplex, setvar) 
+				simplex(prob, initSimplex, setvarSimplex) 
 		end 
 	end 
 end 
-
-# ----- BRANCH-AND-BOUND ----------------------------------------------------- #
-# Tests the branch-and-bound algorithm on the instance in file fname 
-function testBranchAndBound(fname::String, 
-							ref::Vector{Vector{Float64}},
-							method::Method=PARAMETRIC_LP,
-							interrupt::Bool=false,
-							initialisation::Bool=false,
-							groupEquivItems::Bool=false
-						   ) where T<:Real 
-
-	println("\n", basename(fname))
-
-	# Read the instance in the file 
-	prob = readInstance(fname)
-
-	groupEquivItems ? prob = groupEquivalentItems(prob) : nothing 
-
-	if initialisation 
-		@timeit to "Supported efficient" L = dichotomicMethod(prob) 
-	else 
-		if method == DICHOTOMIC 
-			L = Vector{Solution{Rational{Int}}}()
-		else 
-			L = Vector{Solution{Float64}}()
-		end 
-	end 
-
-	# Branch-and-bound 
-	#@timeit to "Branch-and-bound" 
-	@time L = branchAndBound(prob, L, method, interrupt)
-
-	if !(ref == [sol.z for sol in L])
-		println("The solutions obtained by the branch-and-bound algorithm must be identical to those in the reference set")
-	end
-end 
-
-# Tests the branch-and-bound algorithm on all instances in directory dir 
-function testInstancesBranchAndBound(dir::String, 
-									 method::Method=PARAMETRIC_LP,
-									 interrupt::Bool=false,
-									 initialisation::Bool=false,
-									 groupEquivItems::Bool=false,
-									)
-
-	# Exemple didactique 
-	didactic = _MOMKP([11 2 8 10 9 1 ; 2 7 8 4 1 3], [4 4 6 4 3 2], [11])
-	if initialisation 
-		L = dichotomicMethod(didactic) 
-	else 
-		if method == DICHOTOMIC 
-			L = Vector{Solution{Rational{Int}}}()
-		else 
-			L = Vector{Solution{Float64}}()
-		end 
-	end 
-
-	# Branch-and-bound 
-	L = branchAndBound(didactic, L, method, interrupt)
-
-	files = readdir(dir*"dat/")
-	for fname in files 
-		# Get the reference set 
-		if groupEquivItems
-			ref = readReferenceSet(dir*"resGrouped/ref_"*fname)
-		else 
-			ref = readReferenceSet(dir*"res/ref_"*fname)
-		end 
-
-		testBranchAndBound(dir*"dat/"*fname, ref, method, interrupt, 
-			initialisation, groupEquivItems)
-	end 
-end 
+ 
