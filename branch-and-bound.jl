@@ -38,7 +38,9 @@ function branch!(η::Node,
     end 
 
     # Pruning 
-    η.status = prune(η, L, Lη)
+    if !interrupt 
+        η.status = prune(η, L, Lη)
+    end 
 
     # Adding any integer solutions found during the computation of the UBS
     # to the incumbent set 
@@ -51,14 +53,14 @@ function branch!(η::Node,
 
     if verbose 
         println("depth = ", depth)
-        println("status : ", η.status)
+        #println("status : ", η.status)
         println("L = ", [sol.z for sol in L])
         println("Lη = ", Lη)
         println("U(η) = ", η.UB.points)
-        println("Constraints : ", η.UB.constraints)
-        println("solInit.X = ", η.solInit.X)
-        println("solInit.z = ", η.solInit.z)
-        println("solInit.ω_ = ", η.solInit.ω_)
+        #println("Constraints : ", η.UB.constraints)
+        #println("solInit.X = ", η.solInit.X)
+        #println("solInit.z = ", η.solInit.z)
+        #println("solInit.ω_ = ", η.solInit.ω_)
         println("setvar = ", η.setvar)
     end     
 
@@ -97,7 +99,7 @@ function branch!(η::Node,
                     method, interrupt)
                 else 
                     init1 = setVariableInit(init, var, method)
-                    if length(init1.seq) > 0 
+                    if (method == SIMPLEX && length(init1.seq) > 0) || method == DICHOTOMIC  
                         branch!(η1, prob, L, init1, branchingVariables, depth+1, 
                             method, interrupt)
                     else 
@@ -120,7 +122,7 @@ function branch!(η::Node,
                 method, interrupt)
             else 
                 init0 = setVariableInit(init, var, method)
-                if length(init0.seq) > 0 
+                if (method == SIMPLEX && length(init0.seq) > 0) || method == DICHOTOMIC 
                     branch!(η0, prob, L, init0, branchingVariables, depth+1, 
                         method, interrupt)
                 else 
