@@ -81,6 +81,7 @@ function lexicographicSolutions!(prob::_MOMKP,
 	return x12, x21
 end
 
+# ----- WITHOUT INTERRUPTION ------------------------------------------------- #
 function solveRecursion!(prob::_MOMKP,
 						 UB::DualBoundSet{Rational{Int}},
 						 Lη::Vector{Solution{Rational{Int}}},
@@ -108,8 +109,7 @@ end
 
 function dichotomicMethod(prob::_MOMKP, 		# Bi01KP instance 
 						  init::Initialisation, # Utilities
-						  setvar::SetVariables,
-						  interrupt::Bool=false) 
+						  setvar::SetVariables) 
 
 	# Upper bound set 
 	UB = DualBoundSet{Rational{Int}}()
@@ -121,4 +121,89 @@ function dichotomicMethod(prob::_MOMKP, 		# Bi01KP instance
 	solveRecursion!(prob, UB, Lη, init, setvar, x12, x21)
 
 	return UB, Lη
+end
+
+# ----- WITH INTERRUPTION ---------------------------------------------------- # 
+function solveRecursion!(prob::_MOMKP,
+						 UB::DualBoundSet{Rational{Int}},
+						 L::Vector{Solution{Rational{Int}}},
+						 toBeTested::Vector{Int},
+						 numberNadirsLeft::Int,
+						 Lη::Vector{Solution{Rational{Int}}},
+						 init::Initialisation, 
+						 setvar::SetVariables,
+						 x1::Solution{Rational{Int}},
+						 x2::Solution{Rational{Int}})
+
+	# Calcul de la direction λ
+	λ1 = x2.z[2] - x1.z[2]
+	λ2 = x1.z[1] - x2.z[1]
+
+	if λ1 != 0 || λ2 != 0 
+
+		# Calcul de la solution
+		x, breakItem = solveWeightedSum(prob, init, setvar, λ1, λ2)
+		updateBoundSets!(UB, Lη, λ1//(λ1 + λ2), x, breakItem)
+
+		# Tester si la nouvelle contrainte est satisfaite par les nadirs locaux 
+		for i in 1:length(toBeTested) 
+
+			j = toBeTested[i] 
+
+			if j != 0 
+				λ     = UB.constraints[end].λ
+				point = UB.constraints[end].point 
+
+				# Shifted local nadir point 
+				nadir = [L[j-1].z[1]+1., L[j].z[2]+1.]
+
+				if λ*nadir[1] + (1-λ)*nadir[2] > λ*point[1] + (1-λ)*point[2] 
+					toBeTested[i]     = 0
+					numberNadirsLeft -= 1 
+				end 
+			end 
+		end 
+
+		# Si le point n'est pas sur le segment z(x1)z(x2) on continue la recherche
+		if λ1*x.z[1] + λ2*x.z[2] > λ1*x1.z[1] + λ2*x1.z[2] && numberNadirsLeft > 0
+			solveRecursion!(prob, UB, L, toBeTested, numberNadirsLeft, Lη, init, setvar, x1, x)
+			solveRecursion!(prob, UB, L, toBeTested, numberNadirsLeft, Lη, init, setvar, x, x2)
+		end
+	end 
+end
+
+function dichotomicMethod(prob::_MOMKP, 					  # Bi01KP instance 
+						  L::Vector{Solution{Rational{Int}}}, # Lower bound set
+						  init::Initialisation, 			  # Utilities
+						  setvar::SetVariables) 
+
+	# Upper bound set 
+	UB = DualBoundSet{Rational{Int}}()
+
+	# Used to determine if the computation of the upper bound set can be interrupted
+	toBeTested = [i for i in 2:length(L)]
+	numberNadirsLeft = length(toBeTested)
+
+	# Integer solutions obtained during the computation of the UBS 
+	Lη = Vector{Solution{Rational{Int}}}()
+
+	x12, x21 = lexicographicSolutions!(prob, UB, Lη, init, setvar) 	
+	solveRecursion!(prob, UB, L, toBeTested, numberNadirsLeft, Lη, init, setvar, x12, x21)
+
+	# Status of the node 
+	numberNadirsLeft = 0
+	for i in 1:length(toBeTested)
+		if toBeTested[i] != 0 
+			numberNadirsLeft += 1
+		end 
+	end 
+
+	# If there are no local nadirs left that verify the constraints the node is pruned 
+	if numberNadirsLeft == 0 
+		status = DOMINANCE
+	else 
+		status = NOTPRUNED
+	end 
+
+	return Lη, status 
 end

@@ -23,8 +23,13 @@ function branch!(η::Node,
 
     # Compute the upper bound set for η 
     if interrupt 
-        @timeit to "Upper bound" Lη, η.status = 
-            parametricLPrelaxation(prob, L, init, η.setvar, true)
+        if method == PARAMETRIC_LP 
+            @timeit to "Upper bound" Lη, η.status = 
+                parametricLPrelaxation(prob, L, init, η.setvar, true)
+        else 
+            @timeit to "Upper bound" Lη, η.status = 
+                dichotomicMethod(prob, L, init, η.setvar)
+        end 
 
     elseif method == PARAMETRIC_LP 
         @timeit to "Upper bound" η.UB, Lη = 
@@ -33,7 +38,7 @@ function branch!(η::Node,
     elseif method == DICHOTOMIC 
         @timeit to "Upper bound" η.UB, Lη = dichotomicMethod(prob, init, η.setvar)
     
-    else # Simplex algorithm 
+    else 
         @timeit to "Upper bound" η.UB, Lη = simplex(prob, init, η.setvar)
     end 
 
@@ -48,7 +53,6 @@ function branch!(η::Node,
         @timeit to "Ordered List" add!(L, sol)
     end 
 
-    #solInit = initialSolution(prob, η.setvar)
     @timeit to "Ordered List" add!(L, η.solInit)
 
     if verbose 
@@ -76,7 +80,7 @@ function branch!(η::Node,
 
             if prob.W[1,var] <= η.solInit.ω_ 
                 # var can be assigned to 1 
-                setvar1 = setVariable(init, η.setvar, var, 1, method) 
+                @timeit to "setvar" setvar1 = setVariable(init, η.setvar, var, 1, method) 
 
                 if method == DICHOTOMIC
                     @timeit to "solInit" solInit1 = Solution{Rational{Int}}(
@@ -98,7 +102,7 @@ function branch!(η::Node,
                     branch!(η1, prob, L, init, branchingVariables, depth+1, 
                     method, interrupt)
                 else 
-                    init1 = setVariableInit(init, var, method)
+                    @timeit to "setvar" init1 = setVariableInit(init, var, method)
                     if (method == SIMPLEX && length(init1.seq) > 0) || method == DICHOTOMIC  
                         branch!(η1, prob, L, init1, branchingVariables, depth+1, 
                             method, interrupt)
@@ -113,7 +117,7 @@ function branch!(η::Node,
             # var is set to 0
             verbose ? println("\n", var, " is set to 0") : nothing
 
-            setvar0 = setVariable(init, η.setvar, var, 0, method)
+            @timeit to "setvar" setvar0 = setVariable(init, η.setvar, var, 0, method)
 
             η0 = Node(nothing, setvar0, η.solInit, NOTPRUNED)
 
@@ -121,7 +125,7 @@ function branch!(η::Node,
                 branch!(η0, prob, L, init, branchingVariables, depth+1, 
                 method, interrupt)
             else 
-                init0 = setVariableInit(init, var, method)
+                @timeit to "setvar" init0 = setVariableInit(init, var, method)
                 if (method == SIMPLEX && length(init0.seq) > 0) || method == DICHOTOMIC 
                     branch!(η0, prob, L, init0, branchingVariables, depth+1, 
                         method, interrupt)
