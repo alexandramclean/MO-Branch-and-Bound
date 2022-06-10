@@ -548,7 +548,7 @@ function updateBoundSets!(UB::DualBoundSet{Rational{Int}},
 						  breakItem::Int)
 
 	add!(UB.points, copy(sol.z))
-	#push!(UB.constraints, Constraint(λ, sol.z))
+	push!(UB.constraints, Constraint(λ, sol.z))
 	if isInteger(sol, breakItem) 
 		add!(Lη, Solution(copy(sol.X), copy(sol.z), sol.ω_)) 
 	end 
@@ -568,11 +568,11 @@ function updateBoundSets!(UB::DualBoundSet{Float64},
 			@assert length(UB.points) == 1 "There are no constraints because the 
 			first point has just been added"
 			push!(UB.constraints, Constraint(1//1, sol.z))
-		else 
-			λ1 = abs(sol.z[2] - UB.points[end][2])
-			λ2 = abs(sol.z[1] - UB.points[end][1])
+		elseif !identicalToPrevious(UB, sol.z) 
+			λ1 = sol.z[2] - UB.points[end][2]
+			λ2 = UB.points[end][1] -sol.z[1]
 			λ  = λ1/(λ1 + λ2)
-			push!(UB.constraints, Constraint(λ, sol.z))
+			push!(UB.constraints, Constraint(λ, UB.points[end]))
 		end =#
 
 		if isInteger(sol, breakItem) 
@@ -586,6 +586,7 @@ end
 function computeConstraints!(UB::DualBoundSet, method::Method)
 
 	if method == DICHOTOMIC
+
 		# Constraints associated with the lexicographically optimal solutions 
 		push!(UB.constraints, Constraint(1//1, UB.points[end]))
 		push!(UB.constraints, Constraint(0//1, UB.points[1]))
@@ -598,7 +599,7 @@ function computeConstraints!(UB::DualBoundSet, method::Method)
 			λ1 = a1[2] - a2[2]
 			λ2 = a2[1] - a1[1] 
 
-			λ = λ1/(λ1 + λ2)
+			λ = λ1//(λ1 + λ2)
 
 			# Using a2 produces the same constraints as the parametric method
 			push!(UB.constraints, Constraint(λ, a2))

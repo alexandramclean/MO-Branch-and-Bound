@@ -67,24 +67,16 @@ function lexicographicSolutions!(prob::_MOMKP,
 								 Lη::Vector{Solution{Rational{Int}}},
 								 init::Initialisation,
 								 setvar::SetVariables)
-
-	println("\nLexicographic solutions \nUB = ", UB.points)
 	
 	# Lexicographically optimal solution for z^(1,2) 
 	seq12  = sortperm(1000000*init.r1 + init.r2, rev=true) 
 	x12, s = buildSolutionDicho(prob, init, setvar, seq12)
-	println("x12 : ", x12.z)
-	updateBoundSets!(UB, Lη, x12, seq12[s])
-	println("UB = ", UB.points)
+	updateBoundSets!(UB, Lη, 1//1, x12, seq12[s])
 	
 	# Lexicographically optimal solution for z^(2,1) 
 	seq21  = sortperm(init.r1 + 1000000*init.r2, rev=true) 
-	println(seq21)
 	x21, s = buildSolutionDicho(prob, init, setvar, seq21) 
-	println("x21 : ", x21.z)
-	updateBoundSets!(UB, Lη, x21, seq21[s])
-	println("UB = ", UB.points)
-	println()
+	updateBoundSets!(UB, Lη, 0//1, x21, seq21[s])
 
 	return x12, x21
 end
@@ -116,7 +108,8 @@ end
 
 function dichotomicMethod(prob::_MOMKP, 		# Bi01KP instance 
 						  init::Initialisation, # Utilities
-						  setvar::SetVariables) 
+						  setvar::SetVariables,
+						  interrupt::Bool=false) 
 
 	# Upper bound set 
 	UB = DualBoundSet{Rational{Int}}()
@@ -126,7 +119,6 @@ function dichotomicMethod(prob::_MOMKP, 		# Bi01KP instance
 
 	x12, x21 = lexicographicSolutions!(prob, UB, Lη, init, setvar) 	
 	solveRecursion!(prob, UB, Lη, init, setvar, x12, x21)
-	computeConstraints!(UB,DICHOTOMIC)
 
 	return UB, Lη
 end
