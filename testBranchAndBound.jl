@@ -61,9 +61,8 @@ end
 function testBranchAndBound(fname::String, 
 							ref::Vector{Vector{Float64}},
 							method::Method=PARAMETRIC_LP,
-							interrupt::Bool=false,
 							initialisation::Bool=false,
-							groupEquivItems::Bool=false
+							interrupt::Bool=false							
 						   ) where T<:Real 
 
 	println("\n", basename(fname))
@@ -71,7 +70,7 @@ function testBranchAndBound(fname::String,
 	# Read the instance in the file 
 	prob = readInstance(fname)
 
-	groupEquivItems ? prob = groupEquivalentItems(prob) : nothing 
+	#groupEquivItems ? prob = groupEquivalentItems(prob) : nothing 
 
 	if initialisation 
 		@timeit to "Supported efficient" L = dichotomicMethod(prob) 
@@ -94,10 +93,8 @@ end
 # Tests the branch-and-bound algorithm on all instances in directory dir 
 function testInstancesBranchAndBound(dir::String, 
 									 method::Method=PARAMETRIC_LP,
-									 interrupt::Bool=false,
 									 initialisation::Bool=false,
-									 groupEquivItems::Bool=false,
-									)
+									 interrupt::Bool=false)
 
 	# Exemple didactique 
 	didactic = didacticInstance()
@@ -117,14 +114,13 @@ function testInstancesBranchAndBound(dir::String,
 	files = readdir(dir*"dat/")
 	for fname in files 
 		# Get the reference set 
-		if groupEquivItems
-			ref = readReferenceSet(dir*"resGrouped/ref_"*fname)
-		else 
+		#if groupEquivItems
+		#	ref = readReferenceSet(dir*"resGrouped/ref_"*fname)
+		#else 
 			ref = readReferenceSet(dir*"res/ref_"*fname)
-		end 
+		#end 
 
-		testBranchAndBound(dir*"dat/"*fname, ref, method, interrupt, 
-			initialisation, groupEquivItems)
+		testBranchAndBound(dir*"dat/"*fname, ref, method, initialisation, interrupt)
 	end 
 end 
 
