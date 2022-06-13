@@ -106,8 +106,8 @@ function parametricMethod(prob::_MOMKP,           # Bi01KP instance
 						 ) where T<:Real
 
 	# Creates copies of the sequence and positions as they will be modified 
-	seq = setvar.seq[1:end] 
-	pos = setvar.pos[1:end] 
+	seq = init.seq[1:end] 
+	pos = init.pos[1:end] 
 	
 	# Builds the initial solution
 	sol, s = buildSolution(prob, seq, setvar)
@@ -126,14 +126,10 @@ function parametricMethod(prob::_MOMKP,           # Bi01KP instance
 	numberCasesIdenticalWeights = 0
 
 	iter = 1 
-	while iter <= length(setvar.transpInd)
+	while iter <= length(init.transpositions)
 
-		# The first integer in the list is the index of the critical weight 
-		# The others are the indices of the corresponding pairs 
-		ind = setvar.transpInd[iter][1]
-
-		λ     = init.transpositions[ind].λ 
-		pairs = init.transpositions[ind].pairs[setvar.transpInd[iter][2:end]]
+		λ     = init.transpositions[iter].λ 
+		pairs = init.transpositions[iter].pairs
 
 		# Multiple identical critical weights
 		if length(pairs) > 1

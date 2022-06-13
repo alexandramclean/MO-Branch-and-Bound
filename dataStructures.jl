@@ -101,7 +101,8 @@ DualBoundSet{Rational{Int}}() = DualBoundSet(Vector{Rational{Int}}[], Constraint
 # Data structure representing a node in a branch-and-bound algorithm
 mutable struct Node 
     UB::Union{DualBoundSet,Nothing} # Upper bound set for the node
-    setvar::Union{SetVariables,Initialisation} # Initialisation for the node 
+    setvar::Union{SetVariables}     # List of set variables
+    init::Initialisation 
     solInit::Solution               # Initial solution with set variables
     # Indicates whether the node has been pruned and for what reason 
     status::Status                   

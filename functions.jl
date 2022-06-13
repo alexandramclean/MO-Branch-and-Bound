@@ -183,13 +183,12 @@ function initialSetvar(prob::_MOMKP,
 end 
 
 # Remove a variable from the initialisation data 
-function setVariable(init::Initialisation,
-					 parent_setvar::SetVariables, 
+function setVariable(parent_setvar::SetVariables, 
 					 var::Int,					  # Variable to set 
 					 val::Int, 					  # Value to set it to
 					 method::Method)			  # Method for computing the UBS
 
-	if method == PARAMETRIC_LP || method == PARAMETRIC_MT
+	#=if method == PARAMETRIC_LP || method == PARAMETRIC_MT
 
 		newTranspInd = Vector{Vector{Int}}() 
 		newPos       = copy(parent_setvar.pos)
@@ -250,7 +249,7 @@ function setVariable(init::Initialisation,
 								newTranspInd, newSeq, newPos)
 		end
 
-	else # Dichotomic method and simplex algorithm
+	else =#
 		if val == 0 
 			return SetVariables(parent_setvar.setToOne, 
 								vcat(parent_setvar.setToZero, [var]), 
@@ -260,16 +259,59 @@ function setVariable(init::Initialisation,
 								parent_setvar.setToZero,
 								nothing, nothing, nothing)
 		end
-	end 
+	#end 
 end
 
-# Remove a variable from the initialisation data (for the dichotomic method and 
-# the simplex algorithm)
+# Remove a variable from the initialisation data
 function setVariableInit(init::Initialisation, 
 						 var::Int, 
 						 method::Method)
 
-	if method == SIMPLEX 
+	if method == PARAMETRIC_LP || method == PARAMETRIC_MT
+
+		# The variable is removed form the sequence 
+		newSeq = removeFromSequence(init.seq, var)
+
+		newPos = copy(init.pos)
+		# The positions of items after var in the sequence are diminished by 1
+		for p in init.pos[var]+1:length(init.seq)
+			newPos[init.seq[p]] = init.pos[init.seq[p]] - 1
+		end
+
+		newTranspositions = Vector{Transposition}()
+		# The variable is removed from the set of transpositions
+		for i in 1:length(init.transpositions)
+
+			# Corresponding transposition 
+			t = init.transpositions[i] 
+
+			if length(t.pairs) > 1 
+
+				swaps = Tuple{Int,Int}[] 
+				for pair in t.pairs
+					if !(var in pair)
+						push!(swaps, pair)
+					end 
+				end 
+
+				if length(swaps) > 0 
+					# The index of the critical weights and its associated 
+					# pairs that do not contain var are inserted 
+					push!(newTranspositions, Transposition(t.λ,swaps))
+				end 
+			else 
+
+				if !(var in t.pairs[1])
+					# The index of the critical weight and its only associated
+					# pair are inserted 
+					push!(newTranspositions, Transposition(t.λ,t.pairs))
+				end 
+			end 
+		end 
+
+		return Initialisation(nothing, nothing, newTranspositions, newSeq, newPos)
+						
+	elseif method == SIMPLEX 
 
 		n = length(init.r1) 
 

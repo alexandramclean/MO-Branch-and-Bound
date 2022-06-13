@@ -12,7 +12,6 @@ include("lpRelaxation.jl")
 function branch!(η::Node, 
                  prob::_MOMKP, 
                  L::Vector{Solution{T}}, 
-                 init::Initialisation, 
                  branchingVariables::Vector{Int}, 
                  depth::Int,
                  method::Method,
@@ -25,26 +24,26 @@ function branch!(η::Node,
     if interrupt 
         if method == PARAMETRIC_LP 
             @timeit to "Upper bound" Lη, η.status = 
-                parametricLPrelaxation(prob, L, init, η.setvar, true)
+                parametricLPrelaxation(prob, L, η.init, η.setvar, true)
         else 
             @timeit to "Upper bound" Lη, η.status = 
-                dichotomicMethod(prob, L, init, η.setvar)
+                dichotomicMethod(prob, L, η.init, η.setvar)
         end 
 
     elseif method == PARAMETRIC_LP 
         @timeit to "Upper bound" η.UB, Lη = 
-            parametricMethod(prob, init, η.setvar) 
+            parametricMethod(prob, η.init, η.setvar) 
 
     elseif method == DICHOTOMIC 
-        @timeit to "Upper bound" η.UB, Lη = dichotomicMethod(prob, init, η.setvar)
+        @timeit to "Upper bound" η.UB, Lη = dichotomicMethod(prob, η.init, η.setvar)
     
     else 
-        @timeit to "Upper bound" η.UB, Lη = simplex(prob, init, η.setvar)
+        @timeit to "Upper bound" η.UB, Lη = simplex(prob, η.init, η.setvar)
     end 
 
     # Pruning 
     if !interrupt 
-        η.status = prune(η, L, Lη)
+        @timeit to "prune" η.status = prune(η, L, Lη)
     end 
 
     # Adding any integer solutions found during the computation of the UBS
@@ -80,7 +79,7 @@ function branch!(η::Node,
 
             if prob.W[1,var] <= η.solInit.ω_ 
                 # var can be assigned to 1 
-                @timeit to "setvar" setvar1 = setVariable(init, η.setvar, var, 1, method) 
+                @timeit to "setvar" setvar1 = setVariable(η.setvar, var, 1, method) 
 
                 if method == DICHOTOMIC
                     @timeit to "solInit" solInit1 = Solution{Rational{Int}}(
@@ -96,19 +95,14 @@ function branch!(η::Node,
                 end 
                 solInit1.X[var] = 1
 
-                η1 = Node(nothing, setvar1, solInit1, NOTPRUNED) 
+                @timeit to "setvarInit" init1 = setVariableInit(η.init, var, method)
+                η1 = Node(nothing, setvar1, init1, solInit1, NOTPRUNED) 
 
-                if method == PARAMETRIC_LP || method == PARAMETRIC_MT
-                    branch!(η1, prob, L, init, branchingVariables, depth+1, 
+                if method == DICHOTOMIC || length(init1.seq) > 0
+                    branch!(η1, prob, L, branchingVariables, depth+1, 
                     method, interrupt)
                 else 
-                    @timeit to "setvar" init1 = setVariableInit(init, var, method)
-                    if (method == SIMPLEX && length(init1.seq) > 0) || method == DICHOTOMIC  
-                        branch!(η1, prob, L, init1, branchingVariables, depth+1, 
-                            method, interrupt)
-                    else 
-                        verbose ? println("status : INFEASIBILITY") : nothing 
-                    end 
+                    verbose ? println("status : INFEASIBILITY") : nothing 
                 end 
             else 
                 verbose ? println("status : INFEASIBILITY") : nothing 
@@ -117,21 +111,15 @@ function branch!(η::Node,
             # var is set to 0
             verbose ? println("\n", var, " is set to 0") : nothing
 
-            @timeit to "setvar" setvar0 = setVariable(init, η.setvar, var, 0, method)
+            @timeit to "setvar" setvar0 = setVariable(η.setvar, var, 0, method)
+            @timeit to "setvarInit" init0 = setVariableInit(η.init, var, method)
+            η0 = Node(nothing, setvar0, init0, η.solInit, NOTPRUNED)
 
-            η0 = Node(nothing, setvar0, η.solInit, NOTPRUNED)
-
-            if method == PARAMETRIC_LP || method == PARAMETRIC_MT
-                branch!(η0, prob, L, init, branchingVariables, depth+1, 
+            if method == DICHOTOMIC || length(init0.seq) > 0 
+                branch!(η0, prob, L, branchingVariables, depth+1, 
                 method, interrupt)
-            else 
-                @timeit to "setvar" init0 = setVariableInit(init, var, method)
-                if (method == SIMPLEX && length(init0.seq) > 0) || method == DICHOTOMIC 
-                    branch!(η0, prob, L, init0, branchingVariables, depth+1, 
-                        method, interrupt)
-                else 
-                    verbose ? println("status : INFEASIBILITY") : nothing 
-                end 
+            else  
+                verbose ? println("status : INFEASIBILITY") : nothing 
             end 
 
         else 
@@ -174,7 +162,7 @@ function branchAndBound(prob::_MOMKP, # Bi01KP instance
         end 
     end 
 
-    rootNode = Node(nothing, setvar, solInit, NOTPRUNED)
+    rootNode = Node(nothing, setvar, init, solInit, NOTPRUNED)
 
     # Computes the ranks for each variable 
     rank1, rank2 = ranks(init.r1, init.r2)
@@ -182,7 +170,7 @@ function branchAndBound(prob::_MOMKP, # Bi01KP instance
     branchingVariables = sumRank(rank1, rank2, INCREASING)
 
     # Recursive branching function 
-    branch!(rootNode, prob, L, init, branchingVariables, 1, method, interrupt)
+    branch!(rootNode, prob, L, branchingVariables, 1, method, interrupt)
 
     return L 
 end 
