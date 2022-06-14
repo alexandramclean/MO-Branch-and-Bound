@@ -21,7 +21,7 @@ function didacticInstance()
 end 
 
 function example()
-    return _MOMKP([11 8 2 8 10 9 1 16 ; 2 8 7 8 4 1 3 4], [4 6 4 6 4 3 2 6], [13])
+    return _MOMKP([11 8 2 2 10 1 16 ; 2 8 10 10 4 11 4], [4 6 4 4 4 2 6], [13])
 end 
 
 # ----- SOLUTIONS ------------------------------------------------------------ #
